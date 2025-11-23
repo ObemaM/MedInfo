@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <item
+        android:id="@+id/nav_active"
+        android:title="Активные" />
+
+    <item
+        android:id="@+id/nav_archive"
+        android:title="Архив" />
+
+    <item
+        android:id="@+id/nav_profile"
+        android:title="Профиль" />
+
+</menu>
