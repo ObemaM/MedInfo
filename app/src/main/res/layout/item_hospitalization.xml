@@ -3,7 +3,8 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="12dp">
+    android:padding="12dp"
+    android:background="?android:attr/selectableItemBackground">
 
     <TextView
         android:id="@+id/patientName"
@@ -14,20 +15,7 @@
     <TextView
         android:id="@+id/status"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
-
-    <Button
-        android:id="@+id/markAsViewed"
-        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Просмотрено"
-        android:layout_marginTop="8dp" />
-
-    <Button
-        android:id="@+id/conferenceButton"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Конференция"
-        android:layout_marginTop="8dp" />
+        android:layout_marginTop="4dp" />
 
 </LinearLayout>

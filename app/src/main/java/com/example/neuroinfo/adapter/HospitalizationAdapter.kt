@@ -10,14 +10,14 @@ import com.example.neuroinfo.R
 import com.example.neuroinfo.model.Hospitalization
 
 class HospitalizationAdapter(
-    private val items: List<Hospitalization>,
-    private val onMarkAsViewed: (Int) -> Unit
+    private var items: List<Hospitalization>,
+    private val onCallClicked: (Int) -> Unit
 ) : RecyclerView.Adapter<HospitalizationAdapter.ViewHolder>() {
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val name: TextView = itemView.findViewById(R.id.patientName)
         val status: TextView = itemView.findViewById(R.id.status)
-        val markAsViewed: Button = itemView.findViewById(R.id.markAsViewed)
+
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -28,12 +28,19 @@ class HospitalizationAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val item = items[position]
-        holder.name.text = item.name
+        holder.name.text = item.patientName
         holder.status.text = item.status
-        holder.markAsViewed.setOnClickListener {
-            onMarkAsViewed(position)
+
+        holder.itemView.setOnClickListener {
+            onCallClicked(position)
         }
     }
 
     override fun getItemCount() = items.size
+
+    // Новый метод для обновления списка (фильтрация)
+    fun updateList(newList: List<Hospitalization>) {
+        items = newList
+        notifyDataSetChanged()
+    }
 }
