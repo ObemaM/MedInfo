@@ -1,9 +1,22 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
     <style name="Base.Theme.Neuroinfo" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your light theme here. -->
-        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="colorPrimary">@color/blue_1</item>
+        <item name="android:fontFamily">@font/cascadiamono</item> <!-- Set default font -->
     </style>
 
     <style name="Theme.Neuroinfo" parent="Base.Theme.Neuroinfo" />
+
+    <style name="App.Custom.Indicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
+        <item name="android:color">#4682b4</item>
+    </style>
+
+    <style name="CustomTabTextStyle" parent="TextAppearance.AppCompat.Button">
+        <item name="android:textSize">16sp</item> <!-- Изменения размера шрифта для нижнего меню (Активное/Архив) -->
+    </style>
+
+    <style name="CustomToolbarTitleTextStyle" parent="@style/TextAppearance.Widget.AppCompat.Toolbar.Title">
+        <item name="android:textSize">18sp</item> <!-- Изменение размера шрифта для заголовка - СПИСОК ПАЦИЕНТОВ -->
+    </style>
+
 </resources>

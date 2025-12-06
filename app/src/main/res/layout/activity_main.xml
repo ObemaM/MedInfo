@@ -1,34 +1,149 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:background="@color/md_theme_background"
+    android:fitsSystemWindows="true">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <!-- Header Container -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/header_layout"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Информатор невролога"
-        android:textSize="24sp"
-        android:textColor="#4B0082"
-        android:layout_margin="16dp" />
+        app:cardCornerRadius="0dp"
+        app:cardElevation="8dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent">
+
+        <com.google.android.material.appbar.MaterialToolbar
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:background="@color/md_theme_surface"
+            app:title="СПИСОК ПАЦИЕНТОВ"
+            app:titleTextAppearance="@style/CustomToolbarTitleTextStyle"
+            app:titleTextColor="#42474c">
+
+            <ImageButton
+                android:id="@+id/profile_button"
+                android:layout_width="50dp"
+                android:layout_height="50dp"
+                android:layout_gravity="end"
+                android:layout_marginEnd="16dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Профиль"
+                android:padding="12dp"
+                android:scaleType="fitCenter"
+                android:src="@drawable/user"
+                app:tint="@color/md_theme_onSurface" />
+
+        </com.google.android.material.appbar.MaterialToolbar>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Search and Filter Container -->
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/search_filter_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:padding="16dp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/header_layout">
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/search_input_layout"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="16dp"
+            app:boxStrokeColor="@color/search_text_input_colors"
+            app:hintTextColor="@color/search_text_input_colors"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toStartOf="@+id/filter_button"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:startIconDrawable="@drawable/ic_search_24"
+            app:startIconTint="@color/search_text_input_colors">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/search_edit_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/cascadiamono"
+                android:hint="Поиск"
+                android:textColor="#42474c"
+                android:textCursorDrawable="@null" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <ImageButton
+            android:id="@+id/filter_button"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_filter_24"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:tint="#42474c" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_weight="1" />
+        android:overScrollMode="never"
+        android:paddingLeft="8dp"
+        android:paddingRight="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/tab_layout_container"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/search_filter_container"
+        app:layout_constraintVertical_bias="0.0"
+        tools:listitem="@layout/item_hospitalization" />
 
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottomNav"
-        android:layout_width="match_parent"
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/tab_layout_container"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        app:menu="@menu/bottom_nav_menu" />
-    <Button
-        android:id="@+id/testCallButton"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="ТЕСТ: Входящий вызов"
-        android:layout_marginTop="16dp" />
+        app:cardCornerRadius="0dp"
+        app:cardElevation="8dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
 
-</LinearLayout>
+        <com.google.android.material.tabs.TabLayout
+            android:id="@+id/tab_layout"
+            android:layout_width="match_parent"
+            android:layout_height="70dp"
+            android:background="@color/md_theme_surface"
+            app:tabGravity="center"
+            app:tabIndicatorColor="@color/md_theme_primary"
+            app:tabMode="fixed"
+            app:tabPaddingStart="40dp"
+            app:tabPaddingEnd="40dp"
+            app:tabSelectedTextColor="@color/md_theme_primary"
+            app:tabTextAppearance="@style/CustomTabTextStyle"
+            app:tabTextColor="@color/md_theme_onSurfaceVariant">
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Активные" />
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Архив" />
+
+        </com.google.android.material.tabs.TabLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
