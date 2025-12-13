@@ -5,63 +5,103 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Bundle
 import android.view.View
-import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import com.example.neuroinfo.R
+import com.example.neuroinfo.R // Убедитесь, что R.id.* существует
+import com.example.neuroinfo.data.LoginRepository
+import com.example.neuroinfo.data.RetrofitClient
 import com.example.neuroinfo.ui.main.MainActivity
+import com.example.neuroinfo.util.toSha256
+
+// Импорты для асинхронной работы
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class LoginActivity : AppCompatActivity() {
 
+    // Убедитесь, что у вас есть все необходимые поля для View
+    private lateinit var loginEditText: EditText
+    private lateinit var passwordEditText: EditText
+    private lateinit var loginButton: Button
+    private lateinit var errorTextView: TextView
     private lateinit var sharedPreferences: SharedPreferences
+
+    // 💡 1. Инициализация репозитория и Coroutine Scope
+    private val loginRepository = LoginRepository(RetrofitClient.apiService)
+    private val mainScope = CoroutineScope(Dispatchers.Main)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_login) // Убедитесь, что ID макета верный
 
-        sharedPreferences = getSharedPreferences("user_session", Context.MODE_PRIVATE)
+        // Инициализация SharedPreferences
+        sharedPreferences = getSharedPreferences("app_session", Context.MODE_PRIVATE)
 
-        // Check if the user is already logged in
-        if (sharedPreferences.getBoolean("isLoggedIn", false)) {
-            // If yes, go directly to MainActivity
-            startActivity(Intent(this, MainActivity::class.java))
-            finish() // Close LoginActivity
-            return // Stop further execution of onCreate
-        }
+        // Инициализация View-элементов
+        loginEditText = findViewById(R.id.login)
+        passwordEditText = findViewById(R.id.password)
+        loginButton = findViewById(R.id.loginButton)
+        errorTextView = findViewById(R.id.errorTextView)
 
-        setContentView(R.layout.activity_login)
+        loginButton.setOnClickListener {
+            // Сброс видимости ошибок
+            errorTextView.visibility = View.GONE
 
-        val login = findViewById<EditText>(R.id.login)
-        val password = findViewById<EditText>(R.id.password)
-        val button = findViewById<Button>(R.id.loginButton)
-        val valid = findViewById<TextView>(R.id.errorTextView)
+            val inputLogin = loginEditText.text.toString()
+            val inputPassword = passwordEditText.text.toString()
 
-        button.setOnClickListener { view ->
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.hideSoftInputFromWindow(view.windowToken, 0)
+            // Простая валидация
+            if (inputLogin.isBlank() || inputPassword.isBlank()) {
+                errorTextView.text = "Введите логин и пароль"
+                errorTextView.visibility = View.VISIBLE
+                return@setOnClickListener
+            }
 
-            val correctLogin = "1"
-            val correctPassword = "1"
-            val inputLogin = login.text.toString()
-            val inputPassword = password.text.toString()
+            // 💡 2. Запуск корутины для выполнения асинхронного запроса
+            mainScope.launch {
 
-            if (inputLogin == correctLogin && inputPassword == correctPassword) {
-                // If credentials are correct, save the session and go to the main screen
-                valid.visibility = View.GONE
-                saveSession(inputLogin)
-                startActivity(Intent(this, MainActivity::class.java))
-                finish()
-            } else {
-                valid.visibility = View.VISIBLE
+                // 3. ХЭШИРУЕМ ПАРОЛЬ ПЕРЕД ОТПРАВКОЙ
+                val inputPasswordHash = inputPassword.toSha256()
+
+                try {
+                    // Переключаемся на поток ввода/вывода (Dispatchers.IO) для сетевого запроса
+                    val result = withContext(Dispatchers.IO) {
+                        loginRepository.login(inputLogin, inputPasswordHash)
+                    }
+
+                    // Обработка ответа (возвращаемся на Dispatchers.Main)
+                    if (result.success && result.content != null) {
+                        // УСПЕХ:
+                        saveSession(inputLogin, result.content)
+
+                        startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                        finish()
+                    } else {
+                        // ОШИБКА АУТЕНТИФИКАЦИИ (сообщение от сервера)
+                        val errorMessage = result.messages?.firstOrNull() ?: "Неизвестная ошибка аутентификации"
+                        errorTextView.text = errorMessage
+                        errorTextView.visibility = View.VISIBLE
+                    }
+                } catch (e: Exception) {
+                    // ОШИБКА СЕТИ (сервер недоступен, таймаут и т.п.)
+                    errorTextView.text = "Ошибка подключения к серверу: ${e.message}"
+                    errorTextView.visibility = View.VISIBLE
+                    e.printStackTrace()
+                }
             }
         }
     }
 
-    private fun saveSession(login: String) {
+    // 💡 4. Функция сохранения JWT-токена
+    private fun saveSession(login: String, token: String) {
         with(sharedPreferences.edit()) {
             putBoolean("isLoggedIn", true)
             putString("user_login", login)
+            putString("jwt_token", token) // Сохраняем токен для дальнейших запросов!
             apply()
         }
     }

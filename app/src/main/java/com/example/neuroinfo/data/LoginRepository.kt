@@ -1,0 +1,48 @@
+// Файл: com.example.neuroinfo.data/LoginRepository.kt (ИСПРАВЛЕНО)
+
+package com.example.neuroinfo.data
+
+import com.example.neuroinfo.model.ApiResponse // Используем универсальный ответ
+import com.example.neuroinfo.model.LoginRequest
+import java.io.IOException
+
+class LoginRepository(
+    private val apiService: NeuroInfoApiService
+) {
+    /**
+     * Выполняет POST-запрос на аутентификацию.
+     * @return Объект ApiResponse<String>, содержащий статус и токен.
+     */
+    // ✅ 1. МЕНЯЕМ ВОЗВРАЩАЕМЫЙ ТИП НА УНИВЕРСАЛЬНЫЙ
+    suspend fun login(login: String, passwordHash: String): ApiResponse<String> {
+        val request = LoginRequest(login = login, password = passwordHash)
+
+        try {
+            val response = apiService.login(request)
+
+            if (response.isSuccessful) {
+                // ✅ 2. ИЗВЛЕКАЕМ ТЕЛО ОТВЕТА (ApiResponse<String>)
+                val apiResponse = response.body()
+                    ?: throw IOException("Пустой ответ от сервера при успешном коде.")
+
+                // ✅ 3. СОХРАНЯЕМ ТОКЕН (если успех), чтобы он был доступен для всех запросов
+                if (apiResponse.success && apiResponse.content != null) {
+                    RetrofitClient.setToken(apiResponse.content)
+                }
+
+                return apiResponse
+            } else {
+                // Обработка ошибок, если код ответа не 2xx
+                val errorMsg = "Ошибка HTTP ${response.code()}"
+
+                // ВАЖНО: При ошибке 401/403/500 сервер, вероятно, не пришлет тело ApiResponse,
+                // поэтому мы генерируем свою ошибку, которую обработает Activity
+                throw IOException(errorMsg)
+            }
+        } catch (e: Exception) {
+            // Ошибки сети, таймаут, или IOException, вызванный выше
+            // Перебрасываем, чтобы LoginActivity обработала ее как ошибку сети
+            throw e
+        }
+    }
+}

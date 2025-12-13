@@ -1,173 +1,103 @@
 package com.example.neuroinfo.ui.main
 
-import android.content.Context
-import android.content.Intent
-import android.content.SharedPreferences
-import android.content.pm.PackageManager
-import android.graphics.Rect
-import android.os.Bundle
-import android.util.Log
-import android.view.LayoutInflater
-import android.view.MotionEvent
-import android.view.ViewGroup
-import android.view.inputmethod.InputMethodManager
-import android.widget.EditText
 import android.widget.ImageButton
-import android.widget.PopupWindow
-import android.widget.TextView
+import android.os.Bundle
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.neuroinfo.R
 import com.example.neuroinfo.adapter.HospitalizationAdapter
-import com.example.neuroinfo.data.FakeData
-import com.example.neuroinfo.data.Hospitalization
-import com.example.neuroinfo.ui.login.LoginActivity
-import com.google.android.material.tabs.TabLayout
+import com.example.neuroinfo.data.CallRepository
+import com.example.neuroinfo.data.RetrofitClient
+import com.example.neuroinfo.model.Hospitalization
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : AppCompatActivity() {
 
-    private var allHospitalizations = FakeData.hospitalizations.toMutableList()
+    private lateinit var recyclerView: RecyclerView
+    // 💡 Принудительная инициализация в onCreate
     private lateinit var adapter: HospitalizationAdapter
-    private lateinit var tabLayout: TabLayout
-    private lateinit var sharedPreferences: SharedPreferences
+
+    // Используем CallRepository, который инициализируется через RetrofitClient
+    private val callRepository = CallRepository(RetrofitClient.apiService)
+    private val mainScope = CoroutineScope(Dispatchers.Main)
+
+    // Список данных, который будет обновляться
+    private val hospitalizationList = mutableListOf<Hospitalization>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Убедитесь, что ваш макет называется activity_main
         setContentView(R.layout.activity_main)
-        sharedPreferences = getSharedPreferences("user_session", Context.MODE_PRIVATE)
 
-        // Set up listeners for dialog results
-        setupDialogListeners()
+        // 💡 ИЗМЕНЕНИЕ ЗДЕСЬ: используем ваш ID
+        recyclerView = findViewById(R.id.recyclerView)
 
-        // Initialize components
-        setupTabLayout()
-        setupRecyclerView()
-        setupProfileMenu()
-    }
+        // ... (остальная логика инициализации адаптера и загрузки данных остается прежней)
 
-    private fun setupDialogListeners() {
-        supportFragmentManager.setFragmentResultListener(ConfirmArchiveDialogFragment.REQUEST_KEY, this) { _, bundle ->
-            val confirmed = bundle.getBoolean(ConfirmArchiveDialogFragment.KEY_CONFIRMED)
-            val itemId = bundle.getInt("ITEM_ID", -1)
-            if (confirmed && itemId != -1) {
-                archiveItem(itemId)
-            }
+        // Добавьте логику для кнопок (опционально):
+        findViewById<ImageButton>(R.id.profile_button).setOnClickListener {
+            // TODO: Открыть диалог или Activity профиля
         }
 
-        supportFragmentManager.setFragmentResultListener(ConfirmLogoutDialogFragment.REQUEST_KEY, this) { _, bundle ->
-            val confirmed = bundle.getBoolean(ConfirmLogoutDialogFragment.KEY_CONFIRMED_LOGOUT)
-            if (confirmed) {
-                logout()
-            }
-        }
+        // TODO: Обработка Tab Layout (вкладок Активные/Архив)
+        // findViewById<TabLayout>(R.id.tab_layout).addOnTabSelectedListener(...)
+
+        fetchCalls()
     }
 
-    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_DOWN) {
-            val v = currentFocus
-            if (v is EditText) {
-                val outRect = Rect()
-                v.getGlobalVisibleRect(outRect)
-                if (!outRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
-                    v.clearFocus()
-                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                    imm.hideSoftInputFromWindow(v.windowToken, 0)
-                }
-            }
-        }
-        return super.dispatchTouchEvent(event)
-    }
-
-    private fun setupRecyclerView() {
-        adapter = HospitalizationAdapter(allHospitalizations.filter { it.status != "Завершено" }) { item ->
-            val dialog = ConfirmArchiveDialogFragment().apply {
-                arguments = Bundle().apply { putInt("ITEM_ID", item.id) }
-            }
-            dialog.show(supportFragmentManager, ConfirmArchiveDialogFragment.TAG)
-        }
-
-        findViewById<RecyclerView>(R.id.recyclerView).apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            this.adapter = this@MainActivity.adapter
-        }
-    }
-
-    private fun archiveItem(itemId: Int) {
-        val index = allHospitalizations.indexOfFirst { it.id == itemId }
-        if (index != -1) {
-            allHospitalizations[index] = allHospitalizations[index].copy(status = "Завершено")
-            updateListBasedOnSelection()
-        }
-    }
-
-    private fun setupTabLayout() {
-        tabLayout = findViewById(R.id.tab_layout)
-        tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: TabLayout.Tab?) { updateListBasedOnSelection(tab?.position) }
-            override fun onTabUnselected(tab: TabLayout.Tab?) { }
-            override fun onTabReselected(tab: TabLayout.Tab?) { }
-        })
-    }
-
-    private fun setupProfileMenu() {
-        val profileButton = findViewById<ImageButton>(R.id.profile_button)
-        profileButton.setOnClickListener { anchorView ->
-            val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-            val popupView = inflater.inflate(R.layout.popup_menu_custom, null)
-
-            val popupWindow = PopupWindow(popupView, ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, true)
-
-            popupView.findViewById<TextView>(R.id.popup_test).setOnClickListener {
-                Log.d("MainActivity", "Тест нажат")
-                popupWindow.dismiss()
-            }
-
-            popupView.findViewById<TextView>(R.id.userdata).setOnClickListener {
-                val login = sharedPreferences.getString("user_login", "N/A") ?: "N/A"
-                val dialog = UserDataDialogFragment.newInstance(login)
-                dialog.show(supportFragmentManager, UserDataDialogFragment.TAG)
-                popupWindow.dismiss()
-            }
-
-            popupView.findViewById<TextView>(R.id.popup_logout).setOnClickListener {
-                val dialog = ConfirmLogoutDialogFragment()
-                dialog.show(supportFragmentManager, ConfirmLogoutDialogFragment.TAG)
-                popupWindow.dismiss()
-            }
-
-            val versionText = popupView.findViewById<TextView>(R.id.popup_version)
+    /**
+     * Загружает данные списка вызовов из API.
+     */
+    private fun fetchCalls() {
+        mainScope.launch {
             try {
-                val pInfo = packageManager.getPackageInfo(packageName, 0)
-                versionText.text = "Версия ${pInfo.versionName}"
-            } catch (e: PackageManager.NameNotFoundException) {
-                versionText.text = "Версия N/A"
+                // 1. Вызов с исправленными именами параметров
+                val result = withContext(Dispatchers.IO) {
+                    callRepository.getCalls(pageNumber = 1, pageSize = 20, getCount = true)
+                }
+
+                // 2. Обработка Result<CallListContent>
+                if (result.isSuccess) {
+                    // Успех: Получаем CallListContent
+                    val content = result.getOrThrow()
+
+                    // 3. ОБНОВЛЕНИЕ ДАННЫХ
+                    hospitalizationList.clear()
+                    hospitalizationList.addAll(content.calls)
+
+                    // 4. Инициализация адаптера (если не инициализирован)
+                    if (!::adapter.isInitialized) {
+                        adapter = HospitalizationAdapter(
+                            hospitalizationList,
+                            onCallClicked = { call ->
+                                // TODO: Реальная логика: Открытие нового Activity
+                                Toast.makeText(this@MainActivity, "Клик по вызову: ${call.patientFullName}", Toast.LENGTH_SHORT).show()
+                            }
+                        )
+                        recyclerView.adapter = adapter
+                        recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
+                    } else {
+                        // 5. Обновление адаптера
+                        adapter.notifyDataSetChanged()
+                    }
+
+                    Toast.makeText(this@MainActivity, "Загружено вызовов: ${hospitalizationList.size}", Toast.LENGTH_SHORT).show()
+
+                } else {
+                    // 6. Обработка ошибки API/репозитория
+                    val error = result.exceptionOrNull()?.message ?: "Не удалось загрузить список вызовов."
+                    Toast.makeText(this@MainActivity, "Ошибка: $error", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                // 7. Обработка ошибки сети/Coroutine
+                Toast.makeText(this@MainActivity, "Ошибка сети при загрузке данных.", Toast.LENGTH_LONG).show()
                 e.printStackTrace()
             }
-
-            popupWindow.showAsDropDown(anchorView)
-        }
-    }
-
-    private fun logout() {
-        with(sharedPreferences.edit()) {
-            putBoolean("isLoggedIn", false)
-            remove("user_login")
-            apply()
-        }
-
-        val intent = Intent(this, LoginActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
-        finish()
-    }
-
-    private fun updateListBasedOnSelection(selectedTabPosition: Int? = null) {
-        val currentPosition = selectedTabPosition ?: tabLayout.selectedTabPosition
-        if (currentPosition == 0) {
-            adapter.updateList(allHospitalizations.filter { it.status != "Завершено" })
-        } else {
-            adapter.updateList(allHospitalizations.filter { it.status == "Завершено" })
         }
     }
 }

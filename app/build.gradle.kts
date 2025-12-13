@@ -48,4 +48,18 @@ dependencies {
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    // Retrofit: HTTP-клиент для Android
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    // Converter: Для автоматического преобразования JSON в Kotlin/Java объекты (Gson)
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+
+    // OkHttp Logging Interceptor(для отладки)
+    implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    implementation("com.squareup.okhttp3:okhttp:4.11.0")
+
+    // Поддержка корутин в Retrofit
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
+    implementation("com.microsoft.signalr:signalr:10.0.1")
+
 }
