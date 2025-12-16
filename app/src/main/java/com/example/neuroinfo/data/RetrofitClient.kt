@@ -1,6 +1,6 @@
 package com.example.neuroinfo.data
 
-import okhttp3.Interceptor
+import android.content.Context
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -9,58 +9,37 @@ import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
 
-    // 💡 Обязательно замените на ваш реальный адрес сервера
+    // Адрес сервера
     private const val BASE_URL = "http://46.146.213.95:27234"
 
-    // Переменная для хранения JWT токена
-    private var jwtToken: String? = null
+    lateinit var apiService: API
 
-    // lazy - инициализируется только при первом обращении
-    val apiService: NeuroInfoApiService by lazy {
-        createRetrofitInstance().create(NeuroInfoApiService::class.java)
+    // Объявление Retrofit клиента
+    fun init(context: Context) {
+        apiService = functionRetrofit(context).create(API::class.java)
     }
 
-    // 💡 Функция, которая отсутствовала
-    private fun createRetrofitInstance(): Retrofit {
-        // Interceptor для добавления JWT токена в заголовок Authorization
-        val authInterceptor = Interceptor { chain ->
-            val original = chain.request()
-            val requestBuilder = original.newBuilder()
-                .header("Content-Type", "application/json")
+    // Настройка Retrofit
+    private fun functionRetrofit(context: Context): Retrofit {
 
-            // Добавляем токен в формате "Bearer <токен>"
-            jwtToken?.let { token ->
-                requestBuilder.header("Authorization", "Bearer $token")
-            }
-
-            val request = requestBuilder.build()
-            chain.proceed(request)
-        }
-
-        // Logging Interceptor (для отладки)
+        // Для отладки логина
         val loggingInterceptor = HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = HttpLoggingInterceptor.Level.BODY // Логи в виде Body
         }
 
+        // Регистрируем перехватчики
         val client = OkHttpClient.Builder()
-            .addInterceptor(authInterceptor)
+            .addInterceptor(TokenInterceptor(context)) // Используем наш перехватчик токена
             .addInterceptor(loggingInterceptor)
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
             .build()
 
+        // Собираем Retrofit
         return Retrofit.Builder()
             .baseUrl(BASE_URL)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
-    }
-
-    fun setToken(token: String) {
-        jwtToken = token
-    }
-
-    fun clearToken() {
-        jwtToken = null
     }
 }

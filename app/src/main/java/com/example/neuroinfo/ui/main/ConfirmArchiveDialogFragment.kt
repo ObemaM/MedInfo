@@ -4,7 +4,6 @@ import android.app.Dialog
 import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
-import androidx.fragment.app.setFragmentResult
 import com.example.neuroinfo.R
 import com.google.android.material.button.MaterialButton
 
@@ -24,15 +23,7 @@ class ConfirmArchiveDialogFragment : DialogFragment() {
         // Make the background of the dialog transparent
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        // Get the item ID from the arguments passed from MainActivity
-        val itemId = requireArguments().getInt("ITEM_ID", -1)
-
         confirmButton.setOnClickListener {
-            // Send a signal back to MainActivity, including the item ID
-            setFragmentResult(REQUEST_KEY, Bundle().apply {
-                putBoolean(KEY_CONFIRMED, true)
-                putInt("ITEM_ID", itemId)
-            })
             dismiss()
         }
 

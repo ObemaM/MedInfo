@@ -2,75 +2,160 @@
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
+    android:layout_width="320dp"
     android:layout_height="wrap_content"
-    android:layout_margin="32dp"
-    app:cardBackgroundColor="#dbe2ef"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="8dp">
+    android:layout_gravity="center"
+    app:cardBackgroundColor="@color/background_2"
+    app:cardCornerRadius="24dp"
+    app:strokeColor="@color/border_gray_1"
+    app:strokeWidth="1dp">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:padding="24dp">
 
-        <TextView
-            android:id="@+id/title_text"
-            android:layout_width="wrap_content"
+        <!-- Иконка и заголовок -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Данные"
-            android:textAppearance="@style/TextAppearance.Material3.TitleLarge"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/structural_unit_label"
-            android:layout_width="wrap_content"
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:padding="10dp"
+                android:src="@drawable/ic_person_24"
+                app:tint="@color/gray_1"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Данные"
+                android:textColor="@color/gray_1"
+                android:textSize="20sp"
+                android:textStyle="normal" />
+
+        </LinearLayout>
+
+        <!-- Разделитель -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="20dp"
+            android:background="@color/border_gray_1" />
+
+        <!-- Поля данных -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="16dp"
-            android:text="Подразделение:"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/title_text" />
+            android:orientation="vertical">
 
-        <TextView
-            android:id="@+id/login_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Логин:"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/structural_unit_label" />
+            <!-- Логин -->
 
-        <TextView
-            android:id="@+id/user_login_text"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:maxLength="20"
-            app:layout_constraintStart_toEndOf="@+id/login_label"
-            app:layout_constraintBaseline_toBaselineOf="@+id/login_label"
-            tools:text="user_login" />
+            <!-- Подразделение -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/data_field_background"
+                android:orientation="horizontal"
+                android:padding="14dp">
 
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="2dp"
+                    android:text="Логин"
+                    android:textColor="@color/gray_1"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/user_login_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="end"
+                    android:textColor="@color/black_1"
+                    android:textSize="14sp"
+                    android:textStyle="normal"
+                    tools:text="user_login" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/data_field_background"
+                android:orientation="horizontal"
+                android:padding="14dp">
+
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="2dp"
+                    android:text="Подразделение"
+                    android:textColor="@color/gray_1"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/department_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="end"
+                    android:text="Неизвестно"
+                    android:textColor="@color/black_1"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+
+            <!-- Версия -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/data_field_background"
+                android:orientation="horizontal"
+                android:padding="14dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="2dp"
+                    android:text="Версия"
+                    android:textColor="@color/gray_1"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/version_text"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="end"
+                    android:textColor="@color/black_1"
+                    android:textSize="14sp"
+                    tools:text="version" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Кнопка ОК -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/button_ok"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
             android:layout_marginTop="24dp"
-            android:text="ОК"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/user_login_text" />
+            android:text="Закрыть"
+            app:cornerRadius="12dp" />
 
-        <TextView
-            android:id="@+id/textView3"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
-            android:layout_marginTop="51dp"
-            android:maxLength="20"
-            android:text="TextView"
-            app:layout_constraintStart_toEndOf="@+id/structural_unit_label"
-            app:layout_constraintTop_toTopOf="parent" />
-
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

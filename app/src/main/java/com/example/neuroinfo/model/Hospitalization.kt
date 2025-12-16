@@ -46,7 +46,7 @@ data class Hospitalization(
     var status: String?, // Текущий статус ("транспортировка", "Активен" и т.д.)
     val callNumber: String?, // Номер вызова (из dayNumber/yearNumber)
     val callTime: String?, // Время вызова
-    val urgency: Int?, // Срочность (например, 1-5)
+    val urgency: Int?, // Срочность
 
     // 6. ЛОКАЛЬНЫЕ ПОЛЯ (не из API, для нужд UI/логики)
     var isArchived: Boolean = false

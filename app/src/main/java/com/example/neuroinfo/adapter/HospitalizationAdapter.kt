@@ -9,38 +9,45 @@ import com.example.neuroinfo.R
 import com.example.neuroinfo.model.Hospitalization
 
 class HospitalizationAdapter(
-    private var items: List<Hospitalization>,
-    private val onCallClicked: (Hospitalization) -> Unit
+        private var items: List<Hospitalization>,
+        private val onCallClicked: (Hospitalization) -> Unit
 ) : RecyclerView.Adapter<HospitalizationAdapter.ViewHolder>() {
 
     inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
 
-        // 💡 Привязываем View-элементы к НОВЫМ ID
+        // Привязка View-элементов
         val callNumberTextView: TextView = itemView.findViewById(R.id.call_number_text)
+        val timeTextView: TextView = itemView.findViewById(R.id.time_data)
         val statusTextView: TextView = itemView.findViewById(R.id.status_text)
         val patientDetailsTextView: TextView = itemView.findViewById(R.id.patient_details_text)
         val callReasonTextView: TextView = itemView.findViewById(R.id.call_reason_text)
         val callAddressTextView: TextView = itemView.findViewById(R.id.call_address_text)
-        // Если бы у нас был senior_info_text, мы бы добавили его сюда
 
+        val urgencyTextView: TextView = itemView.findViewById(R.id.urgency_data)
 
         fun bind(call: Hospitalization) {
 
-            // 1. HEADER (Номер и Статус)
+            // Номер и статус
             callNumberTextView.text = "Вызов №${call.callNumber}"
             statusTextView.text = call.status
 
-            // 2. ПАЦИЕНТ
+            // Пациент
             patientDetailsTextView.text = buildString {
                 append("${call.patientName ?: "Неизвестный пациент"}")
                 append(", ${call.age ?: "Н/Д"} лет")
                 append(", ${call.sex ?: "Н/Д"}")
             }
 
-            // 3. ПРИЧИНА
+            // Время вызова
+            timeTextView.text = "Дата: " + com.example.neuroinfo.util.DateFormatter.formatDateTime(call.callTime)
+
+            // Срочность
+            urgencyTextView.text = call.urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
+
+            // Причина
             callReasonTextView.text = call.reason ?: "Не указана"
 
-            // 4. АДРЕС
+            // Адрес
             callAddressTextView.text = buildString {
                 append("Район: ${call.district ?: "Н/Д"}, ")
                 append("ул. ${call.street ?: "Н/Д"}")
@@ -54,6 +61,10 @@ class HospitalizationAdapter(
 
             // Обработчик клика
             itemView.setOnClickListener {
+                val status = call.status?.lowercase()?.trim()
+                if (status?.contains("архив") == true) {
+                    return@setOnClickListener
+                }
                 onCallClicked(call)
             }
         }
@@ -61,7 +72,9 @@ class HospitalizationAdapter(
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
         // Используем R.layout.item_hospitalization
-        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_hospitalization, parent, false)
+        val view =
+                LayoutInflater.from(parent.context)
+                        .inflate(R.layout.item_hospitalization, parent, false)
         return ViewHolder(view)
     }
 

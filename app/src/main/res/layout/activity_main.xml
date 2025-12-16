@@ -4,16 +4,20 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/md_theme_background"
+    android:background="@color/background_1"
     android:fitsSystemWindows="true">
 
     <!-- Header Container -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/header_layout"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="0dp"
-        app:cardElevation="8dp"
+        android:layout_margin="16dp"
+        app:cardBackgroundColor="@color/background_2"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="2dp"
+        app:strokeColor="@color/border_gray_1"
+        app:strokeWidth="1dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
@@ -22,10 +26,9 @@
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            android:background="@color/md_theme_surface"
-            app:title="СПИСОК ПАЦИЕНТОВ"
+            app:title="Список пациентов"
             app:titleTextAppearance="@style/CustomToolbarTitleTextStyle"
-            app:titleTextColor="#42474c">
+            app:titleTextColor="@color/gray_1">
 
             <ImageButton
                 android:id="@+id/profile_button"
@@ -37,19 +40,20 @@
                 android:contentDescription="Профиль"
                 android:padding="12dp"
                 android:scaleType="fitCenter"
-                android:src="@drawable/user"
-                app:tint="@color/md_theme_onSurface" />
+                android:src="@drawable/ic_person_24"
+                app:tint="@color/gray_1" />
 
         </com.google.android.material.appbar.MaterialToolbar>
 
     </com.google.android.material.card.MaterialCardView>
 
     <!-- Search and Filter Container -->
+
+    <!-- Search and Filter Container with Bottom Border -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/search_filter_container"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:padding="16dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/header_layout">
@@ -59,23 +63,28 @@
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="16dp"
-            app:boxStrokeColor="@color/search_text_input_colors"
-            app:hintTextColor="@color/search_text_input_colors"
+            android:layout_marginStart="30dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginBottom="10dp"
+            android:layout_marginEnd="15dp"
+            app:boxStrokeColor="@color/gray_1"
+            app:hintTextColor="@color/gray_1"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/filter_button"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:startIconDrawable="@drawable/ic_search_24"
-            app:startIconTint="@color/search_text_input_colors">
+            app:startIconTint="@color/gray_1">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/search_edit_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/cascadiamono"
                 android:hint="Поиск"
-                android:textColor="#42474c"
+                android:inputType="text"
+                android:imeOptions="actionSearch"
+                android:maxLines="1"
+                android:textColor="@color/gray_1"
                 android:textCursorDrawable="@null" />
 
         </com.google.android.material.textfield.TextInputLayout>
@@ -84,36 +93,67 @@
             android:id="@+id/filter_button"
             android:layout_width="50dp"
             android:layout_height="50dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="30dp"
+            android:layout_marginBottom="10dp"
             android:background="?attr/selectableItemBackgroundBorderless"
             android:src="@drawable/ic_filter_24"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="#42474c" />
+            app:tint="@color/gray_1" />
+
+        <!-- Bottom Border Divider -->
+        <View
+            android:layout_width="0dp"
+            android:layout_height="1dp"
+            android:background="@color/border_gray_1"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <!-- Bottom Menu Divider -->
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="0dp"
         android:layout_height="0dp"
+        android:background="@color/background_1"
         android:overScrollMode="never"
         android:paddingLeft="8dp"
         android:paddingRight="8dp"
-        app:layout_constraintBottom_toTopOf="@+id/tab_layout_container"
+        app:layout_constraintBottom_toTopOf="@+id/bottom_divider"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="0.0"
+        app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/search_filter_container"
         app:layout_constraintVertical_bias="0.0"
         tools:listitem="@layout/item_hospitalization" />
 
+    <View
+        android:id="@+id/bottom_divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginBottom="10dp"
+        android:background="@color/border_gray_1"
+        app:layout_constraintBottom_toTopOf="@+id/tab_layout_container"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/tab_layout_container"
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:cardCornerRadius="0dp"
-        app:cardElevation="8dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="10dp"
+        app:cardBackgroundColor="@color/background_2"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="2dp"
+        app:strokeColor="@color/border_gray_1"
+        app:strokeWidth="1dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
@@ -121,16 +161,16 @@
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tab_layout"
             android:layout_width="match_parent"
-            android:layout_height="70dp"
-            android:background="@color/md_theme_surface"
+            android:layout_height="55dp"
+            android:background="@color/background_2"
             app:tabGravity="center"
-            app:tabIndicatorColor="@color/md_theme_primary"
+            app:tabIndicatorColor="@color/main_1"
             app:tabMode="fixed"
-            app:tabPaddingStart="40dp"
             app:tabPaddingEnd="40dp"
-            app:tabSelectedTextColor="@color/md_theme_primary"
+            app:tabPaddingStart="40dp"
+            app:tabSelectedTextColor="@color/main_1"
             app:tabTextAppearance="@style/CustomTabTextStyle"
-            app:tabTextColor="@color/md_theme_onSurfaceVariant">
+            app:tabTextColor="@color/gray_1">
 
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"

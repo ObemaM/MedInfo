@@ -7,7 +7,7 @@ import com.example.neuroinfo.model.LoginRequest
 import java.io.IOException
 
 class LoginRepository(
-    private val apiService: NeuroInfoApiService
+    private val apiService: API
 ) {
     /**
      * Выполняет POST-запрос на аутентификацию.
@@ -22,15 +22,9 @@ class LoginRepository(
 
             if (response.isSuccessful) {
                 // ✅ 2. ИЗВЛЕКАЕМ ТЕЛО ОТВЕТА (ApiResponse<String>)
-                val apiResponse = response.body()
+                return response.body()
                     ?: throw IOException("Пустой ответ от сервера при успешном коде.")
 
-                // ✅ 3. СОХРАНЯЕМ ТОКЕН (если успех), чтобы он был доступен для всех запросов
-                if (apiResponse.success && apiResponse.content != null) {
-                    RetrofitClient.setToken(apiResponse.content)
-                }
-
-                return apiResponse
             } else {
                 // Обработка ошибок, если код ответа не 2xx
                 val errorMsg = "Ошибка HTTP ${response.code()}"

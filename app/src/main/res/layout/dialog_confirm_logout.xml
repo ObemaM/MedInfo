@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="wrap_content"
+    android:layout_width="320dp"
     android:layout_height="wrap_content"
-    android:layout_margin="32dp"
-    app:cardBackgroundColor="#dbe2ef"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="8dp">
+    android:layout_gravity="center"
+    android:background="@android:color/transparent"
+    app:cardBackgroundColor="@color/background_2"
+    app:cardCornerRadius="24dp"
+    app:strokeColor="@color/border_gray_1"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -14,39 +16,78 @@
         android:orientation="vertical"
         android:padding="24dp">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Выход"
-            android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Вы точно хотите выйти из аккаунта?" />
-
-        <RelativeLayout
+        <!-- Иконка и заголовок -->
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="24dp">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:padding="10dp"
+                android:src="@android:drawable/ic_dialog_alert"
+                app:tint="@color/red_1" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:text="Выход из аккаунта"
+                android:textColor="@color/gray_1"
+                android:textSize="20sp" />
+
+        </LinearLayout>
+
+        <!-- Разделитель -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="20dp"
+            android:background="@color/border_gray_1" />
+
+        <!-- Текст сообщения -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:lineSpacingExtra="4dp"
+            android:text="Вы уверены, что хотите выйти из аккаунта? Для повторного входа потребуется ввести логин и пароль."
+            android:textColor="@color/gray_1"
+            android:textSize="15sp" />
+
+        <!-- Кнопки -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:gravity="end"
+            android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_logout_cancel"
-                style="@style/Widget.Material3.Button.TextButton"
-                android:layout_width="120dp"
-                android:layout_height="wrap_content"
-                android:layout_alignParentStart="true"
-                android:text="Нет" />
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginEnd="12dp"
+                android:layout_weight="1"
+                android:text="Отмена"
+                android:textColor="@color/black_1"
+                app:cornerRadius="12dp"
+                app:strokeColor="@color/border_gray_2" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/button_logout_confirm"
-                android:layout_width="120dp"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:text="Да" />
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:backgroundTint="@color/red_1"
+                android:text="Выйти"
+                android:textColor="@color/white_1"
+                app:cornerRadius="12dp" />
 
-        </RelativeLayout>
+        </LinearLayout>
 
     </LinearLayout>
 

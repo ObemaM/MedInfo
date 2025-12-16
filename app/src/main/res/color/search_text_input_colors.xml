@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- Focused state -->
-    <item android:state_focused="true" android:color="#42474c"/>
+    <item android:state_focused="true" android:color="@color/gray_1"/>
     <!-- Default state -->
-    <item android:color="@color/md_theme_outline"/>
+    <item android:color="@color/border_gray_2"/>
 </selector>

@@ -3,7 +3,7 @@ package com.example.neuroinfo.data
 import com.example.neuroinfo.model.*
 import java.io.IOException
 
-class CallRepository(private val apiService: NeuroInfoApiService) {
+class CallRepository(private val apiService: API) {
 
     // Получение списка вызовов
     suspend fun getCalls(pageNumber: Int, pageSize: Int, getCount: Boolean): Result<CallListContent> {

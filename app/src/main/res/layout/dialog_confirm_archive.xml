@@ -1,12 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
+    android:layout_width="320dp"
     android:layout_height="wrap_content"
-    android:layout_margin="32dp"
-    app:cardBackgroundColor="#dbe2ef"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="8dp">
+    android:layout_gravity="center"
+    app:cardBackgroundColor="@color/background_2"
+    app:cardCornerRadius="24dp"
+    app:strokeColor="@color/border_gray_1"
+    app:strokeWidth="1dp">
 
     <ScrollView
         android:layout_width="match_parent"
@@ -18,18 +19,41 @@
             android:orientation="vertical"
             android:padding="24dp">
 
-            <TextView
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="Сообщение"
-                android:textAppearance="@style/TextAppearance.Material3.TitleLarge" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:padding="10dp"
+                    android:src="@android:drawable/ic_dialog_email"
+                    app:tint="@color/main_1" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:text="Сообщение"
+                    android:textColor="@color/gray_1"
+                    android:textSize="20sp" />
+
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="20dp"
+                android:background="@color/border_gray_1" />
 
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/message_input_layout"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_marginTop="20dp"
                 android:hint="Сообщение для бригады">
 
                 <com.google.android.material.textfield.TextInputEditText
@@ -42,34 +66,44 @@
             </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="40dp"
-                android:text="Отправить сообщение бригаде и архивировать вызов?" />
-
-            <RelativeLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="5dp">
+                android:layout_marginTop="20dp"
+                android:lineSpacingExtra="4dp"
+                android:text="Отправить сообщение бригаде и архивировать вызов?"
+                android:textColor="@color/gray_1"
+                android:textSize="15sp" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:gravity="end|center_vertical"
+                android:orientation="horizontal">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_cancel"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_alignParentStart="true"
+                    style="@style/Widget.Material3.Button.OutlinedButton"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_marginEnd="12dp"
+                    android:layout_weight="1"
                     android:text="Назад"
-                    android:textSize="15sp" />
+                    android:textColor="@color/black_1"
+                    app:cornerRadius="12dp"
+                    app:strokeColor="@color/border_gray_2" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/button_confirm"
-                    android:layout_width="wrap_content"
-                    android:layout_height="match_parent"
-                    android:layout_alignParentEnd="true"
-                    android:text="Отправить бригаде"
-                    android:textSize="15sp" />
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:backgroundTint="@color/main_1"
+                    android:text="Отправить"
+                    android:textColor="@color/white_1"
+                    app:cornerRadius="12dp" />
 
-            </RelativeLayout>
+            </LinearLayout>
 
         </LinearLayout>
 

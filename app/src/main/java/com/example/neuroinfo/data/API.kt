@@ -4,26 +4,24 @@ import com.example.neuroinfo.model.*
 import retrofit2.http.*
 import retrofit2.Response
 
-/**
- * Интерфейс Retrofit, определяющий все конечные точки для NeuroInfo API.
- */
-interface NeuroInfoApiService {
 
-    // 1. АУТЕНТИФИКАЦИЯ
+interface API {
+
+    // Логин
     @POST("/api/informator/login")
     suspend fun login(
-        @Body request: LoginRequest // Json body
-    ): Response<ApiResponse<String>> // <-- Обратите внимание на закрывающую скобку здесь!
+        @Body request: LoginRequest
+    ): Response<ApiResponse<String>>
 
-    // 2. ПОЛУЧЕНИЕ СПИСКА ВЫЗОВОВ
+    // Список вызовов
     @GET("/api/informator/get-calls")
     suspend fun getCalls(
         @Query("pageNumber") pageNumber: Int, // Номер страницы
         @Query("pageSize") pageSize: Int, // Размер одной страницы
         @Query("getCount") getCount: Boolean // Флаг получения общего количества
-    ): Response<CallListResponse> // <-- Обратите внимание на закрывающую скобку здесь!
+    ): Response<ApiResponse<CallListContent>>
 
-    // 3. ОТВЕТ НА ВЫЗОВ
+    // Ответ на вызов
     @POST("/api/informator/answer-call")
     suspend fun answerCall(
         @Body request: CallAnswerRequest
