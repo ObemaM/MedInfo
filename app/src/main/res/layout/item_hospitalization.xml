@@ -103,7 +103,7 @@
 
         <TextView
             android:id="@+id/time_data"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Дата неизвестна"
@@ -112,7 +112,7 @@
 
         <TextView
             android:id="@+id/urgency_data"
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Срочность неизвестна"

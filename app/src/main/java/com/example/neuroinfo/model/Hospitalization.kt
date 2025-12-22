@@ -49,5 +49,7 @@ data class Hospitalization(
     val urgency: Int?, // Срочность
 
     // 6. ЛОКАЛЬНЫЕ ПОЛЯ (не из API, для нужд UI/логики)
-    var isArchived: Boolean = false
+    var isArchived: Boolean = false,
+    var formattedCallTime: String? = null,
+    var searchCache: String? = null
 ) : Serializable

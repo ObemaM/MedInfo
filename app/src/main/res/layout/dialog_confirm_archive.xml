@@ -54,7 +54,9 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="20dp"
-                android:hint="Сообщение для бригады">
+                android:hint="Сообщение для бригады"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors" >
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/message_edit_text"

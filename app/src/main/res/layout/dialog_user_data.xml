@@ -71,7 +71,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
                     android:text="Логин"
-                    android:textColor="@color/gray_1"
+                    android:textColor="@color/black_1"
                     android:textSize="14sp" />
 
                 <TextView
@@ -101,7 +101,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
                     android:text="Подразделение"
-                    android:textColor="@color/gray_1"
+                    android:textColor="@color/black_1"
                     android:textSize="14sp" />
 
                 <TextView
@@ -130,7 +130,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
                     android:text="Версия"
-                    android:textColor="@color/gray_1"
+                    android:textColor="@color/black_1"
                     android:textSize="14sp" />
 
                 <TextView

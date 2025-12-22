@@ -67,24 +67,24 @@
             android:layout_marginTop="10dp"
             android:layout_marginBottom="10dp"
             android:layout_marginEnd="15dp"
-            app:boxStrokeColor="@color/gray_1"
-            app:hintTextColor="@color/gray_1"
+            app:boxStrokeColor="@color/search_text_input_colors"
+            app:hintTextColor="@color/search_text_input_colors"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toStartOf="@+id/filter_button"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent"
             app:startIconDrawable="@drawable/ic_search_24"
-            app:startIconTint="@color/gray_1">
+            app:startIconTint="@color/search_text_input_colors">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/search_edit_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Поиск"
-                android:inputType="textCapSentences|textFilter"
                 android:imeOptions="actionSearch"
+                android:inputType="textCapSentences|textFilter"
                 android:maxLines="1"
-                android:textColor="@color/gray_1"/>
+                android:textColor="@color/gray_1" />
 
         </com.google.android.material.textfield.TextInputLayout>
 

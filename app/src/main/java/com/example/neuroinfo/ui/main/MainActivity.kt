@@ -20,6 +20,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.neuroinfo.R
 import com.example.neuroinfo.adapter.HospitalizationAdapter
 import com.example.neuroinfo.data.CallRepository
+import com.example.neuroinfo.data.CallsCache
 import com.example.neuroinfo.data.RetrofitClient
 import com.example.neuroinfo.data.TokenInterceptor
 import com.example.neuroinfo.model.Hospitalization
@@ -28,6 +29,10 @@ import com.google.android.material.tabs.TabLayout
 import com.google.android.material.button.MaterialButton
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.view.MotionEvent
@@ -53,7 +58,9 @@ class MainActivity : AppCompatActivity() {
             TextInputEditText
 
     private val callRepository = CallRepository(RetrofitClient.apiService)
-    private val mainScope = CoroutineScope(Dispatchers.Main)
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private var searchJob: Job? = null
+    private val callsCache by lazy { CallsCache(applicationContext) }
 
     // Какой список сейчас показываем: Активные или Архив
     private enum class TabFilter {
@@ -127,7 +134,12 @@ class MainActivity : AppCompatActivity() {
                             before: Int,
                             count: Int
                     ) {
-                        applyFilters(s.toString())
+                        searchJob?.cancel()
+                        searchJob =
+                                mainScope.launch {
+                                    delay(250)
+                                    applyFilters(s?.toString().orEmpty())
+                                }
                     }
                     override fun afterTextChanged(s: Editable?) {}
                 }
@@ -182,38 +194,10 @@ class MainActivity : AppCompatActivity() {
                     baseList
                 } else {
                     baseList.filter { call ->
-                        // Проверяем вхождение строки поиска в интересующие нас поля
-
-                        // Через безопасные цепочки
-
-                        // Пациент (ФИО, Возраст, Пол)
-                        (call.patientName?.lowercase()?.contains(lowerCaseQuery) == true) ||
-                                (call.patientSurname?.lowercase()?.contains(lowerCaseQuery) == true) ||
-                                (call.patientPatronymic?.lowercase()?.contains(lowerCaseQuery) == true) ||
-                                (call.patientFullName?.lowercase()?.contains(lowerCaseQuery) == true) ||
-                                (call.age?.lowercase()?.contains(lowerCaseQuery) == true) ||
-
-                                // Разные варианты поиска возраста
-                                ("${call.age} лет".contains(lowerCaseQuery)) ||
-                                ("${call.age} год".contains(lowerCaseQuery)) ||
-                                ("${call.age} года".contains(lowerCaseQuery)) ||
-                                (call.sex?.lowercase()?.contains(lowerCaseQuery) == true) ||
-
-                                // Причина и Номер вызова
-                                (call.reason?.lowercase()?.contains(lowerCaseQuery) == true) ||
-                                (call.callNumber?.lowercase()?.contains(lowerCaseQuery) == true) ||
-
-                                // Адрес (Район, Улица, Дом, Квартира, Комментарий)
-                                (call.district?.lowercase()?.contains(lowerCaseQuery) == true) ||
-                                (call.street?.lowercase()?.contains(lowerCaseQuery) == true) ||
-                                (call.house?.lowercase()?.contains(lowerCaseQuery) == true) ||
-                                (call.apartment?.lowercase()?.contains(lowerCaseQuery) == true) ||
-                                (call.apartment?.lowercase()?.contains(lowerCaseQuery) == true) ||
-                                (call.comment?.lowercase()?.contains(lowerCaseQuery) == true) ||
-
-                                // Дата (отформатированная)
-                                (DateFormatter.formatDateTime(call.callTime)
-                                    .contains(lowerCaseQuery))
+                        if (call.searchCache.isNullOrBlank()) {
+                            call.searchCache = buildSearchIndex(call)
+                        }
+                        call.searchCache?.contains(lowerCaseQuery) == true
                     }
                 }
 
@@ -224,6 +208,49 @@ class MainActivity : AppCompatActivity() {
         if (::adapter.isInitialized) {
             adapter.notifyDataSetChanged()
         }
+    }
+
+    private fun prepareCallsForSearch(calls: List<Hospitalization>) {
+        calls.forEach { call ->
+            if (call.formattedCallTime.isNullOrBlank()) {
+                call.formattedCallTime = DateFormatter.formatDateTime(call.callTime)
+            }
+            if (call.searchCache.isNullOrBlank()) {
+                call.searchCache = buildSearchIndex(call)
+            }
+        }
+    }
+
+    private fun buildSearchIndex(call: Hospitalization): String {
+        val age = call.age?.trim().orEmpty()
+        val ageVariants =
+                if (age.isNotEmpty()) {
+                    listOf("$age лет", "$age год", "$age года")
+                } else {
+                    emptyList()
+                }
+
+        return buildList {
+                    add(call.patientFullName)
+                    add(call.patientName)
+                    add(call.patientSurname)
+                    add(call.patientPatronymic)
+                    add(age)
+                    addAll(ageVariants)
+                    add(call.sex)
+                    add(call.reason)
+                    add(call.callNumber)
+                    add(call.district)
+                    add(call.point)
+                    add(call.street)
+                    add(call.house)
+                    add(call.apartment)
+                    add(call.comment)
+                    add(call.formattedCallTime)
+                }
+                .filterNotNull()
+                .joinToString(separator = " ")
+                .lowercase()
     }
 
     /**
@@ -360,6 +387,9 @@ class MainActivity : AppCompatActivity() {
     private fun logout() {
         TokenInterceptor.clearToken(this)
         val sharedPrefs = getSharedPreferences("app_session", MODE_PRIVATE)
+        sharedPrefs.getString("user_login", null)?.let { login ->
+            callsCache.clear(login)
+        }
         sharedPrefs.edit().remove("isLoggedIn").apply()
         val intent = Intent(this, LoginActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
@@ -379,42 +409,68 @@ class MainActivity : AppCompatActivity() {
     private fun fetchCalls() {
         mainScope.launch {
             try {
-                // ЗАГРУЖАЕМ 2000 записей (для работы поиска)
-                val result =
-                        withContext(Dispatchers.IO) {
-                            callRepository.getCalls(
-                                    pageNumber = 1,
-                                    pageSize = 2000,
-                                    getCount = true
-                            )
+                val sharedPrefs = getSharedPreferences("app_session", MODE_PRIVATE)
+                val userLogin = sharedPrefs.getString("user_login", null)
+
+                val cachedCalls =
+                        if (!userLogin.isNullOrBlank()) {
+                            withContext(Dispatchers.IO) {
+                                callsCache.readCalls(userLogin)
+                            }
+                        } else {
+                            null
                         }
 
-                if (result.isSuccess) {
-                    val content = result.getOrThrow()
+                val callsToShow =
+                        if (!cachedCalls.isNullOrEmpty()) {
+                            cachedCalls
+                        } else {
+                            val result =
+                                    withContext(Dispatchers.IO) {
+                                        callRepository.getCalls(
+                                                pageNumber = 1,
+                                                pageSize = 2000,
+                                                getCount = true
+                                        )
+                                    }
 
-                    // Сохраняем в ПОЛНЫЙ список
-                    allHospitalizationList.clear()
-                    allHospitalizationList.addAll(content.calls)
+                            if (result.isSuccess) {
+                                val content = result.getOrThrow()
+                                content.calls
+                            } else {
+                                val error =
+                                        result.exceptionOrNull()?.message
+                                                ?: "Не удалось загрузить список вызовов."
+                                Toast.makeText(this@MainActivity, "Ошибка: $error", Toast.LENGTH_LONG).show()
+                                emptyList()
+                            }
+                        }
 
-                    // Сразу применяем фильтры (вкладка Активные/Архив + поиск),
-                    // чтобы при первом запуске "Активные" не показывали архив.
-                    applyFilters()
+                prepareCallsForSearch(callsToShow)
 
-                    if (!::adapter.isInitialized) {
-                        adapter =
-                                HospitalizationAdapter(hospitalizationList) { call ->
-                                    showConfirmArchiveDialog()
-                                }
-                        recyclerView.adapter = adapter
-                        recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
-                    } else {
-                        adapter.notifyDataSetChanged()
+                if (cachedCalls.isNullOrEmpty() && !userLogin.isNullOrBlank() && callsToShow.isNotEmpty()) {
+                    withContext(Dispatchers.IO) {
+                        callsCache.writeCalls(userLogin, callsToShow)
                     }
+                }
+
+                // Сохраняем в ПОЛНЫЙ список
+                allHospitalizationList.clear()
+                allHospitalizationList.addAll(callsToShow)
+
+                // Сразу применяем фильтры (вкладка Активные/Архив + поиск),
+                // чтобы при первом запуске "Активные" не показывали архив.
+                applyFilters()
+
+                if (!::adapter.isInitialized) {
+                    adapter =
+                            HospitalizationAdapter(hospitalizationList) { call ->
+                                showConfirmArchiveDialog()
+                            }
+                    recyclerView.adapter = adapter
+                    recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
                 } else {
-                    val error =
-                            result.exceptionOrNull()?.message
-                                    ?: "Не удалось загрузить список вызовов."
-                    Toast.makeText(this@MainActivity, "Ошибка: $error", Toast.LENGTH_LONG).show()
+                    adapter.notifyDataSetChanged()
                 }
             } catch (e: Exception) {
                 Toast.makeText(
@@ -464,7 +520,5 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Ошибка теста: ${e.message}", Toast.LENGTH_LONG).show()
             Log.e("TestCall", "CRASH: ", e)
         }
-
-        }
     }
-
+}
