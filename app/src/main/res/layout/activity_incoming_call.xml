@@ -1,42 +1,111 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:gravity="center"
-    android:orientation="vertical"
-    android:background="#8A2BE2"> <!-- Фиолетовый -->
+    android:background="@color/background_1"
+    android:fitsSystemWindows="true">
 
-    <TextView
-        android:layout_width="wrap_content"
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/header_card"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Новая госпитализация!"
-        android:textSize="28sp"
-        android:textColor="#FFFFFF"
-        android:textStyle="bold" />
+        android:layout_margin="16dp"
+        app:cardBackgroundColor="@color/background_2"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="2dp"
+        app:strokeColor="@color/border_gray_1"
+        app:strokeWidth="1dp"
+        app:layout_constraintTop_toTopOf="parent">
 
-    <TextView
-        android:id="@+id/patientInfo"
-        android:layout_width="wrap_content"
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="?attr/actionBarSize"
+            android:gravity="center"
+            android:text="Новая госпитализация"
+            android:textColor="@color/gray_1"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/patient_card"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Загрузка..."
-        android:textSize="20sp"
-        android:textColor="#FFFFFF"
-        android:layout_marginTop="16dp" />
+        android:layout_margin="16dp"
+        app:cardBackgroundColor="@color/background_2"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="2dp"
+        app:strokeColor="@color/border_gray_1"
+        app:strokeWidth="1dp"
+        app:layout_constraintTop_toBottomOf="@id/header_card"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-    <Button
-        android:id="@+id/acceptButton"
-        android:layout_width="220dp"
+        <TextView
+            android:id="@+id/patientInfo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="20dp"
+            android:text="Загрузка..."
+            android:textColor="@color/gray_1"
+            android:textSize="16sp"
+            android:lineSpacingExtra="4dp" />
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.textfield.TextInputLayout
+        android:id="@+id/comment_input_layout"
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="Принять"
-        android:textColor="#000000"
-        android:layout_marginTop="40dp" />
+        android:layout_margin="16dp"
+        app:boxStrokeColor="@color/gray_1"
+        app:hintTextColor="@color/gray_1"
+        app:layout_constraintTop_toBottomOf="@+id/patient_card"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:startIconDrawable="@drawable/ic_search_24"
+        app:startIconTint="@color/gray_1">
 
-    <Button
-        android:id="@+id/rejectButton"
-        android:layout_width="220dp"
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/comment_edit_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Сообщение диспетчеру"
+            android:textColor="@color/gray_1"
+            android:fontFamily="sans-serif"
+            android:inputType="textCapSentences" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Отказаться"
-        android:textColor="#000000"
-        android:layout_marginTop="16dp" />
+        android:orientation="horizontal"
+        android:padding="16dp"
+        app:layout_constraintBottom_toBottomOf="parent">
 
-</LinearLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/rejectButton"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="8dp"
+            android:text="Отказ"
+            android:textColor="#FF5252"
+            app:strokeColor="#FF5252"
+            app:cornerRadius="16dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/acceptButton"
+            android:layout_width="0dp"
+            android:layout_height="60dp"
+            android:layout_weight="1.5"
+            android:layout_marginStart="8dp"
+            android:text="Принять"
+            android:backgroundTint="@color/main_1"
+            android:textColor="@android:color/white"
+            app:cornerRadius="16dp" />
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

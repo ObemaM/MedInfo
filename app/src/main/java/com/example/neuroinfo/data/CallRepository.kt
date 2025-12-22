@@ -23,7 +23,7 @@ class CallRepository(private val apiService: API) {
     }
 
     // Ответ на вызов (Принять/Отказаться)
-    suspend fun answerCall(callId: String, decision: String): Result<Unit> {
+    suspend fun answerCall(callId: String, decision: String, userComment: String): Result<Unit> {
         return try {
             val request = CallAnswerRequest(callId, decision)
             val response = apiService.answerCall(request)

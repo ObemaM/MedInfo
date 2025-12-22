@@ -33,6 +33,16 @@ import kotlinx.coroutines.withContext
 import android.view.MotionEvent
 import android.view.inputmethod.InputMethodManager
 import android.graphics.Rect
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.Log
+import android.view.inputmethod.EditorInfo
+import com.example.neuroinfo.model.CallNotificationDto
+import com.example.neuroinfo.ui.incoming.IncomingCallActivity
+import com.example.neuroinfo.util.DateFormatter
+import com.google.android.material.textfield.TextInputEditText
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -40,7 +50,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: HospitalizationAdapter
     private lateinit var tabLayout: TabLayout
     private lateinit var searchEditText:
-            com.google.android.material.textfield.TextInputEditText
+            TextInputEditText
 
     private val callRepository = CallRepository(RetrofitClient.apiService)
     private val mainScope = CoroutineScope(Dispatchers.Main)
@@ -54,14 +64,14 @@ class MainActivity : AppCompatActivity() {
     override fun dispatchTouchEvent(ev: MotionEvent): Boolean {
         if (ev.action == MotionEvent.ACTION_DOWN) {
             val v = currentFocus
-            if (v != null && v is com.google.android.material.textfield.TextInputEditText) {
+            if (v != null && v is TextInputEditText) {
                 val outRect = Rect()
                 v.getGlobalVisibleRect(outRect)
 
                 // Если тапнули ВНЕ поля поиска
                 if (!outRect.contains(ev.rawX.toInt(), ev.rawY.toInt())) {
                     v.clearFocus()
-                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
                     imm.hideSoftInputFromWindow(v.windowToken, 0)
                 }
             }
@@ -99,12 +109,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupSearchListener() {
         searchEditText =
-                findViewById<com.google.android.material.textfield.TextInputEditText>(
+                findViewById<TextInputEditText>(
                         R.id.search_edit_text
                 )
 
         searchEditText.addTextChangedListener(
-                object : android.text.TextWatcher {
+                object : TextWatcher {
                     override fun beforeTextChanged(
                             s: CharSequence?,
                             start: Int,
@@ -119,18 +129,18 @@ class MainActivity : AppCompatActivity() {
                     ) {
                         applyFilters(s.toString())
                     }
-                    override fun afterTextChanged(s: android.text.Editable?) {}
+                    override fun afterTextChanged(s: Editable?) {}
                 }
         )
 
         searchEditText.setOnEditorActionListener { v, actionId, _ ->
-            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_SEARCH ||
-                            actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE
+            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
+                            actionId == EditorInfo.IME_ACTION_DONE
             ) {
                 // Скрываем клавиатуру
                 val imm =
-                        getSystemService(Context.INPUT_METHOD_SERVICE) as
-                                android.view.inputmethod.InputMethodManager
+                        getSystemService(INPUT_METHOD_SERVICE) as
+                                InputMethodManager
                 imm.hideSoftInputFromWindow(v.windowToken, 0)
                 // Снимаем фокус
                 v.clearFocus()
@@ -202,7 +212,7 @@ class MainActivity : AppCompatActivity() {
                                 (call.comment?.lowercase()?.contains(lowerCaseQuery) == true) ||
 
                                 // Дата (отформатированная)
-                                (com.example.neuroinfo.util.DateFormatter.formatDateTime(call.callTime)
+                                (DateFormatter.formatDateTime(call.callTime)
                                     .contains(lowerCaseQuery))
                     }
                 }
@@ -252,12 +262,12 @@ class MainActivity : AppCompatActivity() {
 
         return try {
             val inputFormat =
-                    java.text.SimpleDateFormat(
-                            "yyyy-MM-dd'T'HH:mm:ss",
-                            java.util.Locale.getDefault()
-                    )
+                SimpleDateFormat(
+                        "yyyy-MM-dd'T'HH:mm:ss",
+                        Locale.getDefault()
+                )
             val outputFormat =
-                    java.text.SimpleDateFormat("dd.MM.yyyy HH:mm", java.util.Locale.getDefault())
+                SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
 
             val date = inputFormat.parse(dateTime)
             outputFormat.format(date!!)
@@ -267,8 +277,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showProfilePopupWindow(anchor: View) {
-        val inflater = getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
+        val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
         val popupView = inflater.inflate(R.layout.popup_menu_custom, null)
+
 
         val popupWindow =
                 PopupWindow(
@@ -278,13 +289,14 @@ class MainActivity : AppCompatActivity() {
                         true
                 )
         popupWindow.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-
-        // Настройка кнопок в кастомном меню
         val testButton = popupView.findViewById<TextView>(R.id.popup_test)
+        // Настройка кнопок в кастомном меню
+
         val userDataButton = popupView.findViewById<TextView>(R.id.userdata)
         val logoutButton = popupView.findViewById<TextView>(R.id.popup_logout)
 
         testButton.setOnClickListener {
+            simulateIncomingCall()
             Toast.makeText(this, "Тестовый звонок", Toast.LENGTH_SHORT).show()
             popupWindow.dismiss()
         }
@@ -316,7 +328,7 @@ class MainActivity : AppCompatActivity() {
 
         // Получаем и устанавливаем логин и версию
         val login =
-                getSharedPreferences("app_session", Context.MODE_PRIVATE)
+                getSharedPreferences("app_session", MODE_PRIVATE)
                         .getString("user_login", "Неизвестно")
         loginTextView.text = login
         version.text = getAppVersion()
@@ -415,4 +427,44 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-}
+    private fun simulateIncomingCall() {
+        // Имитируем данные от сервера
+        try {
+            val mockCall = CallNotificationDto(
+                fullName = "Иванов Иван Иванович",
+                age = "age",
+                sex = "sex",
+                reason = "reason",
+                district = "district",
+                point = "point",
+                street = "street",
+                house = "House",
+                apartment = "1",
+                entrance = 1,
+                longitude = 1.2,
+                latitude = 2.3,
+                brigadeNumber = 12,
+                brigadeProfile = "Profile",
+                callNumber = "123456",
+                callTime = "callTime",
+                urgency = 1,
+                status = "status",
+                additionalInfo = ""
+            )
+
+            // Запускаем экран точно так же, как это делает SignalRService
+            val intent = Intent(this, IncomingCallActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                putExtra("CALL_DATA", mockCall)
+            }
+
+            startActivity(intent)
+        }
+        catch (e: Exception) {
+            Toast.makeText(this, "Ошибка теста: ${e.message}", Toast.LENGTH_LONG).show()
+            Log.e("TestCall", "CRASH: ", e)
+        }
+
+        }
+    }
+

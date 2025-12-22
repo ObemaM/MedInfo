@@ -81,11 +81,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:hint="Поиск"
-                android:inputType="text"
+                android:inputType="textCapSentences|textFilter"
                 android:imeOptions="actionSearch"
                 android:maxLines="1"
-                android:textColor="@color/gray_1"
-                android:textCursorDrawable="@null" />
+                android:textColor="@color/gray_1"/>
 
         </com.google.android.material.textfield.TextInputLayout>
 

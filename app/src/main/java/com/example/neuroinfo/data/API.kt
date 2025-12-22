@@ -26,4 +26,12 @@ interface API {
     suspend fun answerCall(
         @Body request: CallAnswerRequest
     ): Response<ApiResponse<Void>>
+
+    //Для ответа в звонке
+    @POST("api/calls/{id}/answer")
+    suspend fun answerCallWithComment(
+        @Path("id") id: Int,
+        @Query("decision") decision: String,
+        @Query("comment") comment: String // Добавляем поле для сообщения
+    ): Response<Unit>
 }

@@ -62,4 +62,16 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
     implementation("com.microsoft.signalr:signalr:10.0.1")
 
+    // SignalR
+    implementation("com.microsoft.signalr:signalr:7.0.0")
+
+    // RxJava3 (необходим для работы AccessTokenProvider в SignalR)
+    implementation("io.reactivex.rxjava3:rxjava:3.1.5")
+    implementation("io.reactivex.rxjava3:rxandroid:3.0.0")
+
+    // Для работы с JSON внутри SignalR
+    implementation("com.google.code.gson:gson:2.10.1")
+
+
+
 }
