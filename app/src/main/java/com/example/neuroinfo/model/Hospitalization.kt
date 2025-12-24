@@ -43,8 +43,12 @@ data class Hospitalization(
     val brigadeProfile: String?, // Профиль бригады
     val seniorFullName: String?, // ФИО старшего
 
+    @SerializedName(value = "DayNumber", alternate = ["dayNumber", "day_number"])
+    val dayNumber: Int?, // День (для номера вызова)
+    @SerializedName(value = "YearNumber", alternate = ["yearNumber", "year_number"])
+    val yearNumber: Int?, // Год (для номера вызова)
     var status: String?, // Текущий статус ("транспортировка", "Активен" и т.д.)
-    val callNumber: String?, // Номер вызова (из dayNumber/yearNumber)
+    // val callNumber: String?, // Номер вызова (из dayNumber/yearNumber)
     val callTime: String?, // Время вызова
     val urgency: Int?, // Срочность
 

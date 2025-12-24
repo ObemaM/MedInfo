@@ -1,7 +1,30 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.Neuroinfo" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Theme.Neuroinfo" parent="Base.Theme.Neuroinfo">
         <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+        <item name="colorPrimary">@color/main_1</item>
+        <item name="colorPrimaryContainer">@color/blue_2</item>
+
+        <item name="colorSecondary">@color/menu_blue_2</item>
+        <item name="colorSecondaryContainer">@color/blue_3</item>
+
+        <item name="colorTertiary">@color/main_1</item>
+        <item name="colorTertiaryContainer">@color/blue_3</item>
+
+        <item name="colorSurface">@color/background_1</item>
+        <item name="colorSurfaceVariant">@color/background_2</item>
+
+        <item name="android:colorBackground">@color/background_1</item>
+        <item name="android:windowBackground">@color/background_1</item>
+        <item name="android:statusBarColor">@color/background_1</item>
+        <item name="android:navigationBarColor">@color/background_1</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+
+        <item name="bottomSheetDialogTheme">@style/App.BottomSheetDialogTheme</item>
+
+        <item name="colorError">@color/red_1</item>
     </style>
 </resources>

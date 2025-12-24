@@ -27,8 +27,16 @@ class HospitalizationAdapter(
 
         fun bind(call: Hospitalization) {
 
+            // Номер звонка
+            val callNumber: String =
+                    if (call.dayNumber != null && call.yearNumber != null) {
+                        "${call.dayNumber}/${call.yearNumber}"
+                    } else {
+                        "Н/Д"
+                    }
+
             // Номер и статус
-            callNumberTextView.text = "Вызов №${call.callNumber}"
+            callNumberTextView.text = "Вызов №${callNumber}"
             statusTextView.text = call.status
 
             // Пациент

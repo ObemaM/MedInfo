@@ -48,6 +48,10 @@ import com.example.neuroinfo.util.DateFormatter
 import com.google.android.material.textfield.TextInputEditText
 import java.text.SimpleDateFormat
 import java.util.Locale
+import android.os.Build
+import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsControllerCompat
 
 class MainActivity : AppCompatActivity() {
 
@@ -56,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tabLayout: TabLayout
     private lateinit var searchEditText:
             TextInputEditText
+    private lateinit var filterButton: ImageButton
 
     private val callRepository = CallRepository(RetrofitClient.apiService)
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -93,9 +98,29 @@ class MainActivity : AppCompatActivity() {
     // Полный список всех загруженных вызовов
     private val allHospitalizationList = mutableListOf<Hospitalization>()
 
+    private var currentFilters: CallFilters = CallFilters()
+
+    private val callTimeInputFormat =
+            SimpleDateFormat(
+                    "yyyy-MM-dd'T'HH:mm:ss",
+                    Locale.getDefault()
+            )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = android.graphics.Color.TRANSPARENT
+        window.navigationBarColor = android.graphics.Color.TRANSPARENT
+        WindowInsetsControllerCompat(window, window.decorView).apply {
+            isAppearanceLightStatusBars = true
+            isAppearanceLightNavigationBars = true
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            window.isNavigationBarContrastEnforced = false
+            window.isStatusBarContrastEnforced = false
+        }
 
         setupViews()
         setupLogoutConfirmationListener()
@@ -108,9 +133,39 @@ class MainActivity : AppCompatActivity() {
         val profileButton = findViewById<ImageButton>(R.id.profile_button)
         profileButton.setOnClickListener { showProfilePopupWindow(it) }
 
+        filterButton = findViewById(R.id.filter_button)
+        filterButton.setOnClickListener {
+            CallFiltersBottomSheetDialogFragment
+                    .newInstance(currentFilters)
+                    .show(supportFragmentManager, CallFiltersBottomSheetDialogFragment.TAG)
+        }
+
+        setupFiltersListener()
+
         tabLayout = findViewById(R.id.tab_layout)
         setupTabsListener()
         setupSearchListener()
+    }
+
+    private fun setupFiltersListener() {
+        supportFragmentManager.setFragmentResultListener(
+                CallFiltersBottomSheetDialogFragment.REQUEST_KEY,
+                this
+        ) { _, bundle ->
+            val filters =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        bundle.getSerializable(
+                                CallFiltersBottomSheetDialogFragment.KEY_FILTERS,
+                                CallFilters::class.java
+                        )
+                    } else {
+                        @Suppress("DEPRECATION")
+                        bundle.getSerializable(CallFiltersBottomSheetDialogFragment.KEY_FILTERS) as? CallFilters
+                    }
+
+            currentFilters = filters ?: CallFilters()
+            applyFilters()
+        }
     }
 
 
@@ -171,6 +226,10 @@ class MainActivity : AppCompatActivity() {
     private fun applyFilters(query: String = searchEditText.text?.toString().orEmpty()) {
         val lowerCaseQuery = query.lowercase().trim()
 
+        if (::filterButton.isInitialized) {
+            filterButton.isSelected = currentFilters.isActive()
+        }
+
         // 1. Сначала фильструем по вкладке
         val baseList =
                 when (currentTabFilter) {
@@ -188,12 +247,18 @@ class MainActivity : AppCompatActivity() {
                             }
                 }
 
-        // 2. Затем накладываем текстовый поиск (если он есть)
+        // 2. Фильтры из окна
+        val baseListWithCustomFilters =
+                baseList.filter { call ->
+                    matchesCustomFilters(call, currentFilters)
+                }
+
+        // 3. Затем накладываем текстовый поиск (если он есть)
         val filteredList =
                 if (lowerCaseQuery.isEmpty()) {
-                    baseList
+                    baseListWithCustomFilters
                 } else {
-                    baseList.filter { call ->
+                    baseListWithCustomFilters.filter { call ->
                         if (call.searchCache.isNullOrBlank()) {
                             call.searchCache = buildSearchIndex(call)
                         }
@@ -207,6 +272,81 @@ class MainActivity : AppCompatActivity() {
 
         if (::adapter.isInitialized) {
             adapter.notifyDataSetChanged()
+        }
+    }
+
+    private fun matchesCustomFilters(
+            call: Hospitalization,
+            filters: CallFilters
+    ): Boolean {
+        if (filters.urgencyFrom != null) {
+            val urgency = call.urgency ?: return false
+            if (urgency < filters.urgencyFrom) return false
+        }
+        if (filters.urgencyTo != null) {
+            val urgency = call.urgency ?: return false
+            if (urgency > filters.urgencyTo) return false
+        }
+
+        if (filters.sex != SexFilter.ANY) {
+            val sex = call.sex?.lowercase(Locale.getDefault())?.trim().orEmpty()
+            val isMale = sex.contains("муж") || sex.contains("male")
+            val isFemale = sex.contains("жен") || sex.contains("female")
+            when (filters.sex) {
+                SexFilter.MALE -> if (!isMale) return false
+                SexFilter.FEMALE -> if (!isFemale) return false
+                SexFilter.ANY -> Unit
+            }
+        }
+
+        val age = parseAge(call.age)
+        if (filters.ageFrom != null) {
+            val v = age ?: return false
+            if (v < filters.ageFrom) return false
+        }
+        if (filters.ageTo != null) {
+            val v = age ?: return false
+            if (v > filters.ageTo) return false
+        }
+
+        if (filters.dateFromMillis != null || filters.dateToMillis != null) {
+            val callMillis = parseCallTimeMillis(call.callTime) ?: return false
+            if (filters.dateFromMillis != null && callMillis < filters.dateFromMillis) return false
+            if (filters.dateToMillis != null && callMillis > filters.dateToMillis) return false
+        }
+
+        if (filters.callDayFrom != null || filters.callDayTo != null) {
+            val day = call.dayNumber ?: return false
+            if (filters.callDayFrom != null && day < filters.callDayFrom) return false
+            if (filters.callDayTo != null && day > filters.callDayTo) return false
+        }
+
+        if (filters.callYearFrom != null || filters.callYearTo != null) {
+            val year = call.yearNumber ?: return false
+            if (filters.callYearFrom != null && year < filters.callYearFrom) return false
+            if (filters.callYearTo != null && year > filters.callYearTo) return false
+        }
+
+        return true
+    }
+
+    private fun parseAge(age: String?): Int? {
+        if (age.isNullOrBlank()) return null
+        return age.trim().toIntOrNull()
+    }
+
+    private fun parseCallTimeMillis(callTime: String?): Long? {
+        if (callTime.isNullOrBlank()) return null
+        return try {
+            val normalized =
+                    if (callTime.length >= 19) {
+                        callTime.substring(0, 19)
+                    } else {
+                        callTime
+                    }
+            callTimeInputFormat.parse(normalized)?.time
+        } catch (_: Exception) {
+            null
         }
     }
 
@@ -230,6 +370,13 @@ class MainActivity : AppCompatActivity() {
                     emptyList()
                 }
 
+        val callNumber =
+                if (call.dayNumber != null && call.yearNumber != null) {
+                    "${call.dayNumber}/${call.yearNumber}"
+                } else {
+                    null
+                }
+
         return buildList {
                     add(call.patientFullName)
                     add(call.patientName)
@@ -239,7 +386,9 @@ class MainActivity : AppCompatActivity() {
                     addAll(ageVariants)
                     add(call.sex)
                     add(call.reason)
-                    add(call.callNumber)
+                    add(call.yearNumber)
+                    add(call.dayNumber)
+                    add(callNumber)
                     add(call.district)
                     add(call.point)
                     add(call.street)
@@ -421,34 +570,49 @@ class MainActivity : AppCompatActivity() {
                             null
                         }
 
-                val callsToShow =
-                        if (!cachedCalls.isNullOrEmpty()) {
-                            cachedCalls
-                        } else {
-                            val result =
-                                    withContext(Dispatchers.IO) {
-                                        callRepository.getCalls(
-                                                pageNumber = 1,
-                                                pageSize = 2000,
-                                                getCount = true
-                                        )
-                                    }
-
-                            if (result.isSuccess) {
-                                val content = result.getOrThrow()
-                                content.calls
-                            } else {
-                                val error =
-                                        result.exceptionOrNull()?.message
-                                                ?: "Не удалось загрузить список вызовов."
-                                Toast.makeText(this@MainActivity, "Ошибка: $error", Toast.LENGTH_LONG).show()
-                                emptyList()
-                            }
+                val apiResult =
+                        withContext(Dispatchers.IO) {
+                            callRepository.getCalls(
+                                    pageNumber = 1,
+                                    pageSize = 2000,
+                                    getCount = true
+                            )
                         }
+
+                val callsToShow =
+                        if (apiResult.isSuccess) {
+                            val content = apiResult.getOrThrow()
+                            content.calls
+                        } else {
+                            val error =
+                                    apiResult.exceptionOrNull()?.message
+                                            ?: "Не удалось загрузить список вызовов."
+                            Toast.makeText(this@MainActivity, "Ошибка: $error", Toast.LENGTH_LONG).show()
+                            cachedCalls ?: emptyList()
+                        }
+
+                val source =
+                        if (apiResult.isSuccess) {
+                            "api"
+                        } else {
+                            if (!cachedCalls.isNullOrEmpty()) "cache" else "empty"
+                        }
+                if (callsToShow.isNotEmpty()) {
+                    val first = callsToShow.first()
+                    Log.d(
+                            "CallsDebug",
+                            "source=$source, size=${callsToShow.size}, firstId=${first.id}, day=${first.dayNumber}, year=${first.yearNumber}"
+                    )
+                } else {
+                    Log.d(
+                            "CallsDebug",
+                            "source=$source, size=0"
+                    )
+                }
 
                 prepareCallsForSearch(callsToShow)
 
-                if (cachedCalls.isNullOrEmpty() && !userLogin.isNullOrBlank() && callsToShow.isNotEmpty()) {
+                if (apiResult.isSuccess && !userLogin.isNullOrBlank()) {
                     withContext(Dispatchers.IO) {
                         callsCache.writeCalls(userLogin, callsToShow)
                     }

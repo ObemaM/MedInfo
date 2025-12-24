@@ -2,10 +2,49 @@
     <!-- Base application theme. -->
     <style name="Base.Theme.Neuroinfo" parent="Theme.Material3.DayNight.NoActionBar">
         <item name="colorPrimary">@color/main_1</item>
+        <item name="colorPrimaryContainer">@color/blue_2</item>
+
+        <item name="colorSecondary">@color/menu_blue_2</item>
+        <item name="colorSecondaryContainer">@color/blue_3</item>
+
+        <item name="colorTertiary">@color/main_1</item>
+        <item name="colorTertiaryContainer">@color/blue_3</item>
+
+        <item name="colorSurface">@color/background_1</item>
+        <item name="colorSurfaceVariant">@color/background_2</item>
+
+        <item name="android:colorBackground">@color/background_1</item>
+        <item name="android:windowBackground">@color/background_1</item>
+        <item name="android:statusBarColor">@color/background_1</item>
+        <item name="android:navigationBarColor">@color/background_1</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+
+        <item name="bottomSheetDialogTheme">@style/App.BottomSheetDialogTheme</item>
+
+        <item name="colorError">@color/red_1</item>
         <item name="android:fontFamily">@font/rubikregular</item> <!-- Set default font -->
     </style>
 
     <style name="Theme.Neuroinfo" parent="Base.Theme.Neuroinfo" />
+
+    <style name="App.BottomSheetDialogTheme" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/App.BottomSheetStyle</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarDividerColor">@color/background_1</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.45</item>
+        <item name="android:enforceNavigationBarContrast">false</item>
+        <item name="android:enforceStatusBarContrast">false</item>
+    </style>
+
+    <style name="App.BottomSheetStyle" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="android:background">@android:color/transparent</item>
+    </style>
 
     <style name="App.Custom.Indicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
         <item name="android:color">@color/menu_blue_2</item>
