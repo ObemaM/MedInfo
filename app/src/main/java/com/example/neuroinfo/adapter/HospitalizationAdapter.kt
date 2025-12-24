@@ -47,7 +47,11 @@ class HospitalizationAdapter(
             }
 
             // Время вызова
-            timeTextView.text = "Дата: " + com.example.neuroinfo.util.DateFormatter.formatDateTime(call.callTime)
+            val formattedTime =
+                    call.formattedCallTime
+                            ?: com.example.neuroinfo.util.DateFormatter.formatDateTime(call.callTime)
+                                    .also { v -> call.formattedCallTime = v }
+            timeTextView.text = "Дата: $formattedTime"
 
             // Срочность
             urgencyTextView.text = call.urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"

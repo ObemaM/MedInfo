@@ -3,28 +3,19 @@ package com.example.neuroinfo.ui.main
 import android.app.DatePickerDialog
 import android.app.Dialog
 import android.app.TimePickerDialog
-import android.graphics.Color
-import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
-import android.view.LayoutInflater
-import android.view.View
-import android.view.ViewGroup
-import android.view.WindowManager
-import android.widget.ImageButton
+import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.DialogFragment
 import androidx.core.os.bundleOf
-import androidx.core.content.ContextCompat
-import androidx.core.view.WindowCompat
-import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.setFragmentResult
 import com.example.neuroinfo.R
-import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButtonToggleGroup
 import com.google.android.material.textfield.TextInputEditText
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
+class CallFiltersDialogFragment : DialogFragment() {
 
     private val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
 
@@ -32,48 +23,12 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
     private var dateToMillis: Long? = null
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val dialog = super.onCreateDialog(savedInstanceState)
-        val color = ContextCompat.getColor(requireContext(), R.color.background_1)
-        dialog.window?.let { w ->
-            WindowCompat.setDecorFitsSystemWindows(w, false)
-            w.statusBarColor = Color.TRANSPARENT
-            w.navigationBarColor = Color.TRANSPARENT
-            WindowInsetsControllerCompat(w, w.decorView).apply {
-                isAppearanceLightStatusBars = true
-                isAppearanceLightNavigationBars = true
-            }
-        }
-        dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-        dialog.window?.navigationBarColor = Color.TRANSPARENT
-        dialog.window?.statusBarColor = Color.TRANSPARENT
-        // Add custom dimming without pink color
-        dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
-        dialog.window?.attributes = dialog.window?.attributes?.apply {
-            dimAmount = 0.0f // Disable system dimming
-        }
-        // Create custom dim overlay
-        val dimColor = Color.parseColor("#80000000") // Semi-transparent black
-        dialog.window?.setBackgroundDrawable(ColorDrawable(dimColor))
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
-            dialog.window?.isNavigationBarContrastEnforced = false
-            dialog.window?.isStatusBarContrastEnforced = false
-        }
-        return dialog
-    }
+        val inflater = requireActivity().layoutInflater
+        val view = inflater.inflate(R.layout.dialog_call_filters, null)
 
-    override fun onCreateView(
-            inflater: LayoutInflater,
-            container: ViewGroup?,
-            savedInstanceState: Bundle?
-    ): View {
-        return inflater.inflate(R.layout.bottom_sheet_call_filters, container, false)
-    }
+        val initialFilters = (arguments?.getSerializable(ARG_FILTERS) as? CallFilters) ?: CallFilters()
 
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val initialFilters =
-                (arguments?.getSerializable(ARG_FILTERS) as? CallFilters) ?: CallFilters()
-
-        val closeButton = view.findViewById<ImageButton>(R.id.close_button)
+        val closeButton = view.findViewById<android.widget.ImageButton>(R.id.close_button)
 
         val urgencyFromEdit = view.findViewById<TextInputEditText>(R.id.urgency_from_edit)
         val urgencyToEdit = view.findViewById<TextInputEditText>(R.id.urgency_to_edit)
@@ -91,8 +46,8 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
         val callYearFromEdit = view.findViewById<TextInputEditText>(R.id.call_year_from_edit)
         val callYearToEdit = view.findViewById<TextInputEditText>(R.id.call_year_to_edit)
 
-        val resetButton = view.findViewById<View>(R.id.reset_filters_button)
-        val applyButton = view.findViewById<View>(R.id.apply_filters_button)
+        val resetButton = view.findViewById<android.view.View>(R.id.reset_filters_button)
+        val applyButton = view.findViewById<android.view.View>(R.id.apply_filters_button)
 
         urgencyFromEdit.setText(initialFilters.urgencyFrom?.toString().orEmpty())
         urgencyToEdit.setText(initialFilters.urgencyTo?.toString().orEmpty())
@@ -157,11 +112,11 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
             val ageTo = ageToEdit.text?.toString()?.trim()?.toIntOrNull()
 
             val sex =
-                    when (sexToggleGroup.checkedButtonId) {
-                        R.id.sex_male_button -> SexFilter.MALE
-                        R.id.sex_female_button -> SexFilter.FEMALE
-                        else -> SexFilter.ANY
-                    }
+                when (sexToggleGroup.checkedButtonId) {
+                    R.id.sex_male_button -> SexFilter.MALE
+                    R.id.sex_female_button -> SexFilter.FEMALE
+                    else -> SexFilter.ANY
+                }
 
             val callDayFrom = callDayFromEdit.text?.toString()?.trim()?.toIntOrNull()
             val callDayTo = callDayToEdit.text?.toString()?.trim()?.toIntOrNull()
@@ -209,23 +164,31 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
             }
 
             val filters =
-                    CallFilters(
-                            urgencyFrom = normUrgencyFrom,
-                            urgencyTo = normUrgencyTo,
-                            sex = sex,
-                            ageFrom = normAgeFrom,
-                            ageTo = normAgeTo,
-                            dateFromMillis = normDateFrom,
-                            dateToMillis = normDateTo,
-                            callDayFrom = normCallDayFrom,
-                            callDayTo = normCallDayTo,
-                            callYearFrom = normCallYearFrom,
-                            callYearTo = normCallYearTo
-                    )
+                CallFilters(
+                    urgencyFrom = normUrgencyFrom,
+                    urgencyTo = normUrgencyTo,
+                    sex = sex,
+                    ageFrom = normAgeFrom,
+                    ageTo = normAgeTo,
+                    dateFromMillis = normDateFrom,
+                    dateToMillis = normDateTo,
+                    callDayFrom = normCallDayFrom,
+                    callDayTo = normCallDayTo,
+                    callYearFrom = normCallYearFrom,
+                    callYearTo = normCallYearTo
+                )
 
             setFragmentResult(REQUEST_KEY, bundleOf(KEY_FILTERS to filters))
             dismiss()
         }
+
+        val dialog =
+            AlertDialog.Builder(requireContext())
+                .setView(view)
+                .create()
+
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        return dialog
     }
 
     private fun pickDateTime(initialMillis: Long?, onPicked: (Long) -> Unit) {
@@ -241,10 +204,12 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
         val initialHour = cal.get(Calendar.HOUR_OF_DAY)
         val initialMinute = cal.get(Calendar.MINUTE)
 
-        val dateDialog = DatePickerDialog(
+        val dateDialog =
+            DatePickerDialog(
                 requireContext(),
                 { _, year, month, dayOfMonth ->
-                    val timeDialog = TimePickerDialog(
+                    val timeDialog =
+                        TimePickerDialog(
                             requireContext(),
                             { _, hourOfDay, minute ->
                                 val resultCal = Calendar.getInstance()
@@ -260,25 +225,25 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
                             initialHour,
                             initialMinute,
                             true
-                    )
+                        )
                     timeDialog.show()
                 },
                 initialYear,
                 initialMonth,
                 initialDay
-        )
+            )
 
         dateDialog.show()
     }
 
     companion object {
-        const val TAG = "CallFiltersBottomSheet"
+        const val TAG = "CallFiltersDialog"
         const val REQUEST_KEY = "request_call_filters"
         const val KEY_FILTERS = "filters"
         const val ARG_FILTERS = "arg_filters"
 
-        fun newInstance(current: CallFilters): CallFiltersBottomSheetDialogFragment {
-            return CallFiltersBottomSheetDialogFragment().apply {
+        fun newInstance(current: CallFilters): CallFiltersDialogFragment {
+            return CallFiltersDialogFragment().apply {
                 arguments = bundleOf(ARG_FILTERS to current)
             }
         }

@@ -1,6 +1,7 @@
 package com.example.neuroinfo.data
 
 import android.content.Context
+import android.util.Log
 import com.example.neuroinfo.model.Hospitalization
 import com.example.neuroinfo.util.toSha256
 import com.google.gson.Gson
@@ -25,15 +26,20 @@ class CallsCache(private val context: Context) {
 
             val type = object : TypeToken<List<Hospitalization>>() {}.type
             gson.fromJson<List<Hospitalization>>(json, type)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("CallsCache", "readCalls failed (login=$userLogin)", e)
             null
         }
     }
 
     fun writeCalls(userLogin: String, calls: List<Hospitalization>) {
-        val file = cacheFile(userLogin)
-        val json = gson.toJson(calls)
-        file.writeText(json, Charsets.UTF_8)
+        try {
+            val file = cacheFile(userLogin)
+            val json = gson.toJson(calls)
+            file.writeText(json, Charsets.UTF_8)
+        } catch (e: Exception) {
+            Log.w("CallsCache", "writeCalls failed (login=$userLogin, size=${calls.size})", e)
+        }
     }
 
     fun clear(userLogin: String) {

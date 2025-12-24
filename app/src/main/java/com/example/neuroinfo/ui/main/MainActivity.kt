@@ -7,6 +7,7 @@ import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -135,9 +136,9 @@ class MainActivity : AppCompatActivity() {
 
         filterButton = findViewById(R.id.filter_button)
         filterButton.setOnClickListener {
-            CallFiltersBottomSheetDialogFragment
+            CallFiltersDialogFragment
                     .newInstance(currentFilters)
-                    .show(supportFragmentManager, CallFiltersBottomSheetDialogFragment.TAG)
+                    .show(supportFragmentManager, CallFiltersDialogFragment.TAG)
         }
 
         setupFiltersListener()
@@ -149,18 +150,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupFiltersListener() {
         supportFragmentManager.setFragmentResultListener(
-                CallFiltersBottomSheetDialogFragment.REQUEST_KEY,
+                CallFiltersDialogFragment.REQUEST_KEY,
                 this
         ) { _, bundle ->
             val filters =
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         bundle.getSerializable(
-                                CallFiltersBottomSheetDialogFragment.KEY_FILTERS,
+                                CallFiltersDialogFragment.KEY_FILTERS,
                                 CallFilters::class.java
                         )
                     } else {
                         @Suppress("DEPRECATION")
-                        bundle.getSerializable(CallFiltersBottomSheetDialogFragment.KEY_FILTERS) as? CallFilters
+                        bundle.getSerializable(CallFiltersDialogFragment.KEY_FILTERS) as? CallFilters
                     }
 
             currentFilters = filters ?: CallFilters()
@@ -370,6 +371,12 @@ class MainActivity : AppCompatActivity() {
                     emptyList()
                 }
 
+        val formattedTime =
+                call.formattedCallTime
+                        ?: DateFormatter.formatDateTime(call.callTime).also { v ->
+                            call.formattedCallTime = v
+                        }
+
         val callNumber =
                 if (call.dayNumber != null && call.yearNumber != null) {
                     "${call.dayNumber}/${call.yearNumber}"
@@ -395,7 +402,7 @@ class MainActivity : AppCompatActivity() {
                     add(call.house)
                     add(call.apartment)
                     add(call.comment)
-                    add(call.formattedCallTime)
+                    add(formattedTime)
                 }
                 .filterNotNull()
                 .joinToString(separator = " ")
@@ -561,6 +568,8 @@ class MainActivity : AppCompatActivity() {
                 val sharedPrefs = getSharedPreferences("app_session", MODE_PRIVATE)
                 val userLogin = sharedPrefs.getString("user_login", null)
 
+                val tCacheStart = SystemClock.elapsedRealtime()
+
                 val cachedCalls =
                         if (!userLogin.isNullOrBlank()) {
                             withContext(Dispatchers.IO) {
@@ -570,6 +579,21 @@ class MainActivity : AppCompatActivity() {
                             null
                         }
 
+                Log.d(
+                        "CallsDebug",
+                        "cacheReadDone ms=${SystemClock.elapsedRealtime() - tCacheStart}, cachedSize=${cachedCalls?.size ?: 0}"
+                )
+
+                if (!cachedCalls.isNullOrEmpty()) {
+                    updateCallsAndRefresh(cachedCalls)
+                    val first = cachedCalls.first()
+                    Log.d(
+                            "CallsDebug",
+                            "source=cache, size=${cachedCalls.size}, firstId=${first.id}, day=${first.dayNumber}, year=${first.yearNumber}"
+                    )
+                }
+
+                val tApiStart = SystemClock.elapsedRealtime()
                 val apiResult =
                         withContext(Dispatchers.IO) {
                             callRepository.getCalls(
@@ -578,63 +602,53 @@ class MainActivity : AppCompatActivity() {
                                     getCount = true
                             )
                         }
+                Log.d(
+                        "CallsDebug",
+                        "apiDone ms=${SystemClock.elapsedRealtime() - tApiStart}, success=${apiResult.isSuccess}"
+                )
 
-                val callsToShow =
-                        if (apiResult.isSuccess) {
-                            val content = apiResult.getOrThrow()
-                            content.calls
-                        } else {
-                            val error =
-                                    apiResult.exceptionOrNull()?.message
-                                            ?: "Не удалось загрузить список вызовов."
-                            Toast.makeText(this@MainActivity, "Ошибка: $error", Toast.LENGTH_LONG).show()
-                            cachedCalls ?: emptyList()
-                        }
-
-                val source =
-                        if (apiResult.isSuccess) {
-                            "api"
-                        } else {
-                            if (!cachedCalls.isNullOrEmpty()) "cache" else "empty"
-                        }
-                if (callsToShow.isNotEmpty()) {
-                    val first = callsToShow.first()
-                    Log.d(
-                            "CallsDebug",
-                            "source=$source, size=${callsToShow.size}, firstId=${first.id}, day=${first.dayNumber}, year=${first.yearNumber}"
-                    )
-                } else {
-                    Log.d(
-                            "CallsDebug",
-                            "source=$source, size=0"
-                    )
-                }
-
-                prepareCallsForSearch(callsToShow)
-
-                if (apiResult.isSuccess && !userLogin.isNullOrBlank()) {
-                    withContext(Dispatchers.IO) {
-                        callsCache.writeCalls(userLogin, callsToShow)
-                    }
-                }
-
-                // Сохраняем в ПОЛНЫЙ список
-                allHospitalizationList.clear()
-                allHospitalizationList.addAll(callsToShow)
-
-                // Сразу применяем фильтры (вкладка Активные/Архив + поиск),
-                // чтобы при первом запуске "Активные" не показывали архив.
-                applyFilters()
-
-                if (!::adapter.isInitialized) {
-                    adapter =
-                            HospitalizationAdapter(hospitalizationList) { call ->
-                                showConfirmArchiveDialog()
+                if (apiResult.isSuccess) {
+                    val apiCalls = apiResult.getOrThrow().calls
+                    val callsToShow =
+                            if (cachedCalls.isNullOrEmpty()) {
+                                apiCalls
+                            } else {
+                                mergeCalls(apiCalls, cachedCalls)
                             }
-                    recyclerView.adapter = adapter
-                    recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
+
+                    if (callsToShow.isNotEmpty()) {
+                        val first = callsToShow.first()
+                        Log.d(
+                                "CallsDebug",
+                                "source=api, size=${callsToShow.size}, firstId=${first.id}, day=${first.dayNumber}, year=${first.yearNumber}"
+                        )
+                    } else {
+                        Log.d(
+                                "CallsDebug",
+                                "source=api, size=0"
+                        )
+                    }
+
+                    updateCallsAndRefresh(callsToShow)
+
+                    if (!userLogin.isNullOrBlank()) {
+                        withContext(Dispatchers.IO) {
+                            callsCache.writeCalls(userLogin, callsToShow)
+                        }
+                    }
                 } else {
-                    adapter.notifyDataSetChanged()
+                    val error =
+                            apiResult.exceptionOrNull()?.message
+                                    ?: "Не удалось загрузить список вызовов."
+                    Toast.makeText(this@MainActivity, "Ошибка: $error", Toast.LENGTH_LONG).show()
+
+                    if (cachedCalls.isNullOrEmpty()) {
+                        updateCallsAndRefresh(emptyList())
+                        Log.d(
+                                "CallsDebug",
+                                "source=empty, size=0"
+                        )
+                    }
                 }
             } catch (e: Exception) {
                 Toast.makeText(
@@ -645,6 +659,40 @@ class MainActivity : AppCompatActivity() {
                         .show()
                 e.printStackTrace()
             }
+        }
+    }
+
+    private fun mergeCalls(
+            apiCalls: List<Hospitalization>,
+            cachedCalls: List<Hospitalization>
+    ): List<Hospitalization> {
+        val byId = LinkedHashMap<String, Hospitalization>()
+        apiCalls.forEach { call ->
+            byId[call.id] = call
+        }
+        cachedCalls.forEach { call ->
+            if (!byId.containsKey(call.id)) {
+                byId[call.id] = call
+            }
+        }
+        return byId.values.toList()
+    }
+
+    private fun updateCallsAndRefresh(calls: List<Hospitalization>) {
+        allHospitalizationList.clear()
+        allHospitalizationList.addAll(calls)
+
+        applyFilters()
+
+        if (!::adapter.isInitialized) {
+            adapter =
+                    HospitalizationAdapter(hospitalizationList) { call ->
+                        showConfirmArchiveDialog()
+                    }
+            recyclerView.adapter = adapter
+            recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
+        } else {
+            adapter.notifyDataSetChanged()
         }
     }
     private fun simulateIncomingCall() {

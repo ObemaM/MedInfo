@@ -30,19 +30,18 @@
 
     <style name="Theme.Neuroinfo" parent="Base.Theme.Neuroinfo" />
 
-    <style name="App.BottomSheetDialogTheme" parent="ThemeOverlay.Material3.BottomSheetDialog">
+    <style name="App.BottomSheetDialogTheme" parent="ThemeOverlay.MaterialComponents.BottomSheetDialog">
         <item name="bottomSheetStyle">@style/App.BottomSheetStyle</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarDividerColor">@color/background_1</item>
-        <item name="android:backgroundDimEnabled">true</item>
-        <item name="android:backgroundDimAmount">0.45</item>
+        <item name="android:backgroundDimEnabled">false</item>
         <item name="android:enforceNavigationBarContrast">false</item>
         <item name="android:enforceStatusBarContrast">false</item>
     </style>
 
-    <style name="App.BottomSheetStyle" parent="Widget.Material3.BottomSheet.Modal">
+    <style name="App.BottomSheetStyle" parent="Widget.MaterialComponents.BottomSheet.Modal">
         <item name="android:background">@android:color/transparent</item>
     </style>
 
