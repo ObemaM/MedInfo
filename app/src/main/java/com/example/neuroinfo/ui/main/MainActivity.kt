@@ -708,7 +708,7 @@ class MainActivity : AppCompatActivity() {
                 street = "street",
                 house = "House",
                 apartment = "1",
-                entrance = 1,
+                enterance = 1,
                 longitude = 1.2,
                 latitude = 2.3,
                 brigadeNumber = 12,

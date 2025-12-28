@@ -1,197 +1,225 @@
 package com.example.neuroinfo.ui.incoming
 
+import android.app.KeyguardManager
 import android.content.Context
-import android.os.Bundle
+import android.content.Intent
+import android.graphics.Color
+import android.media.MediaPlayer
+import android.media.RingtoneManager
+import android.os.*
+import android.util.Log
+import android.view.View
 import android.view.WindowManager
-import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.example.neuroinfo.R
 import com.example.neuroinfo.data.CallRepository
+import com.example.neuroinfo.data.CallsManager // Наш синглтон для очереди
 import com.example.neuroinfo.data.RetrofitClient
 import com.example.neuroinfo.model.CallNotificationDto
-import kotlinx.coroutines.CoroutineScope
+import com.example.neuroinfo.ui.main.MainActivity
+import com.google.android.material.button.MaterialButton
+import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import android.content.Intent
-import android.media.MediaPlayer
-import android.media.RingtoneManager
-import android.os.Build
-import android.os.PowerManager
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.widget.EditText
-import com.example.neuroinfo.ui.main.MainActivity
-import com.google.android.material.textfield.TextInputEditText
-
 
 class IncomingCallActivity : AppCompatActivity() {
 
-
     private var wakeLock: PowerManager.WakeLock? = null
     private val callRepository = CallRepository(RetrofitClient.apiService)
-
     private var vibrator: Vibrator? = null
-    private val mainScope = CoroutineScope(Dispatchers.Main)
-    private lateinit var callData: CallNotificationDto
-    private lateinit var commentEditText: TextInputEditText
-
-    // 💡 Привязка к ВАШИМ ID из XML
-    private lateinit var patientInfoTextView: TextView
-    private lateinit var acceptButton: Button
-    private lateinit var rejectButton: Button
-
-
-    // Переменная для воспроизведения звука
     private var mediaPlayer: MediaPlayer? = null
+
+    private lateinit var messageEditText: TextInputEditText
+    private lateinit var sideTabsRecyclerView: RecyclerView
+    private lateinit var sideAdapter: SideTabsAdapter // Создадим далее
+
+    private var currentCall: CallNotificationDto? = null
+    private var countdownTimer: CountDownTimer? = null
+    private lateinit var timerTextView: TextView
     override fun onCreate(savedInstanceState: Bundle?) {
-
         super.onCreate(savedInstanceState)
-        acquireWakeLock()
-        setContentView(R.layout.activity_incoming_call)
-        setContentView(R.layout.activity_incoming_call)
-        commentEditText = findViewById(R.id.comment_edit_text)
 
-        // 💡 Активация экрана: добавляем флаг совместимости для старых версий
+        // 1. Настройка отображения поверх блокировки (WakeLock + Keyguard)
+        setupLockScreenFlags()
+
+        setContentView(R.layout.activity_incoming_call)
+
+        // 2. Инициализация UI
+        messageEditText = findViewById(R.id.message_edit_text)
+        sideTabsRecyclerView = findViewById(R.id.rv_side_tabs)
+
+        val btnAccept = findViewById<MaterialButton>(R.id.button_confirm)
+        val btnReject = findViewById<MaterialButton>(R.id.button_reject)
+
+        // 3. Настройка боковой панели (корешков)
+        setupSidePanel()
+
+        // 4. Подписка на очередь вызовов
+        observeCallsQueue()
+
+        // 5. Кнопки
+        btnAccept.setOnClickListener { handleCallAnswer(true) }
+        btnReject.setOnClickListener { handleCallAnswer(false) }
+
+        // 6. Звук и вибрация
+        startAlerts()
+        // Таймер на n сек
+        timerTextView = findViewById(R.id.tv_timer)
+    }
+
+    private fun setupLockScreenFlags() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
-        } else {
-            window.addFlags(
-                WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON or
-                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                        WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
-            )
-        }
-
-        // 1. Привязка View-элементов по ВАШИМ ID
-        patientInfoTextView = findViewById(R.id.patientInfo)
-        acceptButton = findViewById(R.id.acceptButton)
-        rejectButton = findViewById(R.id.rejectButton)
-
-        // 2. Получение данных вызова
-        // 💡 Добавил проверку версии API для получения Serializable (требование Android 13+)
-        callData = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            intent.getSerializableExtra("CALL_DATA", CallNotificationDto::class.java)
+            (getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)
+                ?.requestDismissKeyguard(this, null)
         } else {
             @Suppress("DEPRECATION")
-            intent.getSerializableExtra("CALL_DATA") as? CallNotificationDto
-        } ?: run { finish(); return }
-
-        // 3. Отображение данных
-        patientInfoTextView.text = formatCallDetails(callData)
-
-        // 4. Обработчики кнопок
-        acceptButton.setOnClickListener {
-            handleCallAnswer(true)
+            window.addFlags(
+                WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+            )
         }
-        rejectButton.setOnClickListener {
-            handleCallAnswer(false)
+        acquireWakeLock()
+    }
+
+    private fun setupSidePanel() {
+        sideAdapter = SideTabsAdapter { selectedCall ->
+            displayCallDetails(selectedCall)
         }
+        sideTabsRecyclerView.layoutManager = LinearLayoutManager(this)
+        sideTabsRecyclerView.adapter = sideAdapter
+    }
+
+    private fun observeCallsQueue() {
+        // Используем Coroutines для наблюдения за Flows в CallsManager
+        lifecycleScope.launch {
+            CallsManager.calls.collect { list ->
+                if (list.isEmpty()) {
+                    stopAlerts()
+                    finish() // Если вызовов нет — закрываем экран
+                } else {
+                    sideAdapter.submitList(list)
+                    // Если сейчас ничего не выбрано — показываем первый из списка
+                    if (currentCall == null) {
+                        displayCallDetails(list[0])
+                    }
+                }
+            }
+        }
+    }
+
+    private fun displayCallDetails(call: CallNotificationDto) {
+        currentCall = call
+
+        // Используем ID из вашего item_hospitalization.xml
+        val infoBlock = findViewById<View>(R.id.patient_info_block)
+
+        infoBlock.findViewById<TextView>(R.id.call_number_text).text = "Вызов №${call.callNumber}"
+//        infoBlock.findViewById<TextView>(R.id.call_patient_text).text = call.fullName ?: "Неизвестно"
+        infoBlock.findViewById<TextView>(R.id.call_address_text).text =
+            "${call.street ?: "Н/Д"}, ${call.house ?: "Н/Д"}"
+
+        infoBlock.findViewById<TextView>(R.id.urgency_data).text = "Срочность: ${call.urgency ?: "Н/Д"}"
+
+        // Очищаем поле комментария при переключении между пациентами
+        startVisualCountdown(30)
+        messageEditText.setText("")
+    }
+    private fun startVisualCountdown(seconds: Int) {
+        countdownTimer?.cancel()
+        countdownTimer = object : CountDownTimer(seconds * 1000L, 1000) {
+            override fun onTick(millisUntilFinished: Long) {
+                val secRemaining = millisUntilFinished / 1000
+                timerTextView.text = "Осталось времени: 00:${String.format("%02d", secRemaining)}"
+
+                // Если осталось меньше 10 сек — красим в красный
+                if (secRemaining <= 10) {
+                    timerTextView.setTextColor(Color.RED)
+                } else {
+                    timerTextView.setTextColor(Color.BLACK)
+                }
+            }
+
+            override fun onFinish() {
+                timerTextView.text = "ВРЕМЯ ИСТЕКЛО"
+            }
+        }.start()
+    }
+    private fun handleCallAnswer(accepted: Boolean) {
+        val call = currentCall ?: return
+        val callId = call.callNumber ?: return
+        val comment = messageEditText.text.toString()
+        val decision = if (accepted) "Accept" else "Reject"
+
+        lifecycleScope.launch {
+            try {
+                val result = withContext(Dispatchers.IO) {
+                    callRepository.answerCall(callId, decision, comment)
+                }
+
+                if (result.isSuccess) {
+                    Toast.makeText(this@IncomingCallActivity, "Отправлено", Toast.LENGTH_SHORT).show()
+                    // Удаляем этот вызов из локальной очереди
+                    CallsManager.removeCall(callId)
+                    currentCall = null // Сбрасываем выбор, чтобы подхватился следующий из очереди
+                } else {
+                    Toast.makeText(this@IncomingCallActivity, "Ошибка сервера", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Log.e("CallAnswer", "Error: ${e.message}")
+            }
+        }
+    }
+
+    // --- Вспомогательные методы (Звук/Вибро) ---
+
+    private fun startAlerts() {
+        // Звук
         val notification = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
         mediaPlayer = MediaPlayer.create(this, notification)
         mediaPlayer?.isLooping = true
         mediaPlayer?.start()
-        startVibration()
-    }
-    private fun acquireWakeLock() {
-        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
-        wakeLock = powerManager.newWakeLock(
-            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or
-                    PowerManager.ACQUIRE_CAUSES_WAKEUP or
-                    PowerManager.ON_AFTER_RELEASE,
-            "NeuroInfo:IncomingCallWakeLock"
-        )
 
-        // Захватываем замок на 5 минут (врачу хватит времени проснуться и нажать кнопку)
-        wakeLock?.acquire(5 * 60 * 1000L)
-    }
-    /**
-     * Форматирует данные о вызове для отображения в одном TextView.
-     */
-    private fun formatCallDetails(data: CallNotificationDto): String {
-        return buildString {
-            append("Пациент: ${data.fullName ?: "Неизвестно"}\n") // FullName [cite: 642]
-            append("Возраст: ${data.age ?: "Н/Д"}, Пол: ${data.sex ?: "Н/Д"}\n") // Age [cite: 643], Sex [cite: 644]
-            append("--- Адрес ---\n")
-            append("Район: ${data.district ?: "Н/Д"}\n") // District [cite: 647]
-            append("Улица: ${data.street ?: "Н/Д"}, Дом: ${data.house ?: "Н/Д"}\n") // Street [cite: 649], House [cite: 650]
-            append("--- Причина ---\n")
-            append("${data.reason ?: "Не указана"}") // Reason [cite: 645]
-        }
-    }
-    private fun startVibration() {
+        // Вибрация
         vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
-
-        if (vibrator?.hasVibrator() == true) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                // Создаем ритм: 0мс пауза, 500мс вибро, 500мс пауза...
-                // -1 — не повторять, 0 — повторять бесконечно
-                val pattern = longArrayOf(0, 500, 500)
-                vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
-            } else {
-                // Для старых версий (просто ритм и повтор)
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(longArrayOf(0, 500, 500), 0)
-            }
+        val pattern = longArrayOf(0, 500, 1000)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator?.vibrate(pattern, 0)
         }
     }
 
-    private fun stopVibration() {
+    private fun stopAlerts() {
+        mediaPlayer?.stop()
+        mediaPlayer?.release()
+        mediaPlayer = null
         vibrator?.cancel()
     }
 
-    private fun handleCallAnswer(accepted: Boolean) {
-
-        val userComment = commentEditText.text.toString()
-        // 💡 Используем CallNumber как уникальный ID вызова для API
-        val callId = callData.callNumber ?: run {
-            Toast.makeText(this, "ID вызова отсутствует", Toast.LENGTH_SHORT).show()
-            finish(); return
-        }
-
-        val decisionString = if (accepted) "Accept" else "Reject"
-
-        val comment = commentEditText.text.toString()
-
-        mainScope.launch {
-            try {
-                // Вызываем API для ответа
-                val result = withContext(Dispatchers.IO) {
-                    callRepository.answerCall(callId, decisionString, comment)
-                }
-
-                if (result.isSuccess) {
-                    val message = if (accepted) "Вызов принят." else "Вызов отклонен."
-                    Toast.makeText(this@IncomingCallActivity, message, Toast.LENGTH_SHORT).show()
-
-
-                    // 💡 Если приняли, можно сразу открыть MainActivity, чтобы увидеть детали
-                    if (accepted) {
-                        val intent = Intent(this@IncomingCallActivity, MainActivity::class.java)
-                        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_NEW_TASK)
-                        startActivity(intent)
-                    }
-                } else {
-                    val error = result.exceptionOrNull()?.message ?: "Ошибка сервера."
-                    Toast.makeText(this@IncomingCallActivity, "Ошибка: $error", Toast.LENGTH_LONG).show()
-                }
-            } catch (e: Exception) {
-                Toast.makeText(this@IncomingCallActivity, "Ошибка сети: ${e.message}", Toast.LENGTH_LONG).show()
-            } finally {
-                finish()
-            }
-        }
+    private fun acquireWakeLock() {
+        val powerManager = getSystemService(Context.POWER_SERVICE) as PowerManager
+        wakeLock = powerManager.newWakeLock(
+            PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+            "NeuroInfo:WakeLock"
+        )
+        wakeLock?.acquire(3 * 60 * 1000L) // 3 минуты
     }
+
     override fun onDestroy() {
         super.onDestroy()
-        if (wakeLock?.isHeld == true) {
-            wakeLock?.release()
-        }
-        mediaPlayer?.stop() // Обязательно останавливаем при закрытии экрана
-        stopVibration()
-        mediaPlayer?.release()
+        stopAlerts()
+        if (wakeLock?.isHeld == true) wakeLock?.release()
+        countdownTimer?.cancel()
     }
 }

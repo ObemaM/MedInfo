@@ -13,6 +13,11 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.DISABLE_KEYGUARD" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
 
     <application
         android:usesCleartextTraffic="true"
@@ -43,6 +48,7 @@
             android:name=".ui.incoming.IncomingCallActivity"
             android:launchMode="singleTask"
             android:exported="false"
+            android:showOnLockScreen="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />
 
