@@ -1,5 +1,6 @@
 package com.example.neuroinfo.data
 
+import android.os.SystemClock
 import com.example.neuroinfo.model.CallNotificationDto
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,6 +12,7 @@ object CallsManager {
 
     private val managerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val activeJobs = mutableMapOf<String, Job>() // Храним таймеры по номеру вызова
+    private val callAddedAtMs = mutableMapOf<String, Long>()
 
     fun addCall(call: CallNotificationDto) {
         val currentList = _calls.value.toMutableList()
@@ -18,11 +20,24 @@ object CallsManager {
             currentList.add(call)
             _calls.value = currentList
 
-            // Если статус "состояние" — запускаем таймер на 30 секунд
-            if (call.status?.lowercase() == "состояние") {
+            call.callNumber?.let { callId ->
+                if (!callAddedAtMs.containsKey(callId)) {
+                    callAddedAtMs[callId] = SystemClock.elapsedRealtime()
+                }
+            }
+
+            // Если статус "транспортировка" — запускаем таймер на 30 секунд
+            if (call.status?.lowercase() == "транспортировка") {
                 startIgnoreTimer(call)
             }
         }
+    }
+
+    fun getRemainingIgnoreMillis(callId: String, totalMillis: Long = 30000L): Long? {
+        val addedAt = callAddedAtMs[callId] ?: return null
+        val elapsed = SystemClock.elapsedRealtime() - addedAt
+        val remaining = totalMillis - elapsed
+        return if (remaining > 0) remaining else 0L
     }
 
     private fun startIgnoreTimer(call: CallNotificationDto) {
@@ -32,7 +47,8 @@ object CallsManager {
         activeJobs[callId]?.cancel()
 
         activeJobs[callId] = managerScope.launch {
-            delay(30000) // Ждем 30 секунд
+            val remaining = getRemainingIgnoreMillis(callId) ?: 30000L
+            delay(remaining) // Ждем до истечения таймера
 
             // Если через 30 сек вызов всё еще в списке — значит его проигнорировали
             if (_calls.value.any { it.callNumber == callId }) {
@@ -54,6 +70,7 @@ object CallsManager {
     fun removeCall(callId: String) {
         activeJobs[callId]?.cancel()
         activeJobs.remove(callId)
+        callAddedAtMs.remove(callId)
         _calls.value = _calls.value.filter { it.callNumber != callId }
     }
 }

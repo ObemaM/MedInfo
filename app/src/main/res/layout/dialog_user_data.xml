@@ -63,7 +63,8 @@
                 android:layout_height="wrap_content"
                 android:background="@drawable/data_field_background"
                 android:orientation="horizontal"
-                android:padding="14dp">
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="4dp">
 
 
                 <TextView
@@ -71,7 +72,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
                     android:text="Логин"
-                    android:textColor="@color/black_1"
+                    android:textColor="@color/gray_1"
                     android:textSize="14sp" />
 
                 <TextView
@@ -80,7 +81,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:gravity="end"
-                    android:textColor="@color/black_1"
+                    android:textColor="@color/gray_1"
                     android:textSize="14sp"
                     android:textStyle="normal"
                     tools:text="user_login" />
@@ -93,7 +94,8 @@
                 android:layout_marginTop="8dp"
                 android:background="@drawable/data_field_background"
                 android:orientation="horizontal"
-                android:padding="14dp">
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="4dp">
 
 
                 <TextView
@@ -101,7 +103,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
                     android:text="Подразделение"
-                    android:textColor="@color/black_1"
+                    android:textColor="@color/gray_1"
                     android:textSize="14sp" />
 
                 <TextView
@@ -111,7 +113,7 @@
                     android:layout_weight="1"
                     android:gravity="end"
                     android:text="Неизвестно"
-                    android:textColor="@color/black_1"
+                    android:textColor="@color/gray_1"
                     android:textSize="14sp" />
 
             </LinearLayout>
@@ -123,14 +125,15 @@
                 android:layout_marginTop="8dp"
                 android:background="@drawable/data_field_background"
                 android:orientation="horizontal"
-                android:padding="14dp">
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="4dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
                     android:text="Версия"
-                    android:textColor="@color/black_1"
+                    android:textColor="@color/gray_1"
                     android:textSize="14sp" />
 
                 <TextView
@@ -139,7 +142,7 @@
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:gravity="end"
-                    android:textColor="@color/black_1"
+                    android:textColor="@color/gray_1"
                     android:textSize="14sp"
                     tools:text="version" />
 

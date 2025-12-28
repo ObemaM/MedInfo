@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/background_2"
+    android:background="@color/background_1"
     android:orientation="horizontal">
 
     <FrameLayout
@@ -17,7 +17,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            app:cardBackgroundColor="@color/white"
+            app:cardBackgroundColor="@color/background_2"
             app:cardCornerRadius="24dp"
             app:strokeColor="@color/border_gray_1"
             app:strokeWidth="1dp">
@@ -35,15 +35,15 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:gravity="center"
                         android:layout_marginBottom="16dp"
+                        android:gravity="center"
                         android:orientation="horizontal">
 
                         <ImageView
                             android:layout_width="20dp"
                             android:layout_height="20dp"
                             android:src="@android:drawable/ic_menu_recent_history"
-                            app:tint="@android:color/holo_red_dark" />
+                            app:tint="@color/red_1" />
 
                         <TextView
                             android:id="@+id/tv_timer"
@@ -51,14 +51,14 @@
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
                             android:text="Осталось: 00:30"
-                            android:textColor="@android:color/holo_red_dark"
+                            android:textColor="@color/red_1"
                             android:textSize="18sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
                     <include
                         android:id="@+id/patient_info_block"
-                        layout="@layout/item_hospitalization" />
+                        layout="@layout/item_hospitalization_for_call" />
 
                     <View
                         android:layout_width="match_parent"
@@ -88,32 +88,40 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="24dp"
+                        android:layout_marginTop="15dp"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/button_confirm"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:layout_weight="1"
+                            android:backgroundTint="@color/main_1"
+                            android:text="ПРИНЯТЬ"
+                            android:textColor="@color/white_1"
+                            android:textSize="12dp"
+                            app:cornerRadius="12dp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
                         android:orientation="horizontal">
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/button_reject"
                             style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="0dp"
-                            android:layout_height="54dp"
-                            android:layout_marginEnd="12dp"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
                             android:layout_weight="1"
                             android:text="ОТКАЗАТЬ"
                             android:textColor="@color/black_1"
+                            android:textSize="12dp"
                             app:cornerRadius="12dp"
                             app:strokeColor="@color/border_gray_2" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_confirm"
-                            android:layout_width="0dp"
-                            android:layout_height="54dp"
-                            android:layout_weight="1"
-                            android:backgroundTint="@color/main_1"
-                            android:text="ПРИНЯТЬ"
-                            android:textColor="@color/white_1"
-                            app:cornerRadius="12dp" />
-
                     </LinearLayout>
+
                 </LinearLayout>
             </ScrollView>
         </com.google.android.material.card.MaterialCardView>
@@ -121,11 +129,13 @@
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_side_tabs"
-        android:layout_width="100dp"
+        android:layout_width="110dp"
+        android:paddingVertical="5dp"
+        android:paddingStart="5dp"
+        android:layout_marginBottom="16dp"
+        android:layout_marginTop="16dp"
         android:layout_height="match_parent"
-        android:background="@color/background_1"
-        android:elevation="8dp"
-        android:paddingTop="8dp"
+        android:background="@drawable/call_border"
         tools:listitem="@layout/item_side_tab" />
 
 </LinearLayout>
