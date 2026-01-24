@@ -101,7 +101,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/filter_button_tint" />
+            app:tint="@color/gray_1" />
 
         <!-- Bottom Border Divider -->
         <View

@@ -90,7 +90,7 @@ class CallNotificationService : Service() {
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Активный вызов")
             .setContentText("Служба уведомлений активна")
-            .setSmallIcon(R.drawable.ic_launcher_foreground) // 💡 Замените на вашу иконку!
+            .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
     }

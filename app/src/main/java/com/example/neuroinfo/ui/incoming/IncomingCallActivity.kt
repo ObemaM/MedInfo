@@ -15,7 +15,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.neuroinfo.R
 import com.example.neuroinfo.data.CallRepository
@@ -28,6 +27,9 @@ import com.example.neuroinfo.util.DateFormatter
 import com.example.neuroinfo.util.IncomingCallRinger
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.flexbox.FlexDirection
+import com.google.android.flexbox.FlexWrap
+import com.google.android.flexbox.FlexboxLayoutManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -153,7 +155,12 @@ class IncomingCallActivity : AppCompatActivity() {
         sideAdapter = SideTabsAdapter { selectedCall ->
             displayCallDetails(selectedCall)
         }
-        sideTabsRecyclerView.layoutManager = LinearLayoutManager(this)
+
+        val flexboxLayoutManager = FlexboxLayoutManager(this).apply {
+            flexDirection = FlexDirection.ROW
+            flexWrap = FlexWrap.WRAP
+        }
+        sideTabsRecyclerView.layoutManager = flexboxLayoutManager
         sideTabsRecyclerView.adapter = sideAdapter
     }
 

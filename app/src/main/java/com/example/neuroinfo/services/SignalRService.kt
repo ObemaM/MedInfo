@@ -37,7 +37,7 @@ class SignalRService : Service() {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID_SERVICE)
             .setContentTitle("NeuroInfo: Связь с сервером")
             .setContentText("Приложение готово к приему вызовов")
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .build()
@@ -124,7 +124,7 @@ class SignalRService : Service() {
 
         val caller = callData.fullName?.takeIf { it.isNotBlank() } ?: "Входящий вызов"
         val notification = NotificationCompat.Builder(this, CHANNEL_ID_INCOMING_CALL)
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle("СРОЧНО: Транспортировка")
             .setContentText("$caller - требуется подтверждение")
             .setPriority(NotificationCompat.PRIORITY_MAX)

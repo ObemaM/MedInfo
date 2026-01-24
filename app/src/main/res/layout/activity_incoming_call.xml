@@ -5,20 +5,20 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_1"
-    android:orientation="horizontal">
+    android:orientation="vertical">
 
-    <FrameLayout
-        android:layout_width="0dp"
-        android:layout_height="match_parent"
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
         android:layout_weight="1"
         android:padding="16dp">
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
+            android:layout_gravity="top"
             app:cardBackgroundColor="@color/background_2"
-            app:cardCornerRadius="24dp"
+            app:cardCornerRadius="20dp"
             app:strokeColor="@color/border_gray_1"
             app:strokeWidth="1dp">
 
@@ -125,17 +125,28 @@
                 </LinearLayout>
             </ScrollView>
         </com.google.android.material.card.MaterialCardView>
-    </FrameLayout>
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_marginHorizontal="16dp"
+        android:layout_width="match_parent"
+        android:layout_height="10dp">
+
+    </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_side_tabs"
-        android:layout_width="110dp"
-        android:paddingVertical="5dp"
-        android:paddingStart="5dp"
-        android:layout_marginBottom="16dp"
-        android:layout_marginTop="16dp"
-        android:layout_height="match_parent"
+        android:layout_width="match_parent"
+        android:layout_height="130dp"
+        android:layout_margin="16dp"
         android:background="@drawable/call_border"
-        tools:listitem="@layout/item_side_tab" />
+        android:orientation="horizontal"
+        android:paddingLeft="12dp"
+        android:paddingTop="5dp"
+        android:paddingRight="12dp"
+        tools:listitem="@layout/item_side_tab"
+
+        />
 
 </LinearLayout>
