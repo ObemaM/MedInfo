@@ -257,7 +257,7 @@ class IncomingCallActivity : AppCompatActivity() {
             if (remainingMs != null) {
                 ((remainingMs + 999L) / 1000L).toInt()
             } else {
-                30
+                2400
             }
         startVisualCountdown(secondsToShow)
         messageEditText.setText("")
@@ -285,11 +285,14 @@ class IncomingCallActivity : AppCompatActivity() {
         countdownTimer?.cancel()
         countdownTimer = object : CountDownTimer(seconds * 1000L, 1000) {
             override fun onTick(millisUntilFinished: Long) {
-                val secRemaining = millisUntilFinished / 1000
-                timerTextView.text = "Осталось времени: 00:${String.format("%02d", secRemaining)}"
+                val totalSeconds = (millisUntilFinished / 1000).toInt()
+                val minutes = totalSeconds / 60
+                val secRemaining = totalSeconds % 60
+                timerTextView.text =
+                    "Осталось времени: ${String.format("%02d", minutes)}:${String.format("%02d", secRemaining)}"
 
                 // Если осталось меньше 10 сек — красим в красный
-                if (secRemaining <= 10) {
+                if (totalSeconds <= 10) {
                     timerTextView.setTextColor(resources.getColor(R.color.red_1, null))
                 } else {
                     timerTextView.setTextColor(resources.getColor(R.color.gray_1, null))

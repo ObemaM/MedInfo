@@ -5,7 +5,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/background_1"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:fitsSystemWindows="true">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -50,7 +51,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:text="Осталось: 00:30"
+                            android:text="Осталось: 40:00"
                             android:textColor="@color/red_1"
                             android:textSize="18sp"
                             android:textStyle="bold" />
@@ -85,42 +86,7 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="15dp"
-                        android:orientation="horizontal">
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_confirm"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:layout_weight="1"
-                            android:backgroundTint="@color/main_1"
-                            android:text="ПРИНЯТЬ"
-                            android:textColor="@color/white_1"
-                            android:textSize="12dp"
-                            app:cornerRadius="12dp" />
-                    </LinearLayout>
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:orientation="horizontal">
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/button_reject"
-                            style="@style/Widget.Material3.Button.OutlinedButton"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:layout_weight="1"
-                            android:text="ОТКАЗАТЬ"
-                            android:textColor="@color/black_1"
-                            android:textSize="12dp"
-                            app:cornerRadius="12dp"
-                            app:strokeColor="@color/border_gray_2" />
-                    </LinearLayout>
 
                 </LinearLayout>
             </ScrollView>
@@ -129,24 +95,56 @@
     </LinearLayout>
 
     <LinearLayout
-        android:layout_marginHorizontal="16dp"
         android:layout_width="match_parent"
-        android:layout_height="10dp">
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/call_border"
+        android:layout_marginHorizontal="16dp"
+        app:strokeColor="@color/border_gray_2"
+        app:strokeWidth="1dp"
+        android:paddingHorizontal="24dp"
+        android:paddingVertical="8dp"
+        >
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_reject"
+            style="@style/Widget.Material3.Button.OutlinedButton"
+            android:minHeight="50dp"
+            android:layout_width="5dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="8dp"
+            android:layout_weight="1"
+            android:text="ОТКАЗАТЬ"
+            android:textColor="@color/black_1"
+            android:textSize="12dp"
+            app:cornerRadius="12dp"
+            app:strokeColor="@color/border_gray_2" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_confirm"
+            android:minHeight="50dp"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:backgroundTint="@color/main_1"
+            android:text="ПРИНЯТЬ"
+            android:textColor="@color/white_1"
+            android:textSize="12dp"
+            app:cornerRadius="12dp" />
+
 
     </LinearLayout>
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rv_side_tabs"
         android:layout_width="match_parent"
-        android:layout_height="130dp"
+        android:layout_height="145dp"
         android:layout_margin="16dp"
         android:background="@drawable/call_border"
         android:orientation="horizontal"
-        android:paddingLeft="12dp"
-        android:paddingTop="5dp"
-        android:paddingRight="12dp"
-        tools:listitem="@layout/item_side_tab"
-
-        />
+        android:overScrollMode="never"
+        android:paddingHorizontal="16dp"
+        android:paddingVertical="6dp"
+        tools:listitem="@layout/item_side_tab" />
 
 </LinearLayout>

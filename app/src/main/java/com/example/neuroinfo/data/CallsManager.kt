@@ -26,14 +26,14 @@ object CallsManager {
                 }
             }
 
-            // Если статус "транспортировка" — запускаем таймер на 30 секунд
+            // Если статус "транспортировка" — запускаем таймер на 2 минуты
             if (call.status?.lowercase() == "транспортировка") {
                 startIgnoreTimer(call)
             }
         }
     }
 
-    fun getRemainingIgnoreMillis(callId: String, totalMillis: Long = 30000L): Long? {
+    fun getRemainingIgnoreMillis(callId: String, totalMillis: Long = 2_400_000L): Long? {
         val addedAt = callAddedAtMs[callId] ?: return null
         val elapsed = SystemClock.elapsedRealtime() - addedAt
         val remaining = totalMillis - elapsed
@@ -47,10 +47,10 @@ object CallsManager {
         activeJobs[callId]?.cancel()
 
         activeJobs[callId] = managerScope.launch {
-            val remaining = getRemainingIgnoreMillis(callId) ?: 30000L
+            val remaining = getRemainingIgnoreMillis(callId) ?: 2_400_000L
             delay(remaining) // Ждем до истечения таймера
 
-            // Если через 30 сек вызов всё еще в списке — значит его проигнорировали
+            // Если через 40 минут вызов всё еще в списке — значит его проигнорировали
             if (_calls.value.any { it.callNumber == callId }) {
                 handleIgnore(callId)
             }

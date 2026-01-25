@@ -134,7 +134,7 @@ class SignalRService : Service() {
             .setFullScreenIntent(fullScreenPendingIntent, true) // Пробивает спящий режим
             .setAutoCancel(false)
             .setOngoing(true)
-            .setTimeoutAfter(30_000) // Автоматически закрыть через 30 секунд
+            .setTimeoutAfter(2_400_000) // Автоматически закрыть через 40 минут
             .build()
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
