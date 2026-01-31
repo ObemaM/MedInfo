@@ -3,7 +3,7 @@ package com.example.neuroinfo.model
 import com.google.gson.annotations.SerializedName
 import java.io.Serializable
 
-// Используем data class для десериализации JSON из SignalR
+// data class для десериализации JSON из SignalR
 data class CallNotificationDto(
     @SerializedName("fullName") val fullName: String?,
     @SerializedName("age") val age: String?,
@@ -15,7 +15,7 @@ data class CallNotificationDto(
     @SerializedName("street") val street: String?,
     @SerializedName("house") val house: String?,
     @SerializedName("apartment") val apartment: String?,
-    @SerializedName("enterance") val enterance: Int?, // Проверь: у заказчика Enterance
+    @SerializedName("enterance") val enterance: Int?, // Верное название?
     @SerializedName("longitude") val longitude: Double?,
     @SerializedName("latitude") val latitude: Double?,
     @SerializedName("brigadeNumber") val brigadeNumber: Int?,

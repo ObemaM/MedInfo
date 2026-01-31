@@ -4,7 +4,6 @@ import com.example.neuroinfo.model.*
 import retrofit2.http.*
 import retrofit2.Response
 
-
 interface API {
 
     // Логин
@@ -21,13 +20,13 @@ interface API {
         @Query("getCount") getCount: Boolean // Флаг получения общего количества
     ): Response<ApiResponse<CallListContent>>
 
-    // Ответ на вызов
+    // TODO: Ответ на вызов
     @POST("/api/informator/answer-call")
     suspend fun answerCall(
         @Body request: CallAnswerRequest
     ): Response<ApiResponse<Void>>
 
-    //Для ответа в звонке
+    // TODO: Для ответа в звонке
     @POST("api/calls/{id}/answer")
     suspend fun answerCallWithComment(
         @Path("id") id: Int,

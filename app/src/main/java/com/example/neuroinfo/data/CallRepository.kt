@@ -8,7 +8,7 @@ class CallRepository(private val apiService: API) {
     // Получение списка вызовов
     suspend fun getCalls(pageNumber: Int, pageSize: Int, getCount: Boolean): Result<CallListContent> {
         return try {
-            // response.body()?.content - это CallListContent (содержит calls и count) [cite: 376]
+            // response.body()?.content - это CallListContent (содержит calls и count)
             val response = apiService.getCalls(pageNumber, pageSize, getCount)
 
             if (response.isSuccessful && response.body()?.success == true && response.body()?.content != null) {
@@ -22,7 +22,7 @@ class CallRepository(private val apiService: API) {
         }
     }
 
-    // Ответ на вызов (Принять/Отказаться)
+    // TODO: Ответ на вызов (Принять/Отказаться)
     suspend fun answerCall(callId: String, decision: String, userComment: String): Result<Unit> {
         return try {
             val request = CallAnswerRequest(callId, decision)
