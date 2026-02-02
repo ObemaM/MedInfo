@@ -32,6 +32,25 @@ class CallsCache(private val context: Context) {
         }
     }
 
+    fun containsCallNumber(userLogin: String, callNumber: String): Boolean {
+        val normalized = callNumber.trim().lowercase()
+        if (normalized.isBlank()) return false
+
+        val list = readCalls(userLogin) ?: return false
+        return list.any { h ->
+            if (h.isArchived) return@any false
+            val hn =
+                if (h.dayNumber != null && h.yearNumber != null) {
+                    "${h.dayNumber}/${h.yearNumber}"
+                } else {
+                    null
+                }
+            val hnNormalized = hn?.trim()?.lowercase()
+            val idNormalized = h.id.trim().lowercase()
+            hnNormalized == normalized || idNormalized == normalized
+        }
+    }
+
     fun writeCalls(userLogin: String, calls: List<Hospitalization>) {
         try {
             val file = cacheFile(userLogin)

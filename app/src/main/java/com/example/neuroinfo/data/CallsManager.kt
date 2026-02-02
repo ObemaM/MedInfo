@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 object CallsManager {
+    const val MAX_CALL_DURATION_MS: Long = 2_400_00L
+
     private val _calls = MutableStateFlow<List<CallNotificationDto>>(emptyList())
     val calls: StateFlow<List<CallNotificationDto>> = _calls
 
@@ -14,7 +16,7 @@ object CallsManager {
     private val activeJobs = mutableMapOf<String, Job>() // Храним таймеры по номеру вызова
     private val callAddedAtMs = mutableMapOf<String, Long>()
 
-    fun addCall(call: CallNotificationDto) {
+    fun addCall(call: CallNotificationDto): Boolean {
         val currentList = _calls.value.toMutableList()
         if (currentList.none { it.callNumber == call.callNumber }) {
             currentList.add(call)
@@ -30,10 +32,14 @@ object CallsManager {
             if (call.status?.lowercase() == "транспортировка") {
                 startIgnoreTimer(call)
             }
+
+            return true
         }
+
+        return false
     }
 
-    fun getRemainingIgnoreMillis(callId: String, totalMillis: Long = 2_400_000L): Long? {
+    fun getRemainingIgnoreMillis(callId: String, totalMillis: Long = MAX_CALL_DURATION_MS): Long? {
         val addedAt = callAddedAtMs[callId] ?: return null
         val elapsed = SystemClock.elapsedRealtime() - addedAt
         val remaining = totalMillis - elapsed
@@ -47,7 +53,7 @@ object CallsManager {
         activeJobs[callId]?.cancel()
 
         activeJobs[callId] = managerScope.launch {
-            val remaining = getRemainingIgnoreMillis(callId) ?: 2_400_000L
+            val remaining = getRemainingIgnoreMillis(callId) ?: MAX_CALL_DURATION_MS
             delay(remaining) // Ждем до истечения таймера
 
             // Если через 40 минут вызов всё еще в списке — значит его проигнорировали
@@ -72,5 +78,12 @@ object CallsManager {
         activeJobs.remove(callId)
         callAddedAtMs.remove(callId)
         _calls.value = _calls.value.filter { it.callNumber != callId }
+    }
+
+    fun clearAll() {
+        activeJobs.values.forEach { it.cancel() }
+        activeJobs.clear()
+        callAddedAtMs.clear()
+        _calls.value = emptyList()
     }
 }

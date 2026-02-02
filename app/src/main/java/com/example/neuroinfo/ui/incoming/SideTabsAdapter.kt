@@ -20,6 +20,11 @@ class SideTabsAdapter(
     // Храним ID выбранного вызова для визуальной подсветки
     private var selectedCallNumber: String? = null
 
+    fun setSelectedCallNumber(callNumber: String?) {
+        selectedCallNumber = callNumber
+        notifyDataSetChanged()
+    }
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TabViewHolder {
         val view = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_side_tab, parent, false)
@@ -31,7 +36,6 @@ class SideTabsAdapter(
         holder.bind(call, call.callNumber == selectedCallNumber)
 
         holder.itemView.setOnClickListener {
-            val oldSelected = selectedCallNumber
             selectedCallNumber = call.callNumber
 
             // Перерисовываем только то, что изменилось

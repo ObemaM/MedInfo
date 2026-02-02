@@ -22,9 +22,11 @@ import com.example.neuroinfo.R
 import com.example.neuroinfo.adapter.HospitalizationAdapter
 import com.example.neuroinfo.data.CallRepository
 import com.example.neuroinfo.data.CallsCache
+import com.example.neuroinfo.data.CallsManager
 import com.example.neuroinfo.data.RetrofitClient
 import com.example.neuroinfo.data.TokenInterceptor
 import com.example.neuroinfo.model.Hospitalization
+import com.example.neuroinfo.services.SignalRService
 import com.example.neuroinfo.ui.login.LoginActivity
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.button.MaterialButton
@@ -53,6 +55,7 @@ import android.os.Build
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.example.neuroinfo.util.IncomingCallRinger
 
 class MainActivity : AppCompatActivity() {
 
@@ -541,12 +544,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun logout() {
+        stopService(Intent(this, SignalRService::class.java))
+        IncomingCallRinger.stop()
+        CallsManager.clearAll()
         TokenInterceptor.clearToken(this)
         val sharedPrefs = getSharedPreferences("app_session", MODE_PRIVATE)
         sharedPrefs.getString("user_login", null)?.let { login ->
             callsCache.clear(login)
         }
-        sharedPrefs.edit().remove("isLoggedIn").apply()
+        sharedPrefs.edit().remove("isLoggedIn").remove("user_login").apply()
         val intent = Intent(this, LoginActivity::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)

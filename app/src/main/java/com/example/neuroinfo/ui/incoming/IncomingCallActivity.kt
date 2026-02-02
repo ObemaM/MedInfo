@@ -174,9 +174,19 @@ class IncomingCallActivity : AppCompatActivity() {
                     finish() // Если вызовов нет — закрываем экран
                 } else {
                     sideAdapter.submitList(list)
-                    // Если сейчас ничего не выбрано — показываем первый из списка
-                    if (currentCall == null) {
+
+                    val currentId = currentCall?.callNumber
+                    val currentStillExists =
+                        currentId != null && list.any { it.callNumber == currentId }
+
+                    // Если текущий вызов пропал из очереди (например, истек таймер) —
+                    // переключаемся на следующий
+                    if (!currentStillExists) {
+                        currentCall = null
                         displayCallDetails(list[0])
+                    } else {
+                        // Обновляем подсветку выбранной вкладки
+                        sideAdapter.setSelectedCallNumber(currentId)
                     }
                 }
             }
@@ -191,6 +201,7 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private fun displayCallDetails(call: CallNotificationDto) {
         currentCall = call
+        sideAdapter.setSelectedCallNumber(call.callNumber)
 
         // Используем ID из вашего item_hospitalization.xml
         val infoBlock = findViewById<View>(R.id.patient_info_block)
@@ -301,6 +312,10 @@ class IncomingCallActivity : AppCompatActivity() {
 
             override fun onFinish() {
                 timerTextView.text = "ВРЕМЯ ИСТЕКЛО"
+                currentCall?.callNumber?.let { callId ->
+                    CallsManager.removeCall(callId)
+                }
+                currentCall = null
             }
         }.start()
     }

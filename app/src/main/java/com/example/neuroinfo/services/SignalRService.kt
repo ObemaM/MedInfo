@@ -10,6 +10,7 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.neuroinfo.R
+import com.example.neuroinfo.data.CallsCache
 import com.example.neuroinfo.data.CallsManager
 import com.example.neuroinfo.model.CallNotificationDto
 import com.example.neuroinfo.ui.incoming.IncomingCallActivity
@@ -27,12 +28,34 @@ class SignalRService : Service() {
     private val NOTIFICATION_ID_SERVICE = 101
     private val NOTIFICATION_ID_INCOMING_CALL = 102
 
+    private val callsCache by lazy { CallsCache(applicationContext) }
+
+    private fun isSessionActive(): Boolean {
+        val sharedPrefs = getSharedPreferences("app_session", Context.MODE_PRIVATE)
+        val isLoggedIn = sharedPrefs.getBoolean("isLoggedIn", false)
+        val token = sharedPrefs.getString("jwt_token", "") ?: ""
+        return isLoggedIn && token.isNotBlank()
+    }
+
+    private fun isCallInDiskCache(callNumber: String?): Boolean {
+        val number = callNumber?.trim().orEmpty()
+        if (number.isEmpty()) return false
+
+        val sharedPrefs = getSharedPreferences("app_session", Context.MODE_PRIVATE)
+        val userLogin = sharedPrefs.getString("user_login", null) ?: return false
+        return callsCache.containsCallNumber(userLogin, number)
+    }
+
     override fun onCreate() {
         super.onCreate()
         createNotificationChannels()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (!isSessionActive()) {
+            stopAndCleanup()
+            return START_NOT_STICKY
+        }
         // Запуск Foreground для живучести сервиса
         val notification = NotificationCompat.Builder(this, CHANNEL_ID_SERVICE)
             .setContentTitle("NeuroInfo: Связь с сервером")
@@ -52,6 +75,10 @@ class SignalRService : Service() {
     }
 
     private fun initSignalR() {
+        if (!isSessionActive()) {
+            stopAndCleanup()
+            return
+        }
         val sharedPrefs = getSharedPreferences("app_session", Context.MODE_PRIVATE)
         val token = sharedPrefs.getString("jwt_token", "") ?: ""
         val hubUrl = "http://46.146.213.95:27234/call"
@@ -62,30 +89,45 @@ class SignalRService : Service() {
 
         // Главный обработчик входящих данных
         hubConnection?.on("Receive", { callData ->
+            if (!isSessionActive()) {
+                stopAndCleanup()
+                return@on
+            }
             Log.d("SignalR", "Пришел вызов №${callData.callNumber} со статусом: ${callData.status}")
 
             // 1. Всегда добавляем в менеджер очереди
-            CallsManager.addCall(callData)
+            val isNewCall = CallsManager.addCall(callData)
 
             // 2. Реагируем в зависимости от статуса (ТЗ заказчика)
             when (callData.status?.lowercase()) {
                 "транспортировка" -> {
                     // Критическая ситуация: показываем экран и нотификацию
-                    triggerFullscreenAlert(callData)
+                    if (isNewCall) {
+                        if (!isCallInDiskCache(callData.callNumber)) {
+                            triggerFullscreenAlert(callData)
+                        }
+                    }
                     // Также обновляем список (врач увидит в MainActivity)
-                    Log.d("SignalR", "Вызов добавлен в активные (транспортировка)")
+                    Log.d("SignalR", "Вызов добавлен в активные (транспортировка): ${callData}")
                 }
                 "результат", "архив" -> {
                     // Удаляем из активных, так как вызов завершен
                     callData.callNumber?.let { CallsManager.removeCall(it) }
                     IncomingCallRinger.stop()
+                    val notificationManager =
+                        getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.cancel(NOTIFICATION_ID_INCOMING_CALL)
                 }
             }
         }, CallNotificationDto::class.java)
 
         hubConnection?.onClosed { exception ->
             Log.e("SignalR", "Соединение закрыто. Ошибка: ${exception?.message}")
-            startHubConnection()
+            if (isSessionActive()) {
+                startHubConnection()
+            } else {
+                stopAndCleanup()
+            }
         }
 
         startHubConnection()
@@ -95,14 +137,48 @@ class SignalRService : Service() {
         // Используем Thread только для старта, чтобы не блокировать UI
         Thread {
             try {
+                if (!isSessionActive()) {
+                    stopAndCleanup()
+                    return@Thread
+                }
                 hubConnection?.start()?.blockingAwait()
                 Log.i("SignalR", "Соединение установлено")
             } catch (e: Exception) {
                 Log.e("SignalR", "Ошибка старта: ${e.message}. Повтор через 5с...")
                 Thread.sleep(5000)
-                startHubConnection()
+                if (isSessionActive()) {
+                    startHubConnection()
+                } else {
+                    stopAndCleanup()
+                }
             }
         }.start()
+    }
+
+    private fun stopAndCleanup() {
+        stopAndCleanupInternal(stopSelf = true)
+    }
+
+    private fun stopAndCleanupInternal(stopSelf: Boolean) {
+        try {
+            hubConnection?.stop()
+        } catch (_: Exception) {
+        }
+        hubConnection = null
+        IncomingCallRinger.stop()
+        CallsManager.clearAll()
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        notificationManager.cancel(NOTIFICATION_ID_INCOMING_CALL)
+        notificationManager.cancel(NOTIFICATION_ID_SERVICE)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(true)
+        }
+        if (stopSelf) {
+            stopSelf()
+        }
     }
 
     private fun triggerFullscreenAlert(callData: CallNotificationDto) {
@@ -135,7 +211,9 @@ class SignalRService : Service() {
             .setAutoCancel(false)
             .setOngoing(true)
             .setTimeoutAfter(2_400_000) // Автоматически закрыть через 40 минут
-            .build()
+            .build().apply {
+                flags = flags or Notification.FLAG_NO_CLEAR or Notification.FLAG_ONGOING_EVENT
+            }
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID_INCOMING_CALL, notification)
@@ -179,7 +257,7 @@ class SignalRService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        hubConnection?.stop()
+        stopAndCleanupInternal(stopSelf = false)
         super.onDestroy()
     }
 }
