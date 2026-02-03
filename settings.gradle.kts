@@ -19,6 +19,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "neuroinfo"
+rootProject.name = "MedInfo"
 include(":app")
  

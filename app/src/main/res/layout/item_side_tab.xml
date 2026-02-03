@@ -22,7 +22,7 @@
             android:id="@+id/tab_call_number"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="№000"
+            android:text=""
             android:textColor="@color/black_1"
             android:textSize="14sp"
             android:textStyle="bold" />
