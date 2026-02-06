@@ -6,4 +6,11 @@
     <string name="menu_active">Активные</string>
     <string name="menu_archive">Архив</string>
     <string name="menu_settings">Настройки</string>
+
+    <!-- Логин -->
+    <string name="login_auth">Авторизация</string>
+    <string name="login_login">Логин</string>
+    <string name="login_password">Пароль</string>
+    <string name="login_enter">Войти</string>
+    <string name="login_wrong">Неверный логин или пароль</string>
 </resources>

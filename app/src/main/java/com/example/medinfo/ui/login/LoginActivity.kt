@@ -8,38 +8,36 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.Button
-import android.widget.EditText
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
-import com.example.medinfo.R
 import com.example.medinfo.data.LoginRepository
 import com.example.medinfo.data.RetrofitClient
 import com.example.medinfo.data.TokenInterceptor
 import com.example.medinfo.services.SignalRService
 import com.example.medinfo.ui.main.MainActivity
 import com.example.medinfo.util.toSha256
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.lifecycleScope
+import com.example.medinfo.databinding.ActivityLoginBinding
+import androidx.core.content.edit
 
-class LoginActivity : AppCompatActivity() {
+class LoginActivity: AppCompatActivity() {
 
-    private lateinit var loginEditText: EditText
-    private lateinit var passwordEditText: EditText
-    private lateinit var loginButton: Button
-    private lateinit var errorTextView: TextView
+    private lateinit var binding: ActivityLoginBinding
     private lateinit var sharedPreferences: SharedPreferences
 
     private val loginRepository by lazy { LoginRepository(RetrofitClient.apiService) }
-    private val mainScope = CoroutineScope(Dispatchers.Main)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        binding = ActivityLoginBinding.inflate(layoutInflater)
+        setContentView(binding.root)
+
         sharedPreferences = getSharedPreferences("app_session", Context.MODE_PRIVATE)
 
+        // Если версия андроида 13 и выше, то запрос на уведомления
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             androidx.core.app.ActivityCompat.requestPermissions(
                 this,
@@ -47,7 +45,8 @@ class LoginActivity : AppCompatActivity() {
                 101
             )
         }
-        // 1. Автоматический вход
+
+        // Автоматический вход
         if (sharedPreferences.getBoolean("isLoggedIn", false)) {
             Log.d("SignalR", "Автоматический вход: запускаем сервис")
             startSignalRService()
@@ -56,48 +55,41 @@ class LoginActivity : AppCompatActivity() {
             return
         }
 
-        setContentView(R.layout.activity_login)
+        binding.loginButton.setOnClickListener {
+            val inputText = binding.login.text?.toString()
+            val inputPassword = binding.password.text?.toString()
 
-        loginEditText = findViewById(R.id.login)
-        passwordEditText = findViewById(R.id.password)
-        loginButton = findViewById(R.id.loginButton)
-        errorTextView = findViewById(R.id.errorTextView)
-
-        loginButton.setOnClickListener {
-            errorTextView.visibility = View.GONE
-            val inputLogin = loginEditText.text.toString()
-            val inputPassword = passwordEditText.text.toString()
-
-            if (inputLogin.isBlank() || inputPassword.isBlank()) {
+            if (inputPassword.isNullOrBlank() || inputText.isNullOrBlank()) {
                 hideKeyboard()
-                errorTextView.text = "Введите логин и пароль"
-                errorTextView.visibility = View.VISIBLE
+                binding.errorTextView.text = "Введите логин и пароль"
+                binding.errorTextView.visibility = View.VISIBLE
                 return@setOnClickListener
             }
 
-            mainScope.launch {
+            // Уничтожается при уничтожении Activity
+            lifecycleScope.launch {
                 val inputPasswordHash = inputPassword.toSha256()
                 try {
                     val result = withContext(Dispatchers.IO) {
-                        loginRepository.login(inputLogin, inputPasswordHash)
+                        loginRepository.login(inputText, inputPasswordHash)
                     }
 
                     if (result.success && result.content != null) {
-                        saveSession(inputLogin, result.content)
+                        saveSession(inputText, result.content)
                         Log.d("SignalR", "Успешный логин: запускаем сервис") // <-- Добавить лог
                         startSignalRService()
                         startActivity(Intent(this@LoginActivity, MainActivity::class.java))
                         finish()
                     } else {
                         hideKeyboard()
-                        val errorMessage = result.messages?.firstOrNull() ?: "Неизвестная ошибка аутентификации"
-                        errorTextView.text = errorMessage
-                        errorTextView.visibility = View.VISIBLE
+                        val errorMessage = result.messages.firstOrNull() ?: "Неизвестная ошибка аутентификации"
+                        binding.errorTextView.text = errorMessage
+                        binding.errorTextView.visibility = View.VISIBLE
                     }
                 } catch (e: Exception) {
                     hideKeyboard()
-                    errorTextView.text = "Ошибка подключения к серверу: ${e.message}"
-                    errorTextView.visibility = View.VISIBLE
+                    binding.errorTextView.text = "Ошибка подключения к серверу: ${e.message}"
+                    binding.errorTextView.visibility = View.VISIBLE
                     e.printStackTrace()
                 }
             }
@@ -106,32 +98,30 @@ class LoginActivity : AppCompatActivity() {
 
     // Метод для запуска SignalR сервиса
     private fun startSignalRService() {
-        Log.d("SignalR", "Вызов метода startSignalRService") // <-- Добавить лог
+        Log.d("SignalR", "Вызов метода startSignalRService")
         val serviceIntent = Intent(this, SignalRService::class.java)
         try {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                startForegroundService(serviceIntent)
-            } else {
-                startService(serviceIntent)
-            }
+            startForegroundService(serviceIntent)
             Log.d("SignalR", "Команда startForegroundService отправлена в систему")
         } catch (e: Exception) {
             Log.e("SignalR", "ОШИБКА при запуске сервиса: ${e.message}")
         }
     }
 
+
+    // Убирает клавиатуру
     private fun hideKeyboard() {
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
         val view = currentFocus ?: window.decorView
         imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
+    // Сохраняет сессию и JWT токен
     private fun saveSession(login: String, token: String) {
         TokenInterceptor.saveToken(this, token)
-        with(sharedPreferences.edit()) {
+        sharedPreferences.edit {
             putBoolean("isLoggedIn", true)
             putString("user_login", login)
-            apply()
         }
     }
 }
