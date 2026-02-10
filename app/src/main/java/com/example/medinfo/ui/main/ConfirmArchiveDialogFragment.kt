@@ -5,30 +5,26 @@ import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
 import com.example.medinfo.R
-import com.google.android.material.button.MaterialButton
+import com.example.medinfo.databinding.DialogConfirmArchiveBinding
 
 class ConfirmArchiveDialogFragment : DialogFragment() {
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val inflater = requireActivity().layoutInflater
-        val view = inflater.inflate(R.layout.dialog_confirm_archive, null)
-
-        val confirmButton = view.findViewById<MaterialButton>(R.id.button_confirm)
-        val cancelButton = view.findViewById<MaterialButton>(R.id.button_cancel)
+        val binding = DialogConfirmArchiveBinding.inflate(requireActivity().layoutInflater)
 
         val dialog = AlertDialog.Builder(requireContext())
-            .setView(view)
+            .setView(binding.root)
             .create()
 
-        // Make the background of the dialog transparent
+        // Делаем фон диалога прозрачным
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        confirmButton.setOnClickListener {
+        binding.buttonConfirm.setOnClickListener {
             dismiss()
         }
 
-        cancelButton.setOnClickListener {
-            // Just close the dialog
+        binding.buttonCancel.setOnClickListener {
+            // Просто закрываем диалог
             dismiss()
         }
 

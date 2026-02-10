@@ -2,7 +2,7 @@ package com.example.medinfo
 
 
 import android.app.Application
-import com.example.medinfo.data.RetrofitClient
+import com.example.medinfo.data.network.RetrofitClient
 
 class MedInfoApplication : Application() {
 

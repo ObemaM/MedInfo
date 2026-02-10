@@ -9,9 +9,9 @@ import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
-import com.example.medinfo.data.LoginRepository
-import com.example.medinfo.data.RetrofitClient
-import com.example.medinfo.data.TokenInterceptor
+import com.example.medinfo.data.repository.LoginRepository
+import com.example.medinfo.data.network.RetrofitClient
+import com.example.medinfo.data.network.TokenInterceptor
 import com.example.medinfo.services.SignalRService
 import com.example.medinfo.ui.main.MainActivity
 import com.example.medinfo.util.toSha256
@@ -27,7 +27,7 @@ class LoginActivity: AppCompatActivity() {
     private lateinit var binding: ActivityLoginBinding
     private lateinit var sharedPreferences: SharedPreferences
 
-    private val loginRepository by lazy { LoginRepository(RetrofitClient.apiService) }
+    private val loginRepository by lazy { LoginRepository(RetrofitClient.apiServiceService) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

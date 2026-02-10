@@ -6,32 +6,28 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.setFragmentResult
 import com.example.medinfo.R
-import com.google.android.material.button.MaterialButton
+import com.example.medinfo.databinding.DialogConfirmLogoutBinding
 
 class ConfirmLogoutDialogFragment : DialogFragment() {
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
-        val inflater = requireActivity().layoutInflater
-        val view = inflater.inflate(R.layout.dialog_confirm_logout, null)
-
-        val confirmButton = view.findViewById<MaterialButton>(R.id.button_logout_confirm)
-        val cancelButton = view.findViewById<MaterialButton>(R.id.button_logout_cancel)
+        val binding = DialogConfirmLogoutBinding.inflate(requireActivity().layoutInflater)
 
         val dialog = AlertDialog.Builder(requireContext())
-            .setView(view)
+            .setView(binding.root)
             .create()
 
-        // Make the background of the dialog transparent
+        // Делаем фон диалога прозрачным
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        confirmButton.setOnClickListener {
-            // Send a signal back to MainActivity that logout was confirmed
+        binding.buttonLogoutConfirm.setOnClickListener {
+            // Отправляем сигнал в MainActivity, что выход подтвержден
             setFragmentResult(REQUEST_KEY, Bundle().apply { putBoolean(KEY_CONFIRMED_LOGOUT, true) })
             dismiss()
         }
 
-        cancelButton.setOnClickListener {
-            // Just close the dialog
+        binding.buttonLogoutCancel.setOnClickListener {
+            // Просто закрываем диалог
             dismiss()
         }
 

@@ -10,16 +10,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.ImageButton
 import androidx.core.os.bundleOf
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.fragment.app.setFragmentResult
 import com.example.medinfo.R
+import com.example.medinfo.databinding.BottomSheetCallFiltersBinding
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.google.android.material.button.MaterialButtonToggleGroup
-import com.google.android.material.textfield.TextInputEditText
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -29,6 +27,8 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
     private val dateFormat = SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
 
     private var dateFromMillis: Long? = null
+
+    private var binding: BottomSheetCallFiltersBinding? = null
     private var dateToMillis: Long? = null
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
@@ -46,12 +46,10 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
         dialog.window?.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
         dialog.window?.navigationBarColor = Color.TRANSPARENT
         dialog.window?.statusBarColor = Color.TRANSPARENT
-        // Add custom dimming without pink color
         dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         dialog.window?.attributes = dialog.window?.attributes?.apply {
             dimAmount = 0.0f // Disable system dimming
         }
-        // Create custom dim overlay
         val dimColor = Color.parseColor("#80000000") // Semi-transparent black
         dialog.window?.setBackgroundDrawable(ColorDrawable(dimColor))
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
@@ -66,166 +64,154 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
             container: ViewGroup?,
             savedInstanceState: Bundle?
     ): View {
-        return inflater.inflate(R.layout.bottom_sheet_call_filters, container, false)
+        binding = BottomSheetCallFiltersBinding.inflate(inflater, container, false)
+        return binding!!.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val initialFilters =
                 (arguments?.getSerializable(ARG_FILTERS) as? CallFilters) ?: CallFilters()
 
-        val closeButton = view.findViewById<ImageButton>(R.id.close_button)
+        binding?.let { b ->
+            b.closeButton.setOnClickListener { dismiss() }
 
-        val urgencyFromEdit = view.findViewById<TextInputEditText>(R.id.urgency_from_edit)
-        val urgencyToEdit = view.findViewById<TextInputEditText>(R.id.urgency_to_edit)
+            b.urgencyFromEdit.setText(initialFilters.urgencyFrom?.toString().orEmpty())
+            b.urgencyToEdit.setText(initialFilters.urgencyTo?.toString().orEmpty())
 
-        val sexToggleGroup = view.findViewById<MaterialButtonToggleGroup>(R.id.sex_toggle_group)
+            when (initialFilters.sex) {
+                SexFilter.ANY -> b.sexToggleGroup.check(R.id.sex_any_button)
+                SexFilter.MALE -> b.sexToggleGroup.check(R.id.sex_male_button)
+                SexFilter.FEMALE -> b.sexToggleGroup.check(R.id.sex_female_button)
+            }
 
-        val ageFromEdit = view.findViewById<TextInputEditText>(R.id.age_from_edit)
-        val ageToEdit = view.findViewById<TextInputEditText>(R.id.age_to_edit)
+            b.ageFromEdit.setText(initialFilters.ageFrom?.toString().orEmpty())
+            b.ageToEdit.setText(initialFilters.ageTo?.toString().orEmpty())
 
-        val dateFromEdit = view.findViewById<TextInputEditText>(R.id.date_from_edit)
-        val dateToEdit = view.findViewById<TextInputEditText>(R.id.date_to_edit)
+            dateFromMillis = initialFilters.dateFromMillis
+            dateToMillis = initialFilters.dateToMillis
 
-        val callDayFromEdit = view.findViewById<TextInputEditText>(R.id.call_day_from_edit)
-        val callDayToEdit = view.findViewById<TextInputEditText>(R.id.call_day_to_edit)
-        val callYearFromEdit = view.findViewById<TextInputEditText>(R.id.call_year_from_edit)
-        val callYearToEdit = view.findViewById<TextInputEditText>(R.id.call_year_to_edit)
+            b.dateFromEdit.setText(dateFromMillis?.let { dateFormat.format(it) }.orEmpty())
+            b.dateToEdit.setText(dateToMillis?.let { dateFormat.format(it) }.orEmpty())
 
-        val resetButton = view.findViewById<View>(R.id.reset_filters_button)
-        val applyButton = view.findViewById<View>(R.id.apply_filters_button)
+            b.callDayFromEdit.setText(initialFilters.callDayFrom?.toString().orEmpty())
+            b.callDayToEdit.setText(initialFilters.callDayTo?.toString().orEmpty())
+            b.callYearFromEdit.setText(initialFilters.callYearFrom?.toString().orEmpty())
+            b.callYearToEdit.setText(initialFilters.callYearTo?.toString().orEmpty())
 
-        urgencyFromEdit.setText(initialFilters.urgencyFrom?.toString().orEmpty())
-        urgencyToEdit.setText(initialFilters.urgencyTo?.toString().orEmpty())
+            b.dateFromEdit.setOnClickListener {
+                pickDateTime(dateFromMillis) { millis ->
+                    dateFromMillis = millis
+                    b.dateFromEdit.setText(dateFormat.format(millis))
+                }
+            }
 
-        when (initialFilters.sex) {
-            SexFilter.ANY -> sexToggleGroup.check(R.id.sex_any_button)
-            SexFilter.MALE -> sexToggleGroup.check(R.id.sex_male_button)
-            SexFilter.FEMALE -> sexToggleGroup.check(R.id.sex_female_button)
-        }
+            b.dateToEdit.setOnClickListener {
+                pickDateTime(dateToMillis) { millis ->
+                    dateToMillis = millis
+                    b.dateToEdit.setText(dateFormat.format(millis))
+                }
+            }
 
-        ageFromEdit.setText(initialFilters.ageFrom?.toString().orEmpty())
-        ageToEdit.setText(initialFilters.ageTo?.toString().orEmpty())
+            // Кнопки вне let, если они не находятся в binding
+            binding?.resetFiltersButton?.setOnClickListener {
+                binding?.urgencyFromEdit?.setText("")
+                binding?.urgencyToEdit?.setText("")
+                binding?.sexToggleGroup?.check(R.id.sex_any_button)
+                binding?.ageFromEdit?.setText("")
+                binding?.ageToEdit?.setText("")
+                dateFromMillis = null
+                dateToMillis = null
+                binding?.dateFromEdit?.setText("")
+                binding?.dateToEdit?.setText("")
+                binding?.callDayFromEdit?.setText("")
+                binding?.callDayToEdit?.setText("")
+                binding?.callYearFromEdit?.setText("")
+                binding?.callYearToEdit?.setText("")
+            }
 
-        dateFromMillis = initialFilters.dateFromMillis
-        dateToMillis = initialFilters.dateToMillis
+            binding?.applyFiltersButton?.setOnClickListener {
+                val urgencyFrom = binding?.urgencyFromEdit?.text?.toString()?.trim()?.toIntOrNull()
+                val urgencyTo = binding?.urgencyToEdit?.text?.toString()?.trim()?.toIntOrNull()
 
-        dateFromEdit.setText(dateFromMillis?.let { dateFormat.format(it) }.orEmpty())
-        dateToEdit.setText(dateToMillis?.let { dateFormat.format(it) }.orEmpty())
+                val ageFrom = binding?.ageFromEdit?.text?.toString()?.trim()?.toIntOrNull()
+                val ageTo = binding?.ageToEdit?.text?.toString()?.trim()?.toIntOrNull()
 
-        callDayFromEdit.setText(initialFilters.callDayFrom?.toString().orEmpty())
-        callDayToEdit.setText(initialFilters.callDayTo?.toString().orEmpty())
-        callYearFromEdit.setText(initialFilters.callYearFrom?.toString().orEmpty())
-        callYearToEdit.setText(initialFilters.callYearTo?.toString().orEmpty())
+                val sex =
+                        when (binding?.sexToggleGroup?.checkedButtonId) {
+                            R.id.sex_male_button -> SexFilter.MALE
+                            R.id.sex_female_button -> SexFilter.FEMALE
+                            else -> SexFilter.ANY
+                        }
 
-        closeButton.setOnClickListener { dismiss() }
+                val callDayFrom = binding?.callDayFromEdit?.text?.toString()?.trim()?.toIntOrNull()
+                val callDayTo = binding?.callDayToEdit?.text?.toString()?.trim()?.toIntOrNull()
+                val callYearFrom = binding?.callYearFromEdit?.text?.toString()?.trim()?.toIntOrNull()
+                val callYearTo = binding?.callYearToEdit?.text?.toString()?.trim()?.toIntOrNull()
 
-        dateFromEdit.setOnClickListener {
-            pickDateTime(dateFromMillis) { millis ->
-                dateFromMillis = millis
-                dateFromEdit.setText(dateFormat.format(millis))
+                var normUrgencyFrom = urgencyFrom
+                var normUrgencyTo = urgencyTo
+                if (normUrgencyFrom != null && normUrgencyTo != null && normUrgencyFrom > normUrgencyTo) {
+                    val tmp = normUrgencyFrom
+                    normUrgencyFrom = normUrgencyTo
+                    normUrgencyTo = tmp
+                }
+
+                var normAgeFrom = ageFrom
+                var normAgeTo = ageTo
+                if (normAgeFrom != null && normAgeTo != null && normAgeFrom > normAgeTo) {
+                    val tmp = normAgeFrom
+                    normAgeFrom = normAgeTo
+                    normAgeTo = tmp
+                }
+
+                var normDateFrom = dateFromMillis
+                var normDateTo = dateToMillis
+                if (normDateFrom != null && normDateTo != null && normDateFrom > normDateTo) {
+                    val tmp = normDateFrom
+                    normDateFrom = normDateTo
+                    normDateTo = tmp
+                }
+
+                var normCallDayFrom = callDayFrom
+                var normCallDayTo = callDayTo
+                if (normCallDayFrom != null && normCallDayTo != null && normCallDayFrom > normCallDayTo) {
+                    val tmp = normCallDayFrom
+                    normCallDayFrom = normCallDayTo
+                    normCallDayTo = tmp
+                }
+
+                var normCallYearFrom = callYearFrom
+                var normCallYearTo = callYearTo
+                if (normCallYearFrom != null && normCallYearTo != null && normCallYearFrom > normCallYearTo) {
+                    val tmp = normCallYearFrom
+                    normCallYearFrom = normCallYearTo
+                    normCallYearTo = tmp
+                }
+
+                val filters =
+                        CallFilters(
+                                urgencyFrom = normUrgencyFrom,
+                                urgencyTo = normUrgencyTo,
+                                sex = sex,
+                                ageFrom = normAgeFrom,
+                                ageTo = normAgeTo,
+                                dateFromMillis = normDateFrom,
+                                dateToMillis = normDateTo,
+                                callDayFrom = normCallDayFrom,
+                                callDayTo = normCallDayTo,
+                                callYearFrom = normCallYearFrom,
+                                callYearTo = normCallYearTo
+                        )
+
+                setFragmentResult(REQUEST_KEY, bundleOf(KEY_FILTERS to filters))
+                dismiss()
             }
         }
+    }
 
-        dateToEdit.setOnClickListener {
-            pickDateTime(dateToMillis) { millis ->
-                dateToMillis = millis
-                dateToEdit.setText(dateFormat.format(millis))
-            }
-        }
-
-        resetButton.setOnClickListener {
-            urgencyFromEdit.setText("")
-            urgencyToEdit.setText("")
-            sexToggleGroup.check(R.id.sex_any_button)
-            ageFromEdit.setText("")
-            ageToEdit.setText("")
-            dateFromMillis = null
-            dateToMillis = null
-            dateFromEdit.setText("")
-            dateToEdit.setText("")
-            callDayFromEdit.setText("")
-            callDayToEdit.setText("")
-            callYearFromEdit.setText("")
-            callYearToEdit.setText("")
-        }
-
-        applyButton.setOnClickListener {
-            val urgencyFrom = urgencyFromEdit.text?.toString()?.trim()?.toIntOrNull()
-            val urgencyTo = urgencyToEdit.text?.toString()?.trim()?.toIntOrNull()
-
-            val ageFrom = ageFromEdit.text?.toString()?.trim()?.toIntOrNull()
-            val ageTo = ageToEdit.text?.toString()?.trim()?.toIntOrNull()
-
-            val sex =
-                    when (sexToggleGroup.checkedButtonId) {
-                        R.id.sex_male_button -> SexFilter.MALE
-                        R.id.sex_female_button -> SexFilter.FEMALE
-                        else -> SexFilter.ANY
-                    }
-
-            val callDayFrom = callDayFromEdit.text?.toString()?.trim()?.toIntOrNull()
-            val callDayTo = callDayToEdit.text?.toString()?.trim()?.toIntOrNull()
-            val callYearFrom = callYearFromEdit.text?.toString()?.trim()?.toIntOrNull()
-            val callYearTo = callYearToEdit.text?.toString()?.trim()?.toIntOrNull()
-
-            var normUrgencyFrom = urgencyFrom
-            var normUrgencyTo = urgencyTo
-            if (normUrgencyFrom != null && normUrgencyTo != null && normUrgencyFrom > normUrgencyTo) {
-                val tmp = normUrgencyFrom
-                normUrgencyFrom = normUrgencyTo
-                normUrgencyTo = tmp
-            }
-
-            var normAgeFrom = ageFrom
-            var normAgeTo = ageTo
-            if (normAgeFrom != null && normAgeTo != null && normAgeFrom > normAgeTo) {
-                val tmp = normAgeFrom
-                normAgeFrom = normAgeTo
-                normAgeTo = tmp
-            }
-
-            var normDateFrom = dateFromMillis
-            var normDateTo = dateToMillis
-            if (normDateFrom != null && normDateTo != null && normDateFrom > normDateTo) {
-                val tmp = normDateFrom
-                normDateFrom = normDateTo
-                normDateTo = tmp
-            }
-
-            var normCallDayFrom = callDayFrom
-            var normCallDayTo = callDayTo
-            if (normCallDayFrom != null && normCallDayTo != null && normCallDayFrom > normCallDayTo) {
-                val tmp = normCallDayFrom
-                normCallDayFrom = normCallDayTo
-                normCallDayTo = tmp
-            }
-
-            var normCallYearFrom = callYearFrom
-            var normCallYearTo = callYearTo
-            if (normCallYearFrom != null && normCallYearTo != null && normCallYearFrom > normCallYearTo) {
-                val tmp = normCallYearFrom
-                normCallYearFrom = normCallYearTo
-                normCallYearTo = tmp
-            }
-
-            val filters =
-                    CallFilters(
-                            urgencyFrom = normUrgencyFrom,
-                            urgencyTo = normUrgencyTo,
-                            sex = sex,
-                            ageFrom = normAgeFrom,
-                            ageTo = normAgeTo,
-                            dateFromMillis = normDateFrom,
-                            dateToMillis = normDateTo,
-                            callDayFrom = normCallDayFrom,
-                            callDayTo = normCallDayTo,
-                            callYearFrom = normCallYearFrom,
-                            callYearTo = normCallYearTo
-                    )
-
-            setFragmentResult(REQUEST_KEY, bundleOf(KEY_FILTERS to filters))
-            dismiss()
-        }
+    override fun onDestroyView() {
+        super.onDestroyView()
+        binding = null
     }
 
     private fun pickDateTime(initialMillis: Long?, onPicked: (Long) -> Unit) {

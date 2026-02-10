@@ -1,6 +1,8 @@
-package com.example.medinfo.data
+package com.example.medinfo.data.network
 
 import android.content.Context
+import com.example.medinfo.data.network.ApiService
+import com.example.medinfo.data.network.TokenInterceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -12,11 +14,11 @@ object RetrofitClient {
     // Адрес сервера
     private const val BASE_URL = "http://46.146.213.95:27234"
 
-    lateinit var apiService: API
+    lateinit var apiServiceService: ApiService
 
     // Объявление Retrofit клиента
     fun init(context: Context) {
-        apiService = functionRetrofit(context).create(API::class.java)
+        apiServiceService = functionRetrofit(context).create(ApiService::class.java)
     }
 
     // Настройка Retrofit

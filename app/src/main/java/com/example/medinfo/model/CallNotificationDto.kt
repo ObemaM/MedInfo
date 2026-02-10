@@ -23,5 +23,6 @@ data class CallNotificationDto(
     @SerializedName("callNumber") val callNumber: String?,
     @SerializedName("callTime") val callTime: String?,
     @SerializedName("urgency") val urgency: Int?,
-    @SerializedName("status") val status: String?
+    @SerializedName("status") val status: String?,
+    @SerializedName(value="bloodPressure") val bloodPressure: String?
 ) : Serializable

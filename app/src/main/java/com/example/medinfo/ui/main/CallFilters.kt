@@ -21,7 +21,7 @@ data class CallFilters(
         val callYearFrom: Int? = null,
         val callYearTo: Int? = null
 ) : Serializable {
-    fun isActive(): Boolean {
+    fun isActive(): Boolean { // Для свечения иконки фильтров при активных фильтрах
         return urgencyFrom != null ||
                 urgencyTo != null ||
                 sex != SexFilter.ANY ||

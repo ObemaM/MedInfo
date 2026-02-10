@@ -9,11 +9,11 @@ import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.medinfo.R
-import com.example.medinfo.data.CallsCache
-import com.example.medinfo.data.CallsManager
+import com.example.medinfo.data.cache.CallsCache
+import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.ui.incoming.IncomingCallActivity
-import com.example.medinfo.util.IncomingCallRinger
+import com.example.medinfo.ui.incoming.IncomingCallRinger
 import com.microsoft.signalr.HubConnection
 import com.microsoft.signalr.HubConnectionBuilder
 import io.reactivex.rxjava3.core.Single

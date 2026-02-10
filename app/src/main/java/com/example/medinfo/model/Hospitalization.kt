@@ -43,7 +43,7 @@ data class Hospitalization(
     val callTime: String?, // Время вызова
     val urgency: Int?, // Срочность
 
-    // Локальные поля (не из API, для нужд UI/логики)
+    // Локальные поля (не из ApiService, для нужд UI/логики)
     var isArchived: Boolean = false,
     var formattedCallTime: String? = null,
     var searchCache: String? = null

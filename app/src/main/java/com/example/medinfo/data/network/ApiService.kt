@@ -1,10 +1,17 @@
-package com.example.medinfo.data
+package com.example.medinfo.data.network
 
-import com.example.medinfo.model.*
-import retrofit2.http.*
+import com.example.medinfo.model.ApiResponse
+import com.example.medinfo.model.CallAnswerRequest
+import com.example.medinfo.model.CallListContent
+import com.example.medinfo.model.LoginRequest
 import retrofit2.Response
+import retrofit2.http.Body
+import retrofit2.http.GET
+import retrofit2.http.POST
+import retrofit2.http.Path
+import retrofit2.http.Query
 
-interface API {
+interface ApiService {
 
     // Логин
     @POST("/api/informator/login")

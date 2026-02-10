@@ -1,30 +1,19 @@
-package com.example.medinfo.adapter
+package com.example.medinfo.ui.main
 
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.example.medinfo.R
+import com.example.medinfo.databinding.ItemHospitalizationBinding
 import com.example.medinfo.model.Hospitalization
+import com.example.medinfo.util.DateFormatter
 
 class HospitalizationAdapter(
-        private var items: List<Hospitalization>,
-        private val onCallClicked: (Hospitalization) -> Unit
+    private var items: List<Hospitalization>,
+    private val onCallClicked: (Hospitalization) -> Unit
 ) : RecyclerView.Adapter<HospitalizationAdapter.ViewHolder>() {
 
-    inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-
-        // Привязка View-элементов
-        val callNumberTextView: TextView = itemView.findViewById(R.id.call_number_text)
-        val timeTextView: TextView = itemView.findViewById(R.id.time_data)
-        val statusTextView: TextView = itemView.findViewById(R.id.status_text)
-        val patientDetailsTextView: TextView = itemView.findViewById(R.id.patient_details_text)
-        val callReasonTextView: TextView = itemView.findViewById(R.id.call_reason_text)
-        val callAddressTextView: TextView = itemView.findViewById(R.id.call_address_text)
-
-        val urgencyTextView: TextView = itemView.findViewById(R.id.urgency_data)
-
+    inner class ViewHolder(private val binding: ItemHospitalizationBinding) :
+        RecyclerView.ViewHolder(binding.root) {
         fun bind(call: Hospitalization) {
 
             // Номер звонка
@@ -36,11 +25,11 @@ class HospitalizationAdapter(
                     }
 
             // Номер и статус
-            callNumberTextView.text = "Вызов №${callNumber}"
-            statusTextView.text = call.status
+            binding.callNumberText.text = "Вызов №${callNumber}"
+            binding.statusText.text = call.status
 
             // Пациент
-            patientDetailsTextView.text = buildString {
+            binding.patientDetailsText.text = buildString {
                 append("${call.patientName ?: "Неизвестный пациент"}")
                 append(", ${call.age ?: "Н/Д"} лет")
                 append(", ${call.sex ?: "Н/Д"}")
@@ -49,18 +38,18 @@ class HospitalizationAdapter(
             // Время вызова
             val formattedTime =
                     call.formattedCallTime
-                            ?: com.example.medinfo.util.DateFormatter.formatDateTime(call.callTime)
+                            ?: DateFormatter.formatDateTime(call.callTime)
                                     .also { v -> call.formattedCallTime = v }
-            timeTextView.text = "Дата: $formattedTime"
+            binding.timeData.text = "Дата: $formattedTime"
 
             // Срочность
-            urgencyTextView.text = call.urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
+            binding.urgencyData.text = call.urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
 
             // Причина
-            callReasonTextView.text = call.reason ?: "Не указана"
+            binding.callReasonText.text = call.reason ?: "Не указана"
 
             // Адрес
-            callAddressTextView.text = buildString {
+            binding.callAddressText.text = buildString {
                 append("Район: ${call.district ?: "Н/Д"}, ")
                 append("ул. ${call.street ?: "Н/Д"}")
                 if (!call.house.isNullOrEmpty()) {
@@ -72,7 +61,7 @@ class HospitalizationAdapter(
             }
 
             // Обработчик клика
-            itemView.setOnClickListener {
+            binding.root.setOnClickListener {
                 val status = call.status?.lowercase()?.trim()
                 if (status?.contains("архив") == true) {
                     return@setOnClickListener
@@ -83,11 +72,12 @@ class HospitalizationAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        // Используем R.layout.item_hospitalization
-        val view =
-                LayoutInflater.from(parent.context)
-                        .inflate(R.layout.item_hospitalization, parent, false)
-        return ViewHolder(view)
+        val binding = ItemHospitalizationBinding.inflate(
+            LayoutInflater.from(parent.context),
+            parent,
+            false
+        )
+        return ViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {

@@ -1,9 +1,9 @@
-package com.example.medinfo.data
+package com.example.medinfo.data.network
 
 import android.content.Context
+import androidx.core.content.edit
 import okhttp3.Interceptor
 import okhttp3.Response
-import androidx.core.content.edit
 
 // Перехватчик OkHttp - добавляет JWT-токен в заголовок Authorization для всех исходящих запросов
 class TokenInterceptor(private val context: Context) : Interceptor {

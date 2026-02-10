@@ -2,16 +2,15 @@ package com.example.medinfo.ui.incoming
 
 import android.graphics.Color
 import android.view.LayoutInflater
-import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.medinfo.R
 import com.example.medinfo.model.CallNotificationDto
-import com.google.android.material.card.MaterialCardView
+import com.example.medinfo.databinding.ItemSideTabBinding
+
 
 class SideTabsAdapter(
     private val onTabClick: (CallNotificationDto) -> Unit
@@ -26,9 +25,8 @@ class SideTabsAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TabViewHolder {
-        val view = LayoutInflater.from(parent.context)
-            .inflate(R.layout.item_side_tab, parent, false)
-        return TabViewHolder(view)
+        val binding = ItemSideTabBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        return TabViewHolder(binding)
     }
 
     override fun onBindViewHolder(holder: TabViewHolder, position: Int) {
@@ -44,10 +42,10 @@ class SideTabsAdapter(
         }
     }
 
-    class TabViewHolder(view: View) : RecyclerView.ViewHolder(view) {
-        private val card = view.findViewById<MaterialCardView>(R.id.tab_card_view)
-        private val numberText = view.findViewById<TextView>(R.id.tab_call_number)
-        private val indicator = view.findViewById<View>(R.id.urgency_indicator)
+    class TabViewHolder(private val binding: ItemSideTabBinding) : RecyclerView.ViewHolder(binding.root) {
+        private val card = binding.tabCardView
+        private val numberText = binding.tabCallNumber
+        private val indicator = binding.urgencyIndicator
 
         fun bind(call: CallNotificationDto, isSelected: Boolean) {
             numberText.text = "№${call.callNumber}"

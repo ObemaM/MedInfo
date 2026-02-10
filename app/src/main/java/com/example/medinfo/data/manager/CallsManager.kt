@@ -1,10 +1,15 @@
-package com.example.medinfo.data
+package com.example.medinfo.data.manager
 
 import android.os.SystemClock
 import com.example.medinfo.model.CallNotificationDto
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 object CallsManager {
     const val MAX_CALL_DURATION_MS: Long = 2_400_00L
@@ -64,13 +69,12 @@ object CallsManager {
     }
 
     private fun handleIgnore(callId: String) {
-        // 1. Отправляем на сервер статус "Игнор" (через твой Repository)
-        // Здесь нужно вызвать метод API, аналогично answerCall, но со статусом "Ignore"
+        // 1. Отправляем на сервер статус "Игнор"
+        // Здесь нужно вызвать метод ApiService, аналогично answerCall, но со статусом "Ignore"
 
         // 2. Удаляем из списка
         removeCall(callId)
 
-        // Тут можно добавить лог или аналитику
     }
 
     fun removeCall(callId: String) {

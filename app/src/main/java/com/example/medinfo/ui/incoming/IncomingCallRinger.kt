@@ -1,4 +1,4 @@
-package com.example.medinfo.util
+package com.example.medinfo.ui.incoming
 
 import android.content.Context
 import android.media.AudioAttributes
@@ -6,6 +6,7 @@ import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 
 object IncomingCallRinger {
 
@@ -31,10 +32,12 @@ object IncomingCallRinger {
             mp.prepare()
             mp.start()
             mediaPlayer = mp
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("IncomingCallRinger", "Не удалось запустить рингтон", e)
             try {
                 mp.release()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("IncomingCallRinger", "Не удалось освободить MediaPlayer", e)
             }
             return
         }
@@ -52,11 +55,13 @@ object IncomingCallRinger {
         mediaPlayer = null
         try {
             mp?.stop()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w("IncomingCallRinger", "Не удалось остановить MediaPlayer", e)
         }
         try {
             mp?.release()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.e("IncomingCallRinger", "Не удалось освободить MediaPlayer в stop()", e)
         }
     }
 }

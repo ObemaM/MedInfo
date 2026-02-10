@@ -8,24 +8,20 @@ import android.media.MediaPlayer
 import android.media.RingtoneManager
 import android.os.*
 import android.util.Log
-import android.view.View
 import android.view.WindowManager
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import androidx.recyclerview.widget.RecyclerView
 import com.example.medinfo.R
-import com.example.medinfo.data.CallRepository
-import com.example.medinfo.data.CallsCache
-import com.example.medinfo.data.CallsManager // Наш синглтон для очереди
-import com.example.medinfo.data.RetrofitClient
+import com.example.medinfo.data.repository.CallRepository
+import com.example.medinfo.data.cache.CallsCache
+import com.example.medinfo.data.manager.CallsManager // Наш синглтон для очереди
+import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.model.Hospitalization
+import com.example.medinfo.databinding.ActivityIncomingCallBinding
 import com.example.medinfo.util.DateFormatter
-import com.example.medinfo.util.IncomingCallRinger
-import com.google.android.material.button.MaterialButton
-import com.google.android.material.textfield.TextInputEditText
+import com.example.medinfo.ui.incoming.IncomingCallRinger
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexWrap
 import com.google.android.flexbox.FlexboxLayoutManager
@@ -38,7 +34,7 @@ import java.util.Locale
 class IncomingCallActivity : AppCompatActivity() {
 
     private var wakeLock: PowerManager.WakeLock? = null
-    private val callRepository = CallRepository(RetrofitClient.apiService)
+    private val callRepository = CallRepository(RetrofitClient.apiServiceService)
     private val callsCache by lazy { CallsCache(applicationContext) }
     private var vibrator: Vibrator? = null
     private var mediaPlayer: MediaPlayer? = null
@@ -47,13 +43,12 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private val incomingCallNotificationId = 102
 
-    private lateinit var messageEditText: TextInputEditText
-    private lateinit var sideTabsRecyclerView: RecyclerView
+    private lateinit var binding: ActivityIncomingCallBinding
     private lateinit var sideAdapter: SideTabsAdapter // Создадим далее
 
     private var currentCall: CallNotificationDto? = null
     private var countdownTimer: CountDownTimer? = null
-    private lateinit var timerTextView: TextView
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -62,18 +57,12 @@ class IncomingCallActivity : AppCompatActivity() {
         // 1. Настройка отображения поверх блокировки (WakeLock + Keyguard)
         setupLockScreenFlags()
 
-        setContentView(R.layout.activity_incoming_call)
+        binding = ActivityIncomingCallBinding.inflate(layoutInflater)
+        setContentView(binding.root)
 
         preloadCachedCallsIfPossible()
 
-        timerTextView = findViewById(R.id.tv_timer)
-
         // 2. Инициализация UI
-        messageEditText = findViewById(R.id.message_edit_text)
-        sideTabsRecyclerView = findViewById(R.id.rv_side_tabs)
-
-        val btnAccept = findViewById<MaterialButton>(R.id.button_confirm)
-        val btnReject = findViewById<MaterialButton>(R.id.button_reject)
 
         // 3. Настройка боковой панели (корешков)
         setupSidePanel()
@@ -85,8 +74,8 @@ class IncomingCallActivity : AppCompatActivity() {
         observeCallsQueue()
 
         // 5. Кнопки
-        btnAccept.setOnClickListener { handleCallAnswer(true) }
-        btnReject.setOnClickListener { handleCallAnswer(false) }
+        binding.buttonConfirm.setOnClickListener { handleCallAnswer(true) }
+        binding.buttonReject.setOnClickListener { handleCallAnswer(false) }
 
         // 6. Звук и вибрация
     }
@@ -159,8 +148,8 @@ class IncomingCallActivity : AppCompatActivity() {
             flexDirection = FlexDirection.ROW
             flexWrap = FlexWrap.WRAP
         }
-        sideTabsRecyclerView.layoutManager = flexboxLayoutManager
-        sideTabsRecyclerView.adapter = sideAdapter
+        binding.rvSideTabs.layoutManager = flexboxLayoutManager
+        binding.rvSideTabs.adapter = sideAdapter
     }
 
     private fun observeCallsQueue() {
@@ -202,8 +191,7 @@ class IncomingCallActivity : AppCompatActivity() {
         currentCall = call
         sideAdapter.setSelectedCallNumber(call.callNumber)
 
-        // Используем ID из вашего item_hospitalization.xml
-        val infoBlock = findViewById<View>(R.id.patient_info_block)
+        val infoBlock = binding.patientInfoBlock
 
         val cached = findCachedHospitalization(call.callNumber)
 
@@ -212,10 +200,10 @@ class IncomingCallActivity : AppCompatActivity() {
             !call.callNumber.isNullOrBlank() -> call.callNumber
             else -> "Н/Д"
         }
-        infoBlock.findViewById<TextView>(R.id.call_number_text).text = "Вызов №$callNumberText"
+        infoBlock.callNumberText.text = "Вызов №$callNumberText"
 
         val status = cached?.status ?: call.status
-        infoBlock.findViewById<TextView>(R.id.status_text).text = status ?: "Неизвестно"
+        infoBlock.statusText.text = status ?: "Неизвестно"
 
         val patientName =
             cached?.patientName
@@ -224,21 +212,21 @@ class IncomingCallActivity : AppCompatActivity() {
                 ?: "Неизвестный пациент"
         val patientAge = cached?.age ?: call.age ?: "Н/Д"
         val patientSex = cached?.sex ?: call.sex ?: "Н/Д"
-        infoBlock.findViewById<TextView>(R.id.patient_details_text).text = buildString {
+        infoBlock.patientDetailsText.text = buildString {
             append(patientName)
             append(", $patientAge лет")
             append(", $patientSex")
         }
 
         val reason = cached?.reason ?: call.reason
-        infoBlock.findViewById<TextView>(R.id.call_reason_text).text = reason ?: "Не указана"
+        infoBlock.callReasonText.text = reason ?: "Не указана"
 
         val district = cached?.district ?: call.district
         val point = cached?.point ?: call.point
         val street = cached?.street ?: call.street
         val house = cached?.house ?: call.house
         val apartment = cached?.apartment ?: call.apartment
-        infoBlock.findViewById<TextView>(R.id.call_address_text).text = buildString {
+        infoBlock.callAddressText.text = buildString {
             append("Район: ${district ?: "Н/Д"}, ")
             if (!point.isNullOrBlank()) {
                 append("${point.trim()}, ")
@@ -253,10 +241,10 @@ class IncomingCallActivity : AppCompatActivity() {
         }
 
         val timeValue = cached?.callTime ?: call.callTime
-        infoBlock.findViewById<TextView>(R.id.time_data).text = "Дата: ${DateFormatter.formatDateTime(timeValue)}"
+        infoBlock.timeData.text = "Дата: ${DateFormatter.formatDateTime(timeValue)}"
 
         val urgency = cached?.urgency ?: call.urgency
-        infoBlock.findViewById<TextView>(R.id.urgency_data).text =
+        infoBlock.urgencyData.text =
             urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
 
         // Очищаем поле комментария при переключении между пациентами
@@ -270,7 +258,7 @@ class IncomingCallActivity : AppCompatActivity() {
                 2400
             }
         startVisualCountdown(secondsToShow)
-        messageEditText.setText("")
+        binding.messageEditText.setText("")
     }
 
     private fun findCachedHospitalization(callNumber: String?): Hospitalization? {
@@ -298,19 +286,19 @@ class IncomingCallActivity : AppCompatActivity() {
                 val totalSeconds = (millisUntilFinished / 1000).toInt()
                 val minutes = totalSeconds / 60
                 val secRemaining = totalSeconds % 60
-                timerTextView.text =
+                binding.tvTimer.text =
                     "Осталось времени: ${String.format("%02d", minutes)}:${String.format("%02d", secRemaining)}"
 
                 // Если осталось меньше 10 сек — красим в красный
                 if (totalSeconds <= 10) {
-                    timerTextView.setTextColor(resources.getColor(R.color.red_1, null))
+                    binding.tvTimer.setTextColor(resources.getColor(R.color.red_1, null))
                 } else {
-                    timerTextView.setTextColor(resources.getColor(R.color.gray_1, null))
+                    binding.tvTimer.setTextColor(resources.getColor(R.color.gray_1, null))
                 }
             }
 
             override fun onFinish() {
-                timerTextView.text = "ВРЕМЯ ИСТЕКЛО"
+                binding.tvTimer.text = "ВРЕМЯ ИСТЕКЛО"
                 currentCall?.callNumber?.let { callId ->
                     CallsManager.removeCall(callId)
                 }
@@ -322,7 +310,7 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun handleCallAnswer(accepted: Boolean) {
         val call = currentCall ?: return
         val callId = call.callNumber ?: return
-        val comment = messageEditText.text.toString()
+        val comment = binding.messageEditText.text.toString()
         val decision = if (accepted) "Accept" else "Reject"
 
         IncomingCallRinger.stop()
