@@ -12,7 +12,7 @@ fun String.toSha256(): String {
         // Вычисляем хэш
         val hash = md.digest(this.toByteArray())
 
-        // Преобразуем байты в 16-ричную строку (64 символа)
+        // Преобразуем байты в шестнадцатеричную строку (64 символа)
         BigInteger(1, hash).toString(16).padStart(64, '0')
 
     } catch (e: Exception) {

@@ -48,9 +48,9 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
         dialog.window?.statusBarColor = Color.TRANSPARENT
         dialog.window?.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND)
         dialog.window?.attributes = dialog.window?.attributes?.apply {
-            dimAmount = 0.0f // Disable system dimming
+            dimAmount = 0.0f // Отключаем системное затемнение
         }
-        val dimColor = Color.parseColor("#80000000") // Semi-transparent black
+        val dimColor = Color.parseColor("#80000000") // Полупрозрачный черный
         dialog.window?.setBackgroundDrawable(ColorDrawable(dimColor))
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
             dialog.window?.isNavigationBarContrastEnforced = false
@@ -112,7 +112,7 @@ class CallFiltersBottomSheetDialogFragment : BottomSheetDialogFragment() {
                 }
             }
 
-            // Кнопки вне let, если они не находятся в binding
+            // Кнопки вне блока let, если они не находятся в binding
             binding?.resetFiltersButton?.setOnClickListener {
                 binding?.urgencyFromEdit?.setText("")
                 binding?.urgencyToEdit?.setText("")

@@ -21,6 +21,7 @@ import kotlinx.coroutines.withContext
 import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.databinding.ActivityLoginBinding
 import androidx.core.content.edit
+import com.example.medinfo.ui.incoming.IncomingCallPermissionHelper
 
 class LoginActivity: AppCompatActivity() {
 
@@ -36,6 +37,9 @@ class LoginActivity: AppCompatActivity() {
         setContentView(binding.root)
 
         sharedPreferences = getSharedPreferences("app_session", Context.MODE_PRIVATE)
+
+        // Запрашиваем разрешение на отображение поверх других приложений при старте
+        IncomingCallPermissionHelper.ensurePermissions(this)
 
         // Если версия андроида 13 и выше, то запрос на уведомления
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {

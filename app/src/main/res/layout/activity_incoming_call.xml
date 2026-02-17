@@ -8,10 +8,29 @@
     android:orientation="vertical"
     android:fitsSystemWindows="true">
 
-    <LinearLayout
+    <!-- Big Stop Alerts Button - Takes ~1/4 of screen -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/button_stop_alerts"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
+        android:layout_margin="16dp"
+        android:backgroundTint="@color/red_1"
+        android:text="ОСТАНОВИТЬ ЗВУК И ВИБРАЦИЮ"
+        android:textColor="@color/white_1"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        app:cornerRadius="16dp"
+        app:icon="@android:drawable/ic_lock_silent_mode"
+        app:iconGravity="textTop"
+        app:iconPadding="8dp"
+        app:iconSize="48dp"
+        app:iconTint="@color/white_1" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="3"
         android:padding="16dp">
 
         <com.google.android.material.card.MaterialCardView
