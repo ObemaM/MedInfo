@@ -14,6 +14,12 @@
         <item name="colorSurface">@color/background_1</item>
         <item name="colorSurfaceVariant">@color/background_2</item>
 
+        <item name="colorOnSurface">@color/black_1</item>
+        <item name="colorOnSurfaceVariant">@color/gray_1</item>
+        <item name="colorOnBackground">@color/black_1</item>
+        <item name="colorOnPrimary">@color/white_1</item>
+        <item name="colorOnSecondary">@color/white_1</item>
+
         <item name="android:colorBackground">@color/background_1</item>
         <item name="android:windowBackground">@color/background_1</item>
         <item name="android:statusBarColor">@color/background_1</item>

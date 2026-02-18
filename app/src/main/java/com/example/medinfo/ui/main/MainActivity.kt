@@ -16,6 +16,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.medinfo.R
 import com.example.medinfo.ui.main.HospitalizationAdapter
 import com.example.medinfo.model.Hospitalization
+import com.example.medinfo.model.CallNotificationDto
+import com.example.medinfo.model.BleedingInfo
+import com.example.medinfo.model.ArterialTourniquetInfo
+import com.example.medinfo.model.VenousAccessInfo
+import com.example.medinfo.model.IfaInfo
 import com.example.medinfo.services.SignalRService
 import com.example.medinfo.ui.login.LoginActivity
 import com.google.android.material.tabs.TabLayout
@@ -29,7 +34,6 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.util.Log
 import android.view.inputmethod.EditorInfo
-import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.ui.incoming.IncomingCallActivity
 import com.google.android.material.textfield.TextInputEditText
 import android.os.Build
@@ -344,25 +348,76 @@ class MainActivity : AppCompatActivity() {
         try {
             val mockCall = CallNotificationDto(
                 fullName = "Иванов Иван Иванович",
-                age = "age",
-                sex = "sex",
-                reason = "reason",
-                district = "district",
-                point = "point",
-                street = "street",
-                house = "House",
-                apartment = "1",
-                enterance = 1,
-                longitude = 1.2,
-                latitude = 2.3,
-                brigadeNumber = 12,
-                brigadeProfile = "Profile",
-                callNumber = "123456",
-                callTime = "callTime",
+                age = "45",
+                sex = "Муж",
+                reason = "Боль в груди",
+                additionalInfo = "Аллергия на пенициллин",
+                district = "Центральный",
+                point = "Москва",
+                street = "Ленина",
+                house = "12",
+                apartment = "45",
+                enterance = 3,
+                longitude = 55.7558,
+                latitude = 37.6176,
+                brigadeNumber = 404,
+                brigadeProfile = "Кардиологическая",
+                callNumber = "6/2026",
+                callTime = "2026-02-19T14:30:00",
                 urgency = 1,
-                status = "status",
-                bloodPressure = "",
-                additionalInfo = ""
+                status = "транспортировка",
+                bloodPressure = "120/80",
+
+                // Медицинские показатели
+                consciousness = "Ясное",
+                convulsions = false,
+                glucometry = 5,
+                heartRate = 72,
+                oxygenSupport = true,
+                pregnant = false,
+                respirationRate = 16,
+                spO2 = 98,
+                startDisease = 2,
+                stenosis = false,
+                temperature = 36.6,
+                lams = 0,
+                mrs = 0,
+                vas = 3,
+
+                // Кровотечение
+                bleeding = BleedingInfo(
+                    presence = false,
+                    type = null,
+                    arterialTourniquet = ArterialTourniquetInfo(
+                        presence = false,
+                        applicationTime = null
+                    )
+                ),
+
+                // Венозный доступ
+                venousAccess = VenousAccessInfo(
+                    presence = true,
+                    method = listOf("Периферическая вена")
+                ),
+
+                // Протезирование ДП
+                ifa = IfaInfo(
+                    presence = false,
+                    tool = null,
+                    alv = false
+                ),
+
+                // Системные поля
+                messageId = 0,
+                messageValue = null,
+
+                // Идентификация
+                dprm = "2026-02-19",
+                ngod = 2026,
+                numv = 6,
+                ssmp = 10,
+                team = 404,
+                vozr = "45"
             )
 
             // Запускаем экран точно так же, как это делает SignalRService

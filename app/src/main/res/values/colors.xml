@@ -17,4 +17,7 @@
     <color name="menu_text_color_1">#666666</color>
     <color name="menu_text_color_2">#333333</color>
     <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="green_1">#428D80</color>
+    <color name="yellow_1">#DEC768</color>
+
 </resources>

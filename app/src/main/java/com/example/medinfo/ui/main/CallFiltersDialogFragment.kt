@@ -3,6 +3,7 @@ package com.example.medinfo.ui.main
 import android.app.DatePickerDialog
 import android.app.Dialog
 import android.app.TimePickerDialog
+import android.os.Build
 import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
@@ -25,7 +26,12 @@ class CallFiltersDialogFragment : DialogFragment() {
         val inflater = requireActivity().layoutInflater
         val binding = DialogCallFiltersBinding.inflate(inflater)
 
-        val initialFilters = (arguments?.getSerializable(ARG_FILTERS) as? CallFilters) ?: CallFilters()
+        val initialFilters = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            arguments?.getSerializable(ARG_FILTERS, CallFilters::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            arguments?.getSerializable(ARG_FILTERS) as? CallFilters
+        } ?: CallFilters()
 
         binding.urgencyFromEdit.setText(initialFilters.urgencyFrom?.toString().orEmpty())
         binding.urgencyToEdit.setText(initialFilters.urgencyTo?.toString().orEmpty())

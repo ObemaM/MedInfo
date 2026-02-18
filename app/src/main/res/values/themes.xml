@@ -1,6 +1,6 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Base application theme. -->
-    <style name="Base.Theme.MedInfo" parent="Theme.Material3.DayNight.NoActionBar">
+    <style name="Base.Theme.MedInfo" parent="Theme.Material3.Light.NoActionBar">
         <item name="colorPrimary">@color/main_1</item>
         <item name="colorPrimaryContainer">@color/blue_2</item>
 

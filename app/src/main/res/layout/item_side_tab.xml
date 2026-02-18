@@ -13,13 +13,22 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:gravity="center"
         android:background="@color/blue_3"
+        android:gravity="center"
         android:orientation="vertical"
         android:padding="4dp">
 
         <TextView
-            android:id="@+id/tab_call_number"
+            android:id="@+id/tab_call_number_day"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="@color/black_1"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/tab_call_number_year"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text=""

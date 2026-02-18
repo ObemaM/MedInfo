@@ -44,11 +44,30 @@ class SideTabsAdapter(
 
     class TabViewHolder(private val binding: ItemSideTabBinding) : RecyclerView.ViewHolder(binding.root) {
         private val card = binding.tabCardView
-        private val numberText = binding.tabCallNumber
+        private val numberTextDay = binding.tabCallNumberDay
+
+        private val numberTextYear = binding.tabCallNumberYear
         private val indicator = binding.urgencyIndicator
 
+        // Функция для получения номера дня и года из CallNumber (для корректного отображения)
+        fun CallNumberToDayAndYear(call: CallNotificationDto) : List<String> {
+            var data = listOf("-", "-")
+            if (call.callNumber != null) {
+                data = call.callNumber.split("/")
+                return data
+            }
+            else {
+                return data
+            }
+        }
+
         fun bind(call: CallNotificationDto, isSelected: Boolean) {
-            numberText.text = "№${call.callNumber}"
+
+            val callNumberParts : List<String> = CallNumberToDayAndYear(call)
+
+            // Безопасное обращение
+            numberTextDay.text = "№${callNumberParts.getOrNull(0) ?: ""}/"
+            numberTextYear.text = callNumberParts.getOrNull(1) ?: "-"
 
             // 1. Подсветка выбранной вкладки
             if (isSelected) {
@@ -61,15 +80,15 @@ class SideTabsAdapter(
                 card.cardElevation = 2f
             }
 
-            // 2. Цвет индикатора в зависимости от срочности (Urgency)
-            // Например: 1 - Красный (Экстренно), 2 - Желтый, 3 - Синий/Зеленый
+            // Цвет индикатора в зависимости от срочности
             val color = when (call.urgency) {
-                1 -> Color.RED
-                2 -> Color.YELLOW
-                else -> ContextCompat.getColor(itemView.context, R.color.main_1)
+                in 3..6 -> ContextCompat.getColor(itemView.context, R.color.yellow_1)
+                in 7 .. 9 -> ContextCompat.getColor(itemView.context, R.color.red_1)
+                else -> ContextCompat.getColor(itemView.context, R.color.green_1)
             }
             indicator.setBackgroundColor(color)
         }
+
     }
 
     class DiffCallback : DiffUtil.ItemCallback<CallNotificationDto>() {
