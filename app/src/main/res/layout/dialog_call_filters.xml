@@ -1,120 +1,122 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="320dp"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_gravity="center"
-    android:background="@android:color/transparent"
+    android:layout_margin="16dp"
     app:cardBackgroundColor="@color/background_2"
     app:cardCornerRadius="24dp"
     app:strokeColor="@color/border_gray_1"
     app:strokeWidth="1dp">
 
-    <ScrollView
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:fillViewport="true">
 
-        <LinearLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:padding="24dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+            <!-- Header -->
+            <TextView
+                android:id="@+id/filters_title"
+                android:layout_width="0dp"
+                android:layout_height="30dp"
+                android:text="Фильтры"
+                android:textColor="@color/gray_1"
+                android:textSize="20sp"
+                app:layout_constraintEnd_toStartOf="@+id/close_button"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="Фильтры"
-                    android:textColor="@color/gray_1"
-                    android:textSize="20sp" />
-
-                <ImageButton
-                    android:id="@+id/close_button"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:contentDescription="Закрыть"
-                    android:padding="8dp"
-                    android:src="@android:drawable/ic_menu_close_clear_cancel"
-                    app:tint="@color/gray_1" />
-
-            </LinearLayout>
+            <ImageButton
+                android:id="@+id/close_button"
+                android:layout_width="30dp"
+                android:layout_height="30dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Закрыть"
+                android:src="@drawable/ic_close_24"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/gray_1" />
 
             <View
+                android:id="@+id/divider_header"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginTop="16dp"
-                android:background="@color/border_gray_1" />
+                android:background="@color/border_gray_1"
+                app:layout_constraintTop_toBottomOf="@+id/filters_title" />
 
+            <!-- Срочность -->
             <TextView
+                android:id="@+id/urgency_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Срочность"
                 android:textColor="@color/gray_1"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                app:layout_constraintTop_toBottomOf="@+id/divider_header" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/urgency_from_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                android:layout_marginEnd="12dp"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/urgency_label"
+                app:layout_constraintEnd_toStartOf="@+id/urgency_to_layout">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/urgency_from_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/urgency_from_edit"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:layout_weight="1"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors">
+                    android:hint="от"
+                    android:inputType="number"
+                    android:textColor="@color/gray_1" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/urgency_from_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="от"
-                        android:inputType="number"
-                        android:textColor="@color/gray_1" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                </com.google.android.material.textfield.TextInputLayout>
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/urgency_to_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors"
+                app:layout_constraintStart_toEndOf="@+id/urgency_from_layout"
+                app:layout_constraintTop_toBottomOf="@+id/urgency_label"
+                app:layout_constraintEnd_toEndOf="parent">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/urgency_to_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/urgency_to_edit"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors">
+                    android:hint="до"
+                    android:inputType="number"
+                    android:textColor="@color/gray_1" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/urgency_to_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="до"
-                        android:inputType="number"
-                        android:textColor="@color/gray_1" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                </com.google.android.material.textfield.TextInputLayout>
-
-            </LinearLayout>
-
+            <!-- Пол -->
             <TextView
+                android:id="@+id/sex_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Пол"
                 android:textColor="@color/gray_1"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                app:layout_constraintTop_toBottomOf="@+id/urgency_from_layout" />
 
             <com.google.android.material.button.MaterialButtonToggleGroup
                 android:id="@+id/sex_toggle_group"
@@ -122,7 +124,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 app:selectionRequired="false"
-                app:singleSelection="true">
+                app:singleSelection="true"
+                app:layout_constraintTop_toBottomOf="@+id/sex_label">
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/sex_any_button"
@@ -162,268 +165,272 @@
 
             </com.google.android.material.button.MaterialButtonToggleGroup>
 
+            <!-- Возраст -->
             <TextView
+                android:id="@+id/age_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Возраст"
                 android:textColor="@color/gray_1"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                app:layout_constraintTop_toBottomOf="@+id/sex_toggle_group" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/age_from_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                android:layout_marginEnd="12dp"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/age_label"
+                app:layout_constraintEnd_toStartOf="@+id/age_to_layout">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/age_from_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/age_from_edit"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:layout_weight="1"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors">
+                    android:hint="от"
+                    android:inputType="number"
+                    android:textColor="@color/gray_1" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/age_from_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="от"
-                        android:inputType="number"
-                        android:textColor="@color/gray_1" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                </com.google.android.material.textfield.TextInputLayout>
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/age_to_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors"
+                app:layout_constraintStart_toEndOf="@+id/age_from_layout"
+                app:layout_constraintTop_toBottomOf="@+id/age_label"
+                app:layout_constraintEnd_toEndOf="parent">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/age_to_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/age_to_edit"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors">
+                    android:hint="до"
+                    android:inputType="number"
+                    android:textColor="@color/gray_1" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/age_to_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="до"
-                        android:inputType="number"
-                        android:textColor="@color/gray_1" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                </com.google.android.material.textfield.TextInputLayout>
-
-            </LinearLayout>
-
+            <!-- Дата -->
             <TextView
+                android:id="@+id/date_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Дата"
                 android:textColor="@color/gray_1"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                app:layout_constraintTop_toBottomOf="@+id/age_from_layout" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/date_from_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                android:layout_marginEnd="12dp"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/date_label"
+                app:layout_constraintEnd_toStartOf="@+id/date_to_layout">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/date_from_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/date_from_edit"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:layout_weight="1"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors">
+                    android:focusable="false"
+                    android:hint="от"
+                    android:inputType="none"
+                    android:textColor="@color/gray_1" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/date_from_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:focusable="false"
-                        android:hint="от"
-                        android:inputType="none"
-                        android:textColor="@color/gray_1" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                </com.google.android.material.textfield.TextInputLayout>
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/date_to_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors"
+                app:layout_constraintStart_toEndOf="@+id/date_from_layout"
+                app:layout_constraintTop_toBottomOf="@+id/date_label"
+                app:layout_constraintEnd_toEndOf="parent">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/date_to_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/date_to_edit"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors">
+                    android:focusable="false"
+                    android:hint="до"
+                    android:inputType="none"
+                    android:textColor="@color/gray_1" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/date_to_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:focusable="false"
-                        android:hint="до"
-                        android:inputType="none"
-                        android:textColor="@color/gray_1" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                </com.google.android.material.textfield.TextInputLayout>
-
-            </LinearLayout>
-
+            <!-- Номер вызова -->
             <TextView
+                android:id="@+id/call_number_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
                 android:text="Номер вызова"
                 android:textColor="@color/gray_1"
-                android:textSize="14sp" />
+                android:textSize="14sp"
+                app:layout_constraintTop_toBottomOf="@+id/date_from_layout" />
 
             <TextView
+                android:id="@+id/call_day_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:text="Часть до /"
+                android:text="Суточный номер"
                 android:textColor="@color/gray_1"
-                android:textSize="12sp" />
+                android:textSize="12sp"
+                app:layout_constraintTop_toBottomOf="@+id/call_number_label" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/call_day_from_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                android:layout_marginEnd="12dp"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/call_day_label"
+                app:layout_constraintEnd_toStartOf="@+id/call_day_to_layout">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/call_day_from_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/call_day_from_edit"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:layout_weight="1"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors">
+                    android:hint="от"
+                    android:inputType="number"
+                    android:textColor="@color/gray_1" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/call_day_from_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="от"
-                        android:inputType="number"
-                        android:textColor="@color/gray_1" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                </com.google.android.material.textfield.TextInputLayout>
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/call_day_to_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors"
+                app:layout_constraintStart_toEndOf="@+id/call_day_from_layout"
+                app:layout_constraintTop_toBottomOf="@+id/call_day_label"
+                app:layout_constraintEnd_toEndOf="parent">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/call_day_to_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/call_day_to_edit"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors">
+                    android:hint="до"
+                    android:inputType="number"
+                    android:textColor="@color/gray_1" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/call_day_to_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="до"
-                        android:inputType="number"
-                        android:textColor="@color/gray_1" />
-
-                </com.google.android.material.textfield.TextInputLayout>
-
-            </LinearLayout>
+            </com.google.android.material.textfield.TextInputLayout>
 
             <TextView
+                android:id="@+id/call_year_label"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="12dp"
-                android:text="Часть после /"
+                android:text="Годовой номер"
                 android:textColor="@color/gray_1"
-                android:textSize="12sp" />
+                android:textSize="12sp"
+                app:layout_constraintTop_toBottomOf="@+id/call_day_from_layout" />
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/call_year_from_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                android:layout_marginEnd="12dp"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/call_year_label"
+                app:layout_constraintEnd_toStartOf="@+id/call_year_to_layout">
 
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/call_year_from_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp"
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/call_year_from_edit"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="12dp"
-                    android:layout_weight="1"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors">
+                    android:hint="от"
+                    android:inputType="number"
+                    android:textColor="@color/gray_1" />
 
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/call_year_from_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="от"
-                        android:inputType="number"
-                        android:textColor="@color/gray_1" />
+            </com.google.android.material.textfield.TextInputLayout>
 
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/call_year_to_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/call_year_to_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="до"
-                        android:inputType="number"
-                        android:textColor="@color/gray_1" />
-
-                </com.google.android.material.textfield.TextInputLayout>
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/call_year_to_layout"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:boxStrokeColor="@color/search_text_input_colors"
+                app:hintTextColor="@color/search_text_input_colors"
+                app:layout_constraintStart_toEndOf="@+id/call_year_from_layout"
+                app:layout_constraintTop_toBottomOf="@+id/call_year_label"
+                app:layout_constraintEnd_toEndOf="parent">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/call_year_to_edit"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:hint="до"
+                    android:inputType="number"
+                    android:textColor="@color/gray_1" />
+
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <!-- Кнопки -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/reset_filters_button"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
                 android:layout_marginTop="20dp"
-                android:orientation="horizontal">
+                android:layout_marginEnd="12dp"
+                android:text="Сбросить"
+                android:textColor="@color/black_1"
+                app:cornerRadius="12dp"
+                app:strokeColor="@color/border_gray_2"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@+id/call_year_from_layout"
+                app:layout_constraintEnd_toStartOf="@+id/apply_filters_button" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/reset_filters_button"
-                    style="@style/Widget.Material3.Button.OutlinedButton"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_marginEnd="12dp"
-                    android:layout_weight="1"
-                    android:text="Сбросить"
-                    android:textColor="@color/black_1"
-                    app:cornerRadius="12dp"
-                    app:strokeColor="@color/border_gray_2" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/apply_filters_button"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_marginTop="20dp"
+                android:backgroundTint="@color/main_1"
+                android:text="Применить"
+                android:textColor="@color/white_1"
+                app:cornerRadius="12dp"
+                app:layout_constraintStart_toEndOf="@+id/reset_filters_button"
+                app:layout_constraintTop_toBottomOf="@+id/call_year_from_layout"
+                app:layout_constraintEnd_toEndOf="parent" />
 
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/apply_filters_button"
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="@color/main_1"
-                    android:text="Применить"
-                    android:textColor="@color/white_1"
-                    app:cornerRadius="12dp" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-            </LinearLayout>
-
-        </LinearLayout>
-
-    </ScrollView>
+    </androidx.core.widget.NestedScrollView>
 
 </com.google.android.material.card.MaterialCardView>

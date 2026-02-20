@@ -147,18 +147,31 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Функция для работы с кнопками
     private fun setupViews() {
-        binding.profileButton.setOnClickListener { showProfilePopupWindow(it) }
 
+        // Кнопка звонка
+        binding.callButton.setOnClickListener {
+            simulateIncomingCall()
+            Toast.makeText(this, "Тестовый звонок", Toast.LENGTH_SHORT).show()
+        }
+
+        // Кнопка профиля
+        binding.profileButton.setOnClickListener {
+            showProfilePopupWindow(it)
+        }
+
+        // Кнопка фильтров
         binding.filterButton.setOnClickListener {
             CallFiltersDialogFragment
                     .newInstance(viewModel.getCurrentFilters())
                     .show(supportFragmentManager, CallFiltersDialogFragment.TAG)
         }
 
-        setupFiltersListener()
-        setupTabsListener()
-        setupSearchListener()
+        // Функции-слушатели для более сложной логики
+        setupFiltersListener() // Изменение состояния фильтров
+        setupTabsListener() // Переключение вкладки
+        setupSearchListener() // Ввод текста и поиск
     }
 
     private fun setupFiltersListener() {
@@ -263,6 +276,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
+    // Обработка кнопок при нажатии на профиль
     private fun showProfilePopupWindow(anchor: View) {
         val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
         val popupBinding = PopupMenuCustomBinding.inflate(inflater)
@@ -274,12 +288,6 @@ class MainActivity : AppCompatActivity() {
                         true
                 )
         popupWindow.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-
-        popupBinding.popupTest.setOnClickListener {
-            simulateIncomingCall()
-            Toast.makeText(this, "Тестовый звонок", Toast.LENGTH_SHORT).show()
-            popupWindow.dismiss()
-        }
 
         popupBinding.userdata.setOnClickListener {
             popupWindow.dismiss()

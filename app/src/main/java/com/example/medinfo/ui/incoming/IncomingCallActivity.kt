@@ -63,6 +63,8 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.buttonConfirm.setOnClickListener { handleCallAnswer(true) }
         binding.buttonReject.setOnClickListener { handleCallAnswer(false) }
 
+        binding.closeButton.setOnClickListener { finish() }
+
         startContinuousAlerts()
         binding.buttonStopAlerts.setOnClickListener {
             stopAlerts()
@@ -293,8 +295,10 @@ class IncomingCallActivity : AppCompatActivity() {
                 // Если осталось меньше 10 сек — красим в красный
                 if (totalSeconds <= 10) {
                     binding.tvTimer.setTextColor(resources.getColor(R.color.red_1, null))
+                    binding.timerIcon.setColorFilter(resources.getColor(R.color.red_1, null))
                 } else {
                     binding.tvTimer.setTextColor(resources.getColor(R.color.gray_1, null))
+                    binding.timerIcon.setColorFilter(resources.getColor(R.color.gray_1, null))
                 }
             }
 

@@ -3,81 +3,70 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:paddingEnd="16dp">
+    android:paddingEnd="8dp">
 
     <com.google.android.material.card.MaterialCardView
-        android:layout_width="140dp"
+        android:layout_width="130dp"
         android:layout_height="wrap_content"
         android:layout_gravity="end"
         app:cardBackgroundColor="@color/background_2"
-        app:cardCornerRadius="16dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="0dp"
         app:strokeColor="@color/border_gray_1"
         app:strokeWidth="1dp">
 
-        <LinearLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:minWidth="180dp"
-            android:orientation="vertical"
-            android:paddingVertical="8dp">
+            android:layout_height="wrap_content">
 
-            <!-- Тест для звонка -->
+            <!-- Данные -->
             <TextView
                 android:id="@+id/userdata"
-                android:layout_width="wrap_content"
-                android:layout_height="match_parent"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
                 android:background="?attr/selectableItemBackground"
                 android:drawableStart="@drawable/ic_info_24"
-                android:drawablePadding="16dp"
+                android:drawablePadding="12dp"
                 android:drawableTint="@color/gray_1"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="16dp"
                 android:paddingVertical="14dp"
                 android:text="Данные"
                 android:textColor="@color/gray_1"
-                android:textSize="15sp" />
-
-            <TextView
-                android:id="@+id/popup_test"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="?attr/selectableItemBackground"
-                android:drawableStart="@android:drawable/ic_menu_call"
-                android:drawablePadding="16dp"
-                android:drawableTint="@color/gray_1"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="14dp"
-                android:text="Тест"
-                android:textColor="@color/gray_1"
-                android:textSize="15sp" />
-
-            <!-- Данные -->
+                android:textSize="15sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
             <View
-                android:layout_width="match_parent"
+                android:id="@+id/divider"
+                android:layout_width="0dp"
                 android:layout_height="1dp"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginVertical="4dp"
-                android:background="@color/border_gray_1" />
+                android:background="@color/border_gray_1"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/userdata" />
 
             <!-- Выход -->
             <TextView
                 android:id="@+id/popup_logout"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:background="?attr/selectableItemBackground"
                 android:drawableStart="@drawable/ic_exit_24"
-                android:drawablePadding="16dp"
+                android:drawablePadding="12dp"
                 android:drawableTint="@color/red_1"
                 android:gravity="center_vertical"
                 android:paddingHorizontal="16dp"
                 android:paddingVertical="14dp"
                 android:text="Выход"
                 android:textColor="@color/red_1"
-                android:textSize="15sp" />
+                android:textSize="15sp"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toBottomOf="@id/userdata" />
 
-        </LinearLayout>
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>
 
