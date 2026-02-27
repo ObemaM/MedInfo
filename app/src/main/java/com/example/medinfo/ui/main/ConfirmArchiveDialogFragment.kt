@@ -16,15 +16,15 @@ class ConfirmArchiveDialogFragment : DialogFragment() {
             .setView(binding.root)
             .create()
 
-        // Делаем фон диалога прозрачным
+        // Прозрачный фон диалога
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
+        // Кнопки принять и отказать
         binding.buttonConfirm.setOnClickListener {
             dismiss()
         }
 
         binding.buttonCancel.setOnClickListener {
-            // Просто закрываем диалог
             dismiss()
         }
 

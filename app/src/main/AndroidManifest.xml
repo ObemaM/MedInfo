@@ -27,7 +27,7 @@
         android:theme="@style/Theme.MedInfo"
         android:networkSecurityConfig="@xml/network_security_config">
         <service
-            android:name=".services.SignalRService"
+            android:name="com.example.medinfo.data.signalr.SignalRService"
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="specialUse" />

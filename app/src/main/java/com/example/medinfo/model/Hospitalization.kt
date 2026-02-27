@@ -1,7 +1,6 @@
 package com.example.medinfo.model
 
 import java.io.Serializable
-import com.google.gson.annotations.SerializedName
 
 // Полная модель данных, представляющая один вызов (госпитализацию),
 data class Hospitalization(

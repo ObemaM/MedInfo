@@ -18,7 +18,6 @@ import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.model.Hospitalization
 import com.example.medinfo.databinding.ActivityIncomingCallBinding
 import com.example.medinfo.util.DateFormatter
-import com.example.medinfo.ui.incoming.IncomingCallRinger
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexWrap
 import com.google.android.flexbox.FlexboxLayoutManager

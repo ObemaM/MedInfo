@@ -12,7 +12,7 @@ import androidx.appcompat.app.AppCompatActivity
 import com.example.medinfo.data.repository.LoginRepository
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.network.TokenInterceptor
-import com.example.medinfo.services.SignalRService
+import com.example.medinfo.data.signalr.SignalRService
 import com.example.medinfo.ui.main.MainActivity
 import com.example.medinfo.util.toSha256
 import kotlinx.coroutines.Dispatchers

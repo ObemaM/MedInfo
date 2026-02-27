@@ -13,15 +13,13 @@ import android.widget.PopupWindow
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
-import com.example.medinfo.R
-import com.example.medinfo.ui.main.HospitalizationAdapter
 import com.example.medinfo.model.Hospitalization
 import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.model.BleedingInfo
 import com.example.medinfo.model.ArterialTourniquetInfo
 import com.example.medinfo.model.VenousAccessInfo
 import com.example.medinfo.model.IfaInfo
-import com.example.medinfo.services.SignalRService
+import com.example.medinfo.data.signalr.SignalRService
 import com.example.medinfo.ui.login.LoginActivity
 import com.google.android.material.tabs.TabLayout
 import kotlinx.coroutines.Job
@@ -300,7 +298,7 @@ class MainActivity : AppCompatActivity() {
                     .show(supportFragmentManager, ConfirmLogoutDialogFragment.TAG)
         }
 
-        popupWindow.showAsDropDown(anchor)
+        popupWindow.showAsDropDown(anchor, 0, 24)
     }
 
     private fun showUserDataDialog() {

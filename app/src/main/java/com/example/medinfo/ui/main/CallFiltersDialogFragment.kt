@@ -58,6 +58,16 @@ class CallFiltersDialogFragment : DialogFragment() {
 
         binding.closeButton.setOnClickListener { dismiss() }
 
+        binding.dateFromLayout.setEndIconOnClickListener {
+            dateFromMillis = null
+            binding.dateFromEdit.setText("")
+        }
+
+        binding.dateToLayout.setEndIconOnClickListener {
+            dateToMillis = null
+            binding.dateToEdit.setText("")
+        }
+
         binding.dateFromEdit.setOnClickListener {
             pickDateTime(dateFromMillis) { millis ->
                 dateFromMillis = millis

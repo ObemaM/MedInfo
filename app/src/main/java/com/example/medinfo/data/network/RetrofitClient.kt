@@ -1,8 +1,6 @@
 package com.example.medinfo.data.network
 
 import android.content.Context
-import com.example.medinfo.data.network.ApiService
-import com.example.medinfo.data.network.TokenInterceptor
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit

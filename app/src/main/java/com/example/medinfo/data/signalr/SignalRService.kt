@@ -1,4 +1,4 @@
-package com.example.medinfo.services
+package com.example.medinfo.data.signalr
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -19,6 +19,8 @@ import com.example.medinfo.ui.incoming.IncomingCallRinger
 import com.microsoft.signalr.HubConnection
 import com.microsoft.signalr.HubConnectionBuilder
 import io.reactivex.rxjava3.core.Single
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.runBlocking
 
 class SignalRService : Service() {
 
@@ -37,12 +39,15 @@ class SignalRService : Service() {
     }
 
     private fun isCallInDiskCache(callNumber: String?): Boolean {
-        val number = callNumber?.trim().orEmpty()
-        if (number.isEmpty()) return false
+        // В корутину, чтобы не было проблем с уведомлениями звонков при смене вкладок
+        return runBlocking(Dispatchers.IO) {
+            val number = callNumber?.trim().orEmpty()
+            if (number.isEmpty()) return@runBlocking false
 
-        val sharedPrefs = getSharedPreferences("app_session", Context.MODE_PRIVATE)
-        val userLogin = sharedPrefs.getString("user_login", null) ?: return false
-        return callsCache.containsCallNumber(userLogin, number)
+            val sharedPrefs = getSharedPreferences("app_session", Context.MODE_PRIVATE)
+            val userLogin = sharedPrefs.getString("user_login", null) ?: return@runBlocking false
+            callsCache.containsCallNumber(userLogin, number)
+        }
     }
 
     override fun onCreate() {

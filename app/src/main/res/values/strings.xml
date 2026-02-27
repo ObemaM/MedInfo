@@ -13,4 +13,5 @@
     <string name="login_password">Пароль</string>
     <string name="login_enter">Войти</string>
     <string name="login_wrong">Неверный логин или пароль</string>
+    <string name="filters_name">Фильтры</string>
 </resources>
