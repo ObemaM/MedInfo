@@ -2,7 +2,6 @@ package com.example.medinfo.util
 
 import java.text.SimpleDateFormat
 import java.util.Locale
-import android.util.Log
 
 object DateFormatter {
     private val inputFormat = ThreadLocal.withInitial {
@@ -35,7 +34,6 @@ object DateFormatter {
 
         // Если что-то пошло не так, то возвращаем в исходном виде
         catch (e: Exception) {
-            Log.w("DateFormatter", "Не удалось отформатировать дату: $dateTime", e)
             return dateTime
         }
     }

@@ -1,0 +1,17 @@
+{
+  "server": {
+    "baseUrl": "http://46.146.213.95:27234",
+    "signalrHubUrl": "http://46.146.213.95:27234/call"
+  },
+  "timeouts": {
+    "httpConnectTimeoutSeconds": 20,
+    "httpReadTimeoutSeconds": 20
+  },
+  "intervals": {
+    "maxCallDurationMs": 2400000
+  },
+  "storage": {
+    "sessionPrefsName": "app_session",
+    "jwtTokenKey": "jwt_token"
+  }
+}

@@ -1,7 +1,6 @@
 package com.example.medinfo.data.cache
 
 import android.content.Context
-import android.util.Log
 import com.example.medinfo.model.Hospitalization
 import com.example.medinfo.util.toSha256
 import com.google.gson.Gson
@@ -35,7 +34,6 @@ class CallsCache(private val context: Context) {
             val type = object : TypeToken<List<Hospitalization>>() {}.type
             gson.fromJson<List<Hospitalization>>(json, type)
         } catch (e: Exception) {
-            Log.w("CallsCache", "Не удалось прочитать кэш (login=$userLogin)", e)
             null
         }
     }
@@ -68,7 +66,6 @@ class CallsCache(private val context: Context) {
             val json = gson.toJson(calls)
             file.writeText(json, Charsets.UTF_8)
         } catch (e: Exception) {
-            Log.w("CallsCache", "Не удалось записать кэш (login=$userLogin, size=${calls.size})", e)
         }
     }
 
@@ -77,7 +74,6 @@ class CallsCache(private val context: Context) {
         try {
             cacheFile(userLogin).delete()
         } catch (e: Exception) {
-            Log.w("CallsCache", "Не удалось очистить кэш (login=$userLogin)", e)
         }
     }
 }

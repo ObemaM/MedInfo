@@ -8,9 +8,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.medinfo.R
+import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.cache.CallsCache
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.model.CallNotificationDto
@@ -39,7 +39,6 @@ class SignalRService : Service() {
     }
 
     private fun isCallInDiskCache(callNumber: String?): Boolean {
-        // В корутину, чтобы не было проблем с уведомлениями звонков при смене вкладок
         return runBlocking(Dispatchers.IO) {
             val number = callNumber?.trim().orEmpty()
             if (number.isEmpty()) return@runBlocking false
@@ -52,13 +51,11 @@ class SignalRService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        Log.d("SignalR", "Service created")
         createNotificationChannels()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (!isSessionActive()) {
-            Log.w("SignalR", "Session not active, stopping service")
             stopAndCleanup()
             return START_NOT_STICKY
         }
@@ -84,16 +81,16 @@ class SignalRService : Service() {
             stopAndCleanup()
             return
         }
-        val sharedPrefs = getSharedPreferences("app_session", Context.MODE_PRIVATE)
-        val token = sharedPrefs.getString("jwt_token", "") ?: ""
-        val hubUrl = "http://46.146.213.95:27234/call"
+        val sharedPrefs = getSharedPreferences(ConfigManager.sessionPrefsName, Context.MODE_PRIVATE)
+        val token = sharedPrefs.getString(ConfigManager.jwtTokenKey, "") ?: ""
+        val hubUrl = ConfigManager.signalrHubUrl
 
         hubConnection = HubConnectionBuilder.create(hubUrl)
             .withAccessTokenProvider(Single.just(token))
             .build()
 
         hubConnection?.on("Receive", { callData ->
-            Log.d("SignalR", "$callData")
+
             if (!isSessionActive()) {
                 stopAndCleanup()
                 return@on
@@ -104,26 +101,20 @@ class SignalRService : Service() {
                 "транспортировка" -> {
                     val inCache = isCallInDiskCache(callData.callNumber)
                     if (!inCache) {
-                        Log.d("SignalR", "New call, adding to queue and triggering alert")
                         CallsManager.addCall(callData)
                         triggerFullscreenAlert(callData)
-                    } else {
-                        Log.d("SignalR", "Call already in cache, skipping")
                     }
                 }
                 "результат", "архив" -> {
-                    Log.d("SignalR", "Call completed, removing from queue")
                     callData.callNumber?.let { CallsManager.removeCall(it) }
                     IncomingCallRinger.stop()
                 }
                 else -> {
-                    Log.d("SignalR", "Unknown status '$statusLower'")
                 }
             }
         }, CallNotificationDto::class.java)
 
         hubConnection?.onClosed { exception ->
-            Log.e("SignalR", "Connection closed: ${exception?.message}")
             if (isSessionActive()) {
                 startHubConnection()
             } else {
@@ -142,9 +133,7 @@ class SignalRService : Service() {
                     return@Thread
                 }
                 hubConnection?.start()?.blockingAwait()
-                Log.i("SignalR", "Connection established")
             } catch (e: Exception) {
-                Log.e("SignalR", "Connection error: ${e.message}, retrying in 5s...")
                 Thread.sleep(5000)
                 if (isSessionActive()) {
                     startHubConnection()
@@ -163,7 +152,6 @@ class SignalRService : Service() {
         try {
             hubConnection?.stop()
         } catch (e: Exception) {
-            Log.e("SignalR", "Error stopping hubConnection: ${e.message}")
         }
         hubConnection = null
         IncomingCallRinger.stop()
@@ -199,7 +187,6 @@ class SignalRService : Service() {
         try {
             startActivity(fullScreenIntent)
         } catch (e: Exception) {
-            Log.e("SignalR", "Failed to start activity: ${e.message}")
         }
     }
 
@@ -223,7 +210,6 @@ class SignalRService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
-        Log.d("SignalR", "Service destroyed")
         stopAndCleanupInternal(stopSelf = false)
         super.onDestroy()
     }

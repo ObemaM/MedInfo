@@ -1,6 +1,5 @@
 package com.example.medinfo.data.repository
 
-import android.util.Log
 import com.example.medinfo.data.network.ApiService
 import com.example.medinfo.model.ApiResponse
 import com.example.medinfo.model.LoginRequest
@@ -16,11 +15,9 @@ class LoginRepository(private val apiServiceService: ApiService){
         // Обработка запроса
         if (response.isSuccessful) {
             response.body()?.let { return it }
-            Log.e("LoginRepository", "Пустой ответ от сервера при логине пользователя: $login")
             throw IOException("Пустой ответ от сервера")
         }
         else {
-            Log.e("LoginRepository", "Ошибка HTTP ${response.code()} при логине пользователя: $login")
             // Возвращает код запроса в случае ошибки
             throw IOException("Ошибка HTTP ${response.code()}")
         }

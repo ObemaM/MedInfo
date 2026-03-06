@@ -30,7 +30,6 @@ import android.view.inputmethod.InputMethodManager
 import android.graphics.Rect
 import android.text.Editable
 import android.text.TextWatcher
-import android.util.Log
 import android.view.inputmethod.EditorInfo
 import com.example.medinfo.ui.incoming.IncomingCallActivity
 import com.google.android.material.textfield.TextInputEditText
@@ -436,7 +435,6 @@ class MainActivity : AppCompatActivity() {
         }
         catch (e: Exception) {
             Toast.makeText(this, "Ошибка теста: ${e.message}", Toast.LENGTH_LONG).show()
-            Log.e("TestCall", "CRASH: ", e)
         }
     }
 }

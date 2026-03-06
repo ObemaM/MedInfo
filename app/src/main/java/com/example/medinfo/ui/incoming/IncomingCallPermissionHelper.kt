@@ -7,7 +7,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
-import android.util.Log
 
 /**
  * Helper class to manage permissions needed for showing IncomingCallActivity
@@ -70,7 +69,6 @@ object IncomingCallPermissionHelper {
     fun checkAllPermissions(context: Context): Boolean {
         val hasOverlay = canDrawOverlays(context)
 
-        Log.d("IncomingCallPermission", "Can draw overlays: $hasOverlay")
 
         return hasOverlay
     }

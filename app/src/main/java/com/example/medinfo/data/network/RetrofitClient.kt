@@ -1,6 +1,7 @@
 package com.example.medinfo.data.network
 
 import android.content.Context
+import com.example.medinfo.config.ConfigManager
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
@@ -8,9 +9,6 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 
 object RetrofitClient {
-
-    // Адрес сервера
-    private const val BASE_URL = "http://46.146.213.95:27234"
 
     lateinit var apiServiceService: ApiService
 
@@ -31,13 +29,13 @@ object RetrofitClient {
         val client = OkHttpClient.Builder()
             .addInterceptor(TokenInterceptor(context)) // Используем наш перехватчик токена
             .addInterceptor(loggingInterceptor)
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(20, TimeUnit.SECONDS)
+            .connectTimeout(ConfigManager.httpConnectTimeoutSeconds.toLong(), TimeUnit.SECONDS)
+            .readTimeout(ConfigManager.httpReadTimeoutSeconds.toLong(), TimeUnit.SECONDS)
             .build()
 
         // Собираем Retrofit
         return Retrofit.Builder()
-            .baseUrl(BASE_URL)
+                .baseUrl(ConfigManager.serverBaseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

@@ -3,7 +3,6 @@ package com.example.medinfo.ui.main
 import android.app.Application
 import android.content.Context
 import android.os.SystemClock
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medinfo.data.repository.CallRepository
@@ -83,18 +82,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             null
                         }
 
-                Log.d(
-                        "CallsDebug",
-                        "cacheReadDone ms=${SystemClock.elapsedRealtime() - tCacheStart}, cachedSize=${cachedCalls?.size ?: 0}"
-                )
 
                 if (!cachedCalls.isNullOrEmpty()) {
                     updateCalls(cachedCalls)
                     val first = cachedCalls.first()
-                    Log.d(
-                            "CallsDebug",
-                            "source=cache, size=${cachedCalls.size}, firstId=${first.id}, day=${first.dayNumber}, year=${first.yearNumber}"
-                    )
                 }
 
                 val tApiStart = SystemClock.elapsedRealtime()
@@ -106,10 +97,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                                     getCount = true
                             )
                         }
-                Log.d(
-                        "CallsDebug",
-                        "apiDone ms=${SystemClock.elapsedRealtime() - tApiStart}, success=${apiResult.isSuccess}"
-                )
 
                 if (apiResult.isSuccess) {
                     val apiCalls = apiResult.getOrThrow().calls
@@ -122,15 +109,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                     if (callsToShow.isNotEmpty()) {
                         val first = callsToShow.first()
-                        Log.d(
-                                "CallsDebug",
-                                "source=api, size=${callsToShow.size}, firstId=${first.id}, day=${first.dayNumber}, year=${first.yearNumber}"
-                        )
                     } else {
-                        Log.d(
-                                "CallsDebug",
-                                "source=api, size=0"
-                        )
                     }
 
                     updateCalls(callsToShow)
@@ -148,10 +127,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                     if (cachedCalls.isNullOrEmpty()) {
                         updateCalls(emptyList())
-                        Log.d(
-                                "CallsDebug",
-                                "source=empty, size=0"
-                        )
                     }
                 }
             } catch (e: Exception) {

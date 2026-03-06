@@ -5,7 +5,6 @@ import android.content.Intent
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
-import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import androidx.appcompat.app.AppCompatActivity
@@ -52,7 +51,6 @@ class LoginActivity: AppCompatActivity() {
 
         // Автоматический вход
         if (sharedPreferences.getBoolean("isLoggedIn", false)) {
-            Log.d("SignalR", "Автоматический вход: запускаем сервис")
             startSignalRService()
             startActivity(Intent(this, MainActivity::class.java))
             finish()
@@ -80,7 +78,6 @@ class LoginActivity: AppCompatActivity() {
 
                     if (result.success && result.content != null) {
                         saveSession(inputText, result.content)
-                        Log.d("SignalR", "Успешный логин: запускаем сервис") // <-- Добавить лог
                         startSignalRService()
                         startActivity(Intent(this@LoginActivity, MainActivity::class.java))
                         finish()
@@ -102,13 +99,10 @@ class LoginActivity: AppCompatActivity() {
 
     // Метод для запуска SignalR сервиса
     private fun startSignalRService() {
-        Log.d("SignalR", "Вызов метода startSignalRService")
         val serviceIntent = Intent(this, SignalRService::class.java)
         try {
             startForegroundService(serviceIntent)
-            Log.d("SignalR", "Команда startForegroundService отправлена в систему")
         } catch (e: Exception) {
-            Log.e("SignalR", "ОШИБКА при запуске сервиса: ${e.message}")
         }
     }
 

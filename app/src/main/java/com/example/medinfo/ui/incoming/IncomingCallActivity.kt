@@ -4,7 +4,6 @@ import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
 import android.os.*
-import android.util.Log
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -43,19 +42,22 @@ class IncomingCallActivity : AppCompatActivity() {
     private var countdownTimer: CountDownTimer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        android.util.Log.d("INCOMING_CALL", "===== onCreate START =====")
         super.onCreate(savedInstanceState)
-        Log.d("IncomingCall", "Activity created")
-
         bringToFront()
         setupLockScreenFlags()
 
         binding = ActivityIncomingCallBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        android.util.Log.d("INCOMING_CALL", "Layout inflated and set")
 
         setupWindowFlags()
         preloadCachedCallsIfPossible()
 
         setupSidePanel()
+        android.util.Log.d("INCOMING_CALL", "Side panel setup complete")
+        
+        android.util.Log.d("INCOMING_CALL", "Handling incoming intent...")
         handleIncomingIntent(intent)
         observeCallsQueue()
 
@@ -63,6 +65,7 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.buttonReject.setOnClickListener { handleCallAnswer(false) }
 
         binding.closeButton.setOnClickListener { finish() }
+        binding.infoButton.setOnClickListener { showCallDataDialog() }
 
         startContinuousAlerts()
         binding.buttonStopAlerts.setOnClickListener {
@@ -70,6 +73,7 @@ class IncomingCallActivity : AppCompatActivity() {
             binding.buttonStopAlerts.visibility = android.view.View.GONE
         }
         binding.buttonStopAlerts.visibility = android.view.View.VISIBLE
+        android.util.Log.d("INCOMING_CALL", "===== onCreate COMPLETE =====")
     }
 
     private fun preloadCachedCallsIfPossible() {
@@ -77,46 +81,46 @@ class IncomingCallActivity : AppCompatActivity() {
 
         val sharedPrefs = getSharedPreferences("app_session", MODE_PRIVATE)
         val userLogin = sharedPrefs.getString("user_login", null)
-        if (userLogin.isNullOrBlank()) {
-            Log.w("IncomingCall", "No user login, cannot load cache")
-            return
-        }
+        if (userLogin.isNullOrBlank()) return
 
         cacheLoadJob = lifecycleScope.launch {
             val cached = withContext(Dispatchers.IO) {
                 callsCache.readCalls(userLogin)
             }
             cachedHospitalizations = cached
-            Log.d("IncomingCall", "Loaded ${cached?.size} hospitalizations from cache")
             currentCall?.let { displayCallDetails(it) }
         }
     }
 
     override fun onNewIntent(intent: Intent) {
-        Log.d("IncomingCall", "New intent received")
         super.onNewIntent(intent)
         setIntent(intent)
 
         binding.buttonStopAlerts.visibility = android.view.View.VISIBLE
 
         if (!IncomingCallRinger.isPlaying()) {
-            startContinuousAlerts()
+            IncomingCallRinger.start(this)
         }
+        startVibration()
 
         handleIncomingIntent(intent)
     }
 
     private fun handleIncomingIntent(intent: Intent?) {
+        android.util.Log.d("INCOMING_CALL", "handleIncomingIntent called")
         if (intent == null) {
-            Log.w("IncomingCall", "Intent is null")
+            android.util.Log.w("INCOMING_CALL", "Intent is NULL")
             return
         }
 
         val callFromIntent = intent.getSerializableExtra("CALL_DATA") as? CallNotificationDto
+        android.util.Log.d("INCOMING_CALL", "CALL_DATA from intent: ${callFromIntent?.callNumber}")
 
         if (callFromIntent != null) {
-            Log.d("IncomingCall", "Received call #${callFromIntent.callNumber}")
+            android.util.Log.d("INCOMING_CALL", "Adding call to CallsManager")
             CallsManager.addCall(callFromIntent)
+        } else {
+            android.util.Log.w("INCOMING_CALL", "CALL_DATA is null or not CallNotificationDto")
         }
     }
 
@@ -128,12 +132,10 @@ class IncomingCallActivity : AppCompatActivity() {
                 ?.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
                     override fun onDismissSucceeded() {
                         super.onDismissSucceeded()
-                        Log.d("IncomingCall", "Keyguard dismissed")
                     }
 
                     override fun onDismissCancelled() {
                         super.onDismissCancelled()
-                        Log.w("IncomingCall", "Keyguard dismiss cancelled")
                     }
                 })
         } else {
@@ -176,7 +178,6 @@ class IncomingCallActivity : AppCompatActivity() {
         lifecycleScope.launch {
             CallsManager.calls.collect { list ->
                 if (list.isEmpty()) {
-                    Log.d("IncomingCall", "Calls queue empty, finishing")
                     stopAlerts()
                     finish()
                 } else {
@@ -197,8 +198,10 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun displayCallDetails(call: CallNotificationDto) {
+        android.util.Log.d("INCOMING_CALL", "displayCallDetails: callNumber=${call.callNumber}")
         currentCall = call
         sideAdapter.setSelectedCallNumber(call.callNumber)
+        android.util.Log.d("INCOMING_CALL", "Selected call number set in adapter")
 
         val infoBlock = binding.patientInfoBlock
         val cached = findCachedHospitalization(call.callNumber)
@@ -317,8 +320,6 @@ class IncomingCallActivity : AppCompatActivity() {
         val comment = binding.messageEditText.text.toString()
         val decision = if (accepted) "Accept" else "Reject"
 
-        Log.d("IncomingCall", "User clicked ${if (accepted) "ACCEPT" else "REJECT"}")
-
         lifecycleScope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
@@ -333,7 +334,6 @@ class IncomingCallActivity : AppCompatActivity() {
                     Toast.makeText(this@IncomingCallActivity, "Ошибка сервера", Toast.LENGTH_SHORT).show()
                 }
             } catch (e: Exception) {
-                Log.e("CallAnswer", "Error: ${e.message}")
             }
         }
     }
@@ -353,13 +353,18 @@ class IncomingCallActivity : AppCompatActivity() {
      * Start continuous vibration pattern (until manually stopped)
      */
     private fun startVibration() {
-        vibrator = getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        vibrator?.cancel()
+        
+        val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+        if (vib?.hasVibrator() != true) return
+        
+        vibrator = vib
         val pattern = longArrayOf(0, 500, 500)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
+            vib.vibrate(VibrationEffect.createWaveform(pattern, 0))
         } else {
             @Suppress("DEPRECATION")
-            vibrator?.vibrate(pattern, 0)
+            vib.vibrate(pattern, 0)
         }
     }
 
@@ -377,6 +382,7 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private fun stopVibration() {
         vibrator?.cancel()
+        vibrator = null
     }
 
     private fun acquireWakeLock() {
@@ -388,8 +394,134 @@ class IncomingCallActivity : AppCompatActivity() {
         wakeLock?.acquire(3 * 60 * 1000L) // 3 минуты
     }
 
+    private fun showCallDataDialog() {
+        val call = currentCall ?: return
+
+        val dialog = android.app.Dialog(this)
+        val dialogBinding = com.example.medinfo.databinding.DialogCallDataBinding.inflate(layoutInflater)
+        dialog.setContentView(dialogBinding.root)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+
+        val container = dialogBinding.dataContainer
+
+        addDataField(container, "ФИО", call.fullName)
+        addDataField(container, "Возраст", call.age)
+        addDataField(container, "Пол", call.sex)
+        addDataField(container, "Причина вызова", call.reason)
+        addDataField(container, "Доп. информация", call.additionalInfo)
+        addDataField(container, "Район", call.district)
+        addDataField(container, "Населенный пункт", call.point)
+        addDataField(container, "Улица", call.street)
+        addDataField(container, "Дом", call.house)
+        addDataField(container, "Квартира", call.apartment)
+        addDataField(container, "Подъезд", call.enterance?.toString())
+        addDataField(container, "Долгота", call.longitude?.toString())
+        addDataField(container, "Широта", call.latitude?.toString())
+        addDataField(container, "Номер бригады", call.brigadeNumber?.toString())
+        addDataField(container, "Профиль бригады", call.brigadeProfile)
+        addDataField(container, "Номер вызова", call.callNumber)
+        addDataField(container, "Время вызова", call.callTime)
+        addDataField(container, "Срочность", call.urgency?.toString())
+        addDataField(container, "Статус", call.status)
+        addDataField(container, "АД", call.bloodPressure)
+        
+        addDataField(container, "Сознание", call.consciousness)
+        addDataField(container, "Судороги", call.convulsions?.let { if (it) "Да" else "Нет" })
+        addDataField(container, "Глюкометрия", call.glucometry?.toString())
+        addDataField(container, "ЧСС", call.heartRate?.toString())
+        addDataField(container, "Кислородная поддержка", call.oxygenSupport?.let { if (it) "Да" else "Нет" })
+        addDataField(container, "Беременность", call.pregnant?.let { if (it) "Да" else "Нет" })
+        addDataField(container, "ЧДД", call.respirationRate?.toString())
+        addDataField(container, "SpO2", call.spO2?.toString())
+        addDataField(container, "Время от начала заболевания (ч)", call.startDisease?.toString())
+        addDataField(container, "Стеноз", call.stenosis?.let { if (it) "Да" else "Нет" })
+        addDataField(container, "Температура", call.temperature?.toString())
+        addDataField(container, "LAMS", call.lams?.toString())
+        addDataField(container, "mRS", call.mrs?.toString())
+        addDataField(container, "VAS", call.vas?.toString())
+
+        call.bleeding?.let { bleeding ->
+            addDataField(container, "Кровотечение", bleeding.presence?.let { if (it) "Да" else "Нет" })
+            addDataField(container, "Тип кровотечения", bleeding.type)
+            bleeding.arterialTourniquet?.let { tourniquet ->
+                addDataField(container, "Артериальный жгут", tourniquet.presence?.let { if (it) "Да" else "Нет" })
+                addDataField(container, "Время наложения жгута", tourniquet.applicationTime)
+            }
+        }
+
+        call.venousAccess?.let { venous ->
+            addDataField(container, "Венозный доступ", venous.presence?.let { if (it) "Да" else "Нет" })
+            addDataField(container, "Метод венозного доступа", venous.method?.joinToString(", "))
+        }
+
+        call.ifa?.let { ifa ->
+            addDataField(container, "Протезирование ДП", ifa.presence?.let { if (it) "Да" else "Нет" })
+            addDataField(container, "Инструменты", ifa.tool?.joinToString(", "))
+            addDataField(container, "ИВЛ", ifa.alv?.let { if (it) "Да" else "Нет" })
+        }
+
+        addDataField(container, "ID сообщения", call.messageId?.toString())
+        addDataField(container, "Текст сообщения", call.messageValue)
+        addDataField(container, "DPRM", call.dprm)
+        addDataField(container, "NGOD", call.ngod?.toString())
+        addDataField(container, "NUMV", call.numv?.toString())
+        addDataField(container, "SSMP", call.ssmp?.toString())
+        addDataField(container, "TEAM", call.team?.toString())
+        addDataField(container, "VOZR", call.vozr)
+
+        dialogBinding.buttonClose.setOnClickListener { dialog.dismiss() }
+
+        dialog.show()
+    }
+
+    private fun addDataField(container: android.widget.LinearLayout, label: String, value: String?) {
+        if (value.isNullOrBlank()) return
+
+        val fieldLayout = android.widget.LinearLayout(this).apply {
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = if (container.childCount > 0) 8 else 0
+            }
+            orientation = android.widget.LinearLayout.HORIZONTAL
+            setBackgroundResource(R.drawable.data_field_background)
+            setPadding(
+                resources.getDimensionPixelSize(R.dimen.field_padding_horizontal),
+                resources.getDimensionPixelSize(R.dimen.field_padding_vertical),
+                resources.getDimensionPixelSize(R.dimen.field_padding_horizontal),
+                resources.getDimensionPixelSize(R.dimen.field_padding_vertical)
+            )
+        }
+
+        val labelView = android.widget.TextView(this).apply {
+            text = label
+            setTextColor(resources.getColor(R.color.gray_1, null))
+            textSize = 14f
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                0,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                1f
+            )
+        }
+
+        val valueView = android.widget.TextView(this).apply {
+            text = value
+            setTextColor(resources.getColor(R.color.gray_1, null))
+            textSize = 14f
+            gravity = android.view.Gravity.END
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+        }
+
+        fieldLayout.addView(labelView)
+        fieldLayout.addView(valueView)
+        container.addView(fieldLayout)
+    }
+
     override fun onDestroy() {
-        Log.d("IncomingCall", "Destroying activity")
         super.onDestroy()
         stopAlerts()
         if (wakeLock?.isHeld == true) wakeLock?.release()
