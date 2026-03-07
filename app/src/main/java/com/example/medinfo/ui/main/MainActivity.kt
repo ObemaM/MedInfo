@@ -107,9 +107,7 @@ class MainActivity : AppCompatActivity() {
 
                 if (!::adapter.isInitialized) {
                     adapter =
-                            HospitalizationAdapter(hospitalizationList) { call ->
-                                showConfirmArchiveDialog()
-                            }
+                            HospitalizationAdapter(hospitalizationList) { }
                     binding.recyclerView.adapter = adapter
                     binding.recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
                 } else {

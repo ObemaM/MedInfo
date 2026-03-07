@@ -5,12 +5,14 @@
     <item android:id="@android:id/mask">
         <shape android:shape="oval">
             <solid android:color="@android:color/white" />
+            <size android:width="28dp" android:height="28dp" />
         </shape>
     </item>
 
     <item>
         <shape android:shape="oval">
             <solid android:color="@android:color/transparent" />
+            <size android:width="28dp" android:height="28dp" />
         </shape>
     </item>
 

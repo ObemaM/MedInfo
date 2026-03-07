@@ -10,69 +10,78 @@
     app:strokeColor="@color/border_gray_1"
     app:strokeWidth="1dp">
 
-    <LinearLayout
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:padding="24dp">
 
-        <LinearLayout
-            android:layout_width="match_parent"
+        <ImageView
+            android:id="@+id/info_icon"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:padding="10dp"
+            android:src="@drawable/ic_info_32"
+            app:tint="@color/gray_1"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
+        <TextView
+            android:id="@+id/title_text"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_marginStart="16dp"
+            android:layout_marginEnd="16dp"
+            android:text="Данные вызова"
+            android:textColor="@color/gray_1"
+            android:textSize="20sp"
+            android:textStyle="normal"
+            app:layout_constraintStart_toEndOf="@id/info_icon"
+            app:layout_constraintEnd_toStartOf="@id/button_close"
+            app:layout_constraintTop_toTopOf="@id/info_icon"
+            app:layout_constraintBottom_toBottomOf="@id/info_icon" />
 
-            <ImageView
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:padding="10dp"
-                android:src="@drawable/ic_info_32"
-                app:tint="@color/gray_1"/>
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
-                android:layout_weight="1"
-                android:text="Данные вызова"
-                android:textColor="@color/gray_1"
-                android:textSize="20sp"
-                android:textStyle="normal" />
-
-            <ImageButton
-                android:id="@+id/button_close"
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Закрыть"
-                android:padding="12dp"
-                android:src="@drawable/ic_close_24"
-                app:tint="@color/gray_1" />
-
-        </LinearLayout>
+        <ImageButton
+            android:id="@+id/button_close"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/close_button_background"
+            android:contentDescription="Закрыть"
+            android:padding="12dp"
+            android:src="@drawable/ic_close_24"
+            app:tint="@color/gray_1"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
         <View
-            android:layout_width="match_parent"
+            android:id="@+id/divider"
+            android:layout_width="0dp"
             android:layout_height="1dp"
             android:layout_marginTop="20dp"
-            android:background="@color/border_gray_1" />
+            android:background="@color/border_gray_1"
+            app:layout_constraintTop_toBottomOf="@id/info_icon"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <ScrollView
-            android:layout_width="match_parent"
+            android:id="@+id/scroll_view"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
-            android:maxHeight="400dp">
+            android:paddingTop="15dp"
+            android:paddingBottom="10dp"
+            android:maxHeight="600dp"
+            android:overScrollMode="never"
+            app:layout_constraintTop_toBottomOf="@id/divider"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintEnd_toEndOf="parent">
 
             <LinearLayout
                 android:id="@+id/data_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-            </LinearLayout>
+                android:orientation="vertical" />
 
         </ScrollView>
 
-    </LinearLayout>
+    </androidx.constraintlayout.widget.ConstraintLayout>
 
 </com.google.android.material.card.MaterialCardView>

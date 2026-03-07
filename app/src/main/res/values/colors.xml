@@ -19,5 +19,6 @@
     <color name="ic_launcher_background">#FFFFFF</color>
     <color name="green_1">#428D80</color>
     <color name="yellow_1">#DEC768</color>
+    <color name="field_label_color">#428D80</color>
 
 </resources>

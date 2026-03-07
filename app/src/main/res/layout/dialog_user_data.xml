@@ -52,69 +52,62 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="16dp"
+            android:layout_marginTop="20dp"
             android:orientation="vertical">
 
             <!-- Логин -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/data_field_background"
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Логин"
+                    android:textColor="@color/gray_1"
+                    android:textSize="16sp"
+                    android:letterSpacing="0.05"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/user_login_text"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/gray_1"
+                    android:textSize="16sp"
+                    tools:text="user_login" />
+
+            </LinearLayout>
 
             <!-- Подразделение -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
                 android:background="@drawable/data_field_background"
-                android:orientation="horizontal"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="4dp">
-
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="2dp"
-                    android:text="Логин"
-                    android:textColor="@color/gray_1"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/user_login_text"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="end"
-                    android:textColor="@color/gray_1"
-                    android:textSize="14sp"
-                    android:textStyle="normal"
-                    tools:text="user_login" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:background="@drawable/data_field_background"
-                android:orientation="horizontal"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="4dp">
-
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="2dp"
                     android:text="Подразделение"
                     android:textColor="@color/gray_1"
-                    android:textSize="14sp" />
+                    android:textSize="16sp"
+                    android:letterSpacing="0.05"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/department_text"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="end"
+
                     android:text="Неизвестно"
                     android:textColor="@color/gray_1"
-                    android:textSize="14sp" />
+                    android:textSize="16sp" />
 
             </LinearLayout>
 
@@ -122,28 +115,26 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginTop="20dp"
                 android:background="@drawable/data_field_background"
-                android:orientation="horizontal"
-                android:paddingHorizontal="14dp"
-                android:paddingVertical="4dp">
+                android:orientation="vertical"
+                android:paddingHorizontal="12dp">
 
                 <TextView
-                    android:layout_width="wrap_content"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="2dp"
                     android:text="Версия"
                     android:textColor="@color/gray_1"
-                    android:textSize="14sp" />
+                    android:textSize="16sp"
+                    android:letterSpacing="0.05"
+                    android:textStyle="bold" />
 
                 <TextView
                     android:id="@+id/version_text"
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:gravity="end"
                     android:textColor="@color/gray_1"
-                    android:textSize="14sp"
+                    android:textSize="16sp"
                     tools:text="version" />
 
             </LinearLayout>
@@ -155,7 +146,7 @@
             android:id="@+id/button_ok"
             android:layout_width="match_parent"
             android:layout_height="48dp"
-            android:layout_marginTop="24dp"
+            android:layout_marginTop="20dp"
             android:text="Закрыть"
             app:cornerRadius="12dp" />
 

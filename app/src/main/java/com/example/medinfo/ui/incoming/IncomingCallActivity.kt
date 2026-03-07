@@ -61,8 +61,8 @@ class IncomingCallActivity : AppCompatActivity() {
         handleIncomingIntent(intent)
         observeCallsQueue()
 
-        binding.buttonConfirm.setOnClickListener { handleCallAnswer(true) }
-        binding.buttonReject.setOnClickListener { handleCallAnswer(false) }
+        binding.buttonConfirm.setOnClickListener { showConfirmAcceptDialog() }
+        binding.buttonReject.setOnClickListener { showConfirmRejectDialog() }
 
         binding.closeButton.setOnClickListener { finish() }
         binding.infoButton.setOnClickListener { showCallDataDialog() }
@@ -397,10 +397,18 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun showCallDataDialog() {
         val call = currentCall ?: return
 
-        val dialog = android.app.Dialog(this)
         val dialogBinding = com.example.medinfo.databinding.DialogCallDataBinding.inflate(layoutInflater)
-        dialog.setContentView(dialogBinding.root)
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
+            .setView(dialogBinding.root)
+            .create()
+
         dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setLayout(
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+        dialog.window?.setGravity(android.view.Gravity.CENTER)
 
         val container = dialogBinding.dataContainer
 
@@ -482,9 +490,9 @@ class IncomingCallActivity : AppCompatActivity() {
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = if (container.childCount > 0) 8 else 0
+                topMargin = if (container.childCount > 0) 20 else 0
             }
-            orientation = android.widget.LinearLayout.HORIZONTAL
+            orientation = android.widget.LinearLayout.VERTICAL
             setBackgroundResource(R.drawable.data_field_background)
             setPadding(
                 resources.getDimensionPixelSize(R.dimen.field_padding_horizontal),
@@ -497,28 +505,43 @@ class IncomingCallActivity : AppCompatActivity() {
         val labelView = android.widget.TextView(this).apply {
             text = label
             setTextColor(resources.getColor(R.color.gray_1, null))
-            textSize = 14f
+            textSize = 16f
+            letterSpacing = 0.05f
+            typeface = android.graphics.Typeface.create(typeface, android.graphics.Typeface.BOLD)
             layoutParams = android.widget.LinearLayout.LayoutParams(
-                0,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
-                1f
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
             )
         }
 
         val valueView = android.widget.TextView(this).apply {
             text = value
             setTextColor(resources.getColor(R.color.gray_1, null))
-            textSize = 14f
-            gravity = android.view.Gravity.END
+            textSize = 16f
+            gravity = android.view.Gravity.START
             layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            )
+            ).apply {
+                topMargin = (4 * resources.displayMetrics.density).toInt()
+            }
         }
 
         fieldLayout.addView(labelView)
         fieldLayout.addView(valueView)
         container.addView(fieldLayout)
+    }
+
+    private fun showConfirmAcceptDialog() {
+        ConfirmAcceptDialogFragment { confirmed ->
+            if (confirmed) handleCallAnswer(true)
+        }.show(supportFragmentManager, "ConfirmAcceptDialog")
+    }
+
+    private fun showConfirmRejectDialog() {
+        ConfirmRejectDialogFragment { confirmed ->
+            if (confirmed) handleCallAnswer(false)
+        }.show(supportFragmentManager, "ConfirmRejectDialog")
     }
 
     override fun onDestroy() {
