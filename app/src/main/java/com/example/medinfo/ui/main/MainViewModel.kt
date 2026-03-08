@@ -27,7 +27,10 @@ import java.util.Locale
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
+    // Загрузка данных с API
     private val callRepository = CallRepository(RetrofitClient.apiServiceService)
+
+    // Кэш
     private val callsCache = CallsCache(application)
 
     // Какой список сейчас показываем: Активные или Архив
@@ -36,10 +39,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ARCHIVE
     }
 
+    // Полный список всех вызовов
     private val allCalls = mutableListOf<Hospitalization>()
 
+    // Отслеживание выбранной вкладки (активное/архив)
     private var currentTabFilter = TabFilter.ACTIVE
+
+    // Отслеживание поисковой строки
     private var currentSearchQuery = ""
+
+    // Текущие пользовательские фильтры
     private var currentFilters = CallFilters()
 
     private val callTimeInputFormat =
@@ -48,24 +57,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     Locale.getDefault()
             )
 
-    // --- Состояния для UI ---
+    // Состояния для UI
 
+    // filteredCalls для RecyclerView
     private val _filteredCalls = MutableStateFlow<List<Hospitalization>>(emptyList())
+
+    // Для UI
     val filteredCalls: StateFlow<List<Hospitalization>> = _filteredCalls.asStateFlow()
 
     private val _isFilterActive = MutableStateFlow(false)
     val isFilterActive: StateFlow<Boolean> = _isFilterActive.asStateFlow()
 
-    // --- Одноразовые события ---
+    // Уведомление
 
     private val _toastMessage = MutableSharedFlow<String>()
     val toastMessage: SharedFlow<String> = _toastMessage.asSharedFlow()
 
+    // Событие выхода из аккаунта
     private val _logoutEvent = MutableSharedFlow<Unit>()
     val logoutEvent: SharedFlow<Unit> = _logoutEvent.asSharedFlow()
 
-    // --- Публичные методы (вызываются из Activity) ---
-
+    // Загрузка вызовов
     fun fetchCalls() {
         viewModelScope.launch {
             try {
@@ -78,9 +90,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                             withContext(Dispatchers.IO) {
                                 callsCache.readCalls(userLogin)
                             }
-                        } else {
-                            null
                         }
+                        else { null }
 
 
                 if (!cachedCalls.isNullOrEmpty()) {

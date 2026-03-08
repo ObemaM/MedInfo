@@ -72,6 +72,7 @@ class HospitalizationAdapter(
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        // Оформление вызова в RecyclerView
         val binding = ItemHospitalizationBinding.inflate(
             LayoutInflater.from(parent.context),
             parent,
@@ -80,14 +81,11 @@ class HospitalizationAdapter(
         return ViewHolder(binding)
     }
 
+    //
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         holder.bind(items[position])
     }
 
+    // Количество элементов
     override fun getItemCount(): Int = items.size
-
-    fun updateData(newItems: List<Hospitalization>) {
-        items = newItems
-        notifyDataSetChanged()
-    }
 }

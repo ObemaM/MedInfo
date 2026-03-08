@@ -4,7 +4,6 @@ import android.app.Dialog
 import android.os.Bundle
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
-import com.example.medinfo.R
 import com.example.medinfo.databinding.DialogConfirmRejectBinding
 
 class ConfirmRejectDialogFragment(private val onConfirm: (Boolean) -> Unit) : DialogFragment() {
@@ -12,6 +11,7 @@ class ConfirmRejectDialogFragment(private val onConfirm: (Boolean) -> Unit) : Di
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         val binding = DialogConfirmRejectBinding.inflate(requireActivity().layoutInflater)
 
+        // Создаем диалоговое окно
         val dialog = AlertDialog.Builder(requireContext())
             .setView(binding.root)
             .create()
@@ -20,11 +20,11 @@ class ConfirmRejectDialogFragment(private val onConfirm: (Boolean) -> Unit) : Di
 
         binding.buttonRejectConfirm.setOnClickListener {
             onConfirm(true)
-            dismiss()
+            dismiss() // Закрывает диалог
         }
 
         binding.buttonRejectCancel.setOnClickListener {
-            dismiss()
+            dismiss() // Закрывает диалог
         }
 
         return dialog

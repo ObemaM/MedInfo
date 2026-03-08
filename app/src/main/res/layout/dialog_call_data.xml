@@ -66,8 +66,8 @@
             android:id="@+id/scroll_view"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:paddingTop="15dp"
-            android:paddingBottom="10dp"
+            android:paddingTop="0dp"
+            android:paddingBottom="0dp"
             android:maxHeight="600dp"
             android:overScrollMode="never"
             app:layout_constraintTop_toBottomOf="@id/divider"
@@ -78,7 +78,8 @@
                 android:id="@+id/data_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical" />
+                android:orientation="vertical"
+                android:paddingTop="20dp" />
 
         </ScrollView>
 

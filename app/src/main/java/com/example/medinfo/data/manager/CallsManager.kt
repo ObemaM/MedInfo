@@ -20,8 +20,6 @@ object CallsManager {
     private val activeJobs = mutableMapOf<String, Job>() // Храним таймеры по номеру вызова
     private val callAddedAtMs = mutableMapOf<String, Long>()
 
-    init {
-    }
 
     fun addCall(call: CallNotificationDto): Boolean {
         val currentList = _calls.value.toMutableList()
