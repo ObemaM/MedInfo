@@ -3,10 +3,15 @@ package com.example.medinfo.ui.login
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.PowerManager
+import android.provider.Settings
 import android.view.View
 import android.view.inputmethod.InputMethodManager
+import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.example.medinfo.data.repository.LoginRepository
 import com.example.medinfo.data.network.RetrofitClient
@@ -20,7 +25,9 @@ import kotlinx.coroutines.withContext
 import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.databinding.ActivityLoginBinding
 import androidx.core.content.edit
+import androidx.core.app.NotificationManagerCompat
 import com.example.medinfo.ui.incoming.IncomingCallPermissionHelper
+import com.example.medinfo.util.PermissionManager
 
 class LoginActivity: AppCompatActivity() {
 
@@ -37,24 +44,13 @@ class LoginActivity: AppCompatActivity() {
 
         sharedPreferences = getSharedPreferences("app_session", Context.MODE_PRIVATE)
 
-        // Запрашиваем разрешение на отображение поверх других приложений при старте
-        IncomingCallPermissionHelper.ensurePermissions(this)
+        // Показываем уведомление о работе в фоне
+        showBackgroundServiceNotification()
 
-        // Если версия андроида 13 и выше, то запрос на уведомления
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            androidx.core.app.ActivityCompat.requestPermissions(
-                this,
-                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
-                101
-            )
-        }
-
-        // Автоматический вход
-        if (sharedPreferences.getBoolean("isLoggedIn", false)) {
-            startSignalRService()
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-            return
+        // Проверяем обязательные разрешения перед стартом с помощью PermissionManager
+        PermissionManager.enforcePermissions(this) {
+            // Все разрешения получены, продолжаем инициализацию
+            proceedWithInitialization()
         }
 
         binding.loginButton.setOnClickListener {
@@ -77,10 +73,13 @@ class LoginActivity: AppCompatActivity() {
                     }
 
                     if (result.success && result.content != null) {
-                        saveSession(inputText, result.content)
-                        startSignalRService()
-                        startActivity(Intent(this@LoginActivity, MainActivity::class.java))
-                        finish()
+                        // Проверяем разрешения перед входом
+                        PermissionManager.enforcePermissions(this@LoginActivity) {
+                            saveSession(inputText, result.content)
+                            startSignalRService()
+                            startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                            finish()
+                        }
                     } else {
                         hideKeyboard()
                         val errorMessage = result.messages.firstOrNull() ?: "Неизвестная ошибка аутентификации"
@@ -106,7 +105,6 @@ class LoginActivity: AppCompatActivity() {
         }
     }
 
-
     // Убирает клавиатуру
     private fun hideKeyboard() {
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -120,6 +118,73 @@ class LoginActivity: AppCompatActivity() {
         sharedPreferences.edit {
             putBoolean("isLoggedIn", true)
             putString("user_login", login)
+        }
+    }
+
+    // Показывает уведомление о работе в фоновом режиме
+    private fun showBackgroundServiceNotification() {
+        Toast.makeText(
+            this,
+            "Приложение будет работать в фоновом режиме для приема вызовов",
+            Toast.LENGTH_LONG
+        ).show()
+    }
+
+    private fun proceedWithInitialization() {
+        // Запрашиваем разрешение на отображение поверх других приложений при старте
+        IncomingCallPermissionHelper.ensurePermissions(this)
+
+        // Если версия андроида 13 и выше, то запрос на уведомления
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            androidx.core.app.ActivityCompat.requestPermissions(
+                this,
+                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                101
+            )
+        }
+
+        // Автоматический вход - только если разрешения granted
+        if (sharedPreferences.getBoolean("isLoggedIn", false)) {
+            startSignalRService()
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
+            return
+        }
+    }
+
+    // Called when returning from settings to continue permission checks
+    override fun onResume() {
+        super.onResume()
+        // Re-check permissions when returning from settings
+        PermissionManager.enforcePermissions(this) {
+            if (!loginFlowStarted) {
+                proceedWithLoginFlow()
+            }
+        }
+    }
+
+    private var loginFlowStarted = false
+
+    private fun proceedWithLoginFlow() {
+        if (loginFlowStarted) return
+        loginFlowStarted = true
+
+        // Continue with login setup
+        IncomingCallPermissionHelper.ensurePermissions(this)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            androidx.core.app.ActivityCompat.requestPermissions(
+                this,
+                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                101
+            )
+        }
+
+        // Check auto-login
+        if (sharedPreferences.getBoolean("isLoggedIn", false)) {
+            startSignalRService()
+            startActivity(Intent(this, MainActivity::class.java))
+            finish()
         }
     }
 }

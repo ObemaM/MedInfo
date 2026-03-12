@@ -17,7 +17,11 @@ object ConfigManager {
         val httpReadTimeoutSeconds: Int,
         val maxCallDurationMs: Long,
         val sessionPrefsName: String,
-        val jwtTokenKey: String
+        val jwtTokenKey: String,
+        val testModeDisableSignalR: Boolean,
+        val fakeCallDelayMinutes: Int,
+        val notificationIdService: Int,
+        val notificationChannelIdService: String
     ) {
         companion object {
             fun defaults(): AppConfig {
@@ -28,7 +32,11 @@ object ConfigManager {
                     httpReadTimeoutSeconds = 20,
                     maxCallDurationMs = 2_400_000L,
                     sessionPrefsName = "app_session",
-                    jwtTokenKey = "jwt_token"
+                    jwtTokenKey = "jwt_token",
+                    testModeDisableSignalR = false,
+                    fakeCallDelayMinutes = 35,
+                    notificationIdService = 101,
+                    notificationChannelIdService = "MedInfo_SignalR_Service"
                 )
             }
         }
@@ -83,6 +91,10 @@ object ConfigManager {
     val maxCallDurationMs: Long get() = config.maxCallDurationMs
     val sessionPrefsName: String get() = config.sessionPrefsName
     val jwtTokenKey: String get() = config.jwtTokenKey
+    val testModeDisableSignalR: Boolean get() = config.testModeDisableSignalR
+    val fakeCallDelayMinutes: Int get() = config.fakeCallDelayMinutes
+    val notificationIdService: Int get() = config.notificationIdService
+    val notificationChannelIdService: String get() = config.notificationChannelIdService
 
     private fun loadFromFile(file: File) {
         config = try {
@@ -100,6 +112,8 @@ object ConfigManager {
         val timeouts = root.optJSONObject("timeouts")
         val intervals = root.optJSONObject("intervals")
         val storage = root.optJSONObject("storage")
+        val testing = root.optJSONObject("testing")
+        val notifications = root.optJSONObject("notifications")
 
         val defaults = AppConfig.defaults()
 
@@ -112,7 +126,11 @@ object ConfigManager {
                 ?: defaults.httpReadTimeoutSeconds,
             maxCallDurationMs = intervals?.optLong("maxCallDurationMs", defaults.maxCallDurationMs) ?: defaults.maxCallDurationMs,
             sessionPrefsName = storage?.optString("sessionPrefsName")?.takeIf { it.isNotBlank() } ?: defaults.sessionPrefsName,
-            jwtTokenKey = storage?.optString("jwtTokenKey")?.takeIf { it.isNotBlank() } ?: defaults.jwtTokenKey
+            jwtTokenKey = storage?.optString("jwtTokenKey")?.takeIf { it.isNotBlank() } ?: defaults.jwtTokenKey,
+            testModeDisableSignalR = testing?.optBoolean("disableSignalR", defaults.testModeDisableSignalR) ?: defaults.testModeDisableSignalR,
+            fakeCallDelayMinutes = testing?.optInt("fakeCallDelayMinutes", defaults.fakeCallDelayMinutes) ?: defaults.fakeCallDelayMinutes,
+            notificationIdService = notifications?.optInt("serviceNotificationId", defaults.notificationIdService) ?: defaults.notificationIdService,
+            notificationChannelIdService = notifications?.optString("serviceChannelId")?.takeIf { it.isNotBlank() } ?: defaults.notificationChannelIdService
         )
     }
 }

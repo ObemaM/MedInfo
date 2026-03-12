@@ -42,7 +42,20 @@ class IncomingCallActivity : AppCompatActivity() {
     private var countdownTimer: CountDownTimer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        android.util.Log.d("INCOMING_CALL", "===== onCreate START =====")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] ===== onCreate START =====")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Timestamp: ${System.currentTimeMillis()}")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Intent action: ${intent?.action}")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Intent flags: ${intent?.flags}")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Has CALL_DATA: ${intent?.hasExtra("CALL_DATA")}")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] SavedInstanceState: ${savedInstanceState != null}")
+        
+        // Log stack trace to identify caller
+        val stackTrace = Thread.currentThread().stackTrace
+        android.util.Log.d("CALL_LOG", "[IncomingCallActivity] Call stack (first 10 frames):")
+        stackTrace.take(10).forEachIndexed { index, element ->
+            android.util.Log.d("CALL_LOG", "  [$index] ${element.className}.${element.methodName}")
+        }
+        
         super.onCreate(savedInstanceState)
         bringToFront()
         setupLockScreenFlags()
@@ -73,7 +86,7 @@ class IncomingCallActivity : AppCompatActivity() {
             binding.buttonStopAlerts.visibility = android.view.View.GONE
         }
         binding.buttonStopAlerts.visibility = android.view.View.VISIBLE
-        android.util.Log.d("INCOMING_CALL", "===== onCreate COMPLETE =====")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] ===== onCreate COMPLETE =====")
     }
 
     private fun preloadCachedCallsIfPossible() {
@@ -93,34 +106,42 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     override fun onNewIntent(intent: Intent) {
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] ===== onNewIntent called =====")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Timestamp: ${System.currentTimeMillis()}")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Intent action: ${intent.action}")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Intent flags: ${intent.flags}")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Has CALL_DATA: ${intent.hasExtra("CALL_DATA")}")
+        
         super.onNewIntent(intent)
         setIntent(intent)
 
         binding.buttonStopAlerts.visibility = android.view.View.VISIBLE
 
         if (!IncomingCallRinger.isPlaying()) {
+            android.util.Log.d("CALL_LOG", "[IncomingCallActivity] Starting ringer")
             IncomingCallRinger.start(this)
         }
         startVibration()
 
         handleIncomingIntent(intent)
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] ===== onNewIntent complete =====")
     }
 
     private fun handleIncomingIntent(intent: Intent?) {
-        android.util.Log.d("INCOMING_CALL", "handleIncomingIntent called")
+        android.util.Log.d("CALL_LOG", "[IncomingCallActivity] handleIncomingIntent called")
         if (intent == null) {
-            android.util.Log.w("INCOMING_CALL", "Intent is NULL")
+            android.util.Log.w("CALL_LOG", "[IncomingCallActivity] Intent is NULL")
             return
         }
 
         val callFromIntent = intent.getSerializableExtra("CALL_DATA") as? CallNotificationDto
-        android.util.Log.d("INCOMING_CALL", "CALL_DATA from intent: ${callFromIntent?.callNumber}")
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] CALL_DATA from intent: Call#=${callFromIntent?.callNumber}, Status=${callFromIntent?.status}")
 
         if (callFromIntent != null) {
-            android.util.Log.d("INCOMING_CALL", "Adding call to CallsManager")
+            android.util.Log.d("CALL_LOG", "[IncomingCallActivity] Adding call to CallsManager")
             CallsManager.addCall(callFromIntent)
         } else {
-            android.util.Log.w("INCOMING_CALL", "CALL_DATA is null or not CallNotificationDto")
+            android.util.Log.w("CALL_LOG", "[IncomingCallActivity] CALL_DATA is null or not CallNotificationDto")
         }
     }
 

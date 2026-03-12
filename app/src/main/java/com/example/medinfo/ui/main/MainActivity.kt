@@ -1,6 +1,7 @@
 package com.example.medinfo.ui.main
 
 import android.app.Dialog
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -20,6 +21,7 @@ import com.example.medinfo.model.ArterialTourniquetInfo
 import com.example.medinfo.model.VenousAccessInfo
 import com.example.medinfo.model.IfaInfo
 import com.example.medinfo.data.signalr.SignalRService
+import com.example.medinfo.receiver.FakeCallAlarmReceiver
 import com.example.medinfo.ui.login.LoginActivity
 import com.google.android.material.tabs.TabLayout
 import kotlinx.coroutines.Job
@@ -34,6 +36,9 @@ import android.view.inputmethod.EditorInfo
 import com.example.medinfo.ui.incoming.IncomingCallActivity
 import com.google.android.material.textfield.TextInputEditText
 import android.os.Build
+import android.os.PowerManager
+import android.provider.Settings
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.ViewModelProvider
@@ -41,6 +46,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.databinding.ActivityMainBinding
 import com.example.medinfo.databinding.DialogUserDataBinding
 import com.example.medinfo.databinding.PopupMenuCustomBinding
+import com.example.medinfo.util.PermissionManager
 import kotlinx.coroutines.flow.collectLatest
 
 class MainActivity : AppCompatActivity() {
@@ -92,10 +98,21 @@ class MainActivity : AppCompatActivity() {
             window.isStatusBarContrastEnforced = false
         }
 
-        setupViews()
-        setupLogoutConfirmationListener()
-        observeViewModel()
-        viewModel.fetchCalls()
+        // Enforce permissions on every MainActivity start
+        PermissionManager.enforcePermissions(this) {
+            setupViews()
+            setupLogoutConfirmationListener()
+            observeViewModel()
+            viewModel.fetchCalls()
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Re-check permissions when returning from settings
+        PermissionManager.enforcePermissions(this) {
+            // Permissions granted, continue normal operation
+        }
     }
 
     private fun observeViewModel() {
@@ -147,8 +164,22 @@ class MainActivity : AppCompatActivity() {
 
         // Кнопка звонка
         binding.callButton.setOnClickListener {
+            android.util.Log.i("CALL_LOG", "[MainActivity] *** TEST BUTTON PRESSED *** at ${System.currentTimeMillis()}")
             simulateIncomingCall()
             Toast.makeText(this, "Тестовый звонок", Toast.LENGTH_SHORT).show()
+        }
+
+        // Long press on call button to schedule 35-min Doze test
+        binding.callButton.setOnLongClickListener {
+            AlertDialog.Builder(this)
+                .setTitle("Тест Doze режима")
+                .setMessage("Запланировать тестовый вызов через 35 минут для проверки работы в Doze режиме?")
+                .setPositiveButton("Запланировать") { _, _ ->
+                    FakeCallAlarmReceiver.scheduleFakeCall(this, 35)
+                }
+                .setNegativeButton("Отмена", null)
+                .show()
+            true
         }
 
         // Кнопка профиля
@@ -347,6 +378,7 @@ class MainActivity : AppCompatActivity() {
      }
 
     private fun simulateIncomingCall() {
+        android.util.Log.i("CALL_LOG", "[MainActivity] simulateIncomingCall() called")
         // Имитируем данные от сервера
         try {
             val mockCall = CallNotificationDto(
@@ -429,9 +461,12 @@ class MainActivity : AppCompatActivity() {
                 putExtra("CALL_DATA", mockCall)
             }
 
+            android.util.Log.i("CALL_LOG", "[MainActivity] *** LAUNCHING TEST CALL SCREEN *** Call#: ${mockCall.callNumber}")
             startActivity(intent)
+            android.util.Log.i("CALL_LOG", "[MainActivity] Test call screen launched successfully")
         }
         catch (e: Exception) {
+            android.util.Log.e("CALL_LOG", "[MainActivity] FAILED to launch test call: ${e.message}", e)
             Toast.makeText(this, "Ошибка теста: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
