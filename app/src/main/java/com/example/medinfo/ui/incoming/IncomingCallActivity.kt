@@ -511,7 +511,7 @@ class IncomingCallActivity : AppCompatActivity() {
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = if (container.childCount > 0) 20 else 0
+                topMargin = if (container.childCount > 0) 16 else 0
             }
             orientation = android.widget.LinearLayout.VERTICAL
             setBackgroundResource(R.drawable.data_field_background)
@@ -526,7 +526,7 @@ class IncomingCallActivity : AppCompatActivity() {
         val labelView = android.widget.TextView(this).apply {
             text = label
             setTextColor(resources.getColor(R.color.gray_1, null))
-            textSize = 16f
+            textSize = 14f
             letterSpacing = 0.05f
             typeface = android.graphics.Typeface.create(typeface, android.graphics.Typeface.BOLD)
             layoutParams = android.widget.LinearLayout.LayoutParams(

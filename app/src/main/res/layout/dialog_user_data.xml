@@ -68,7 +68,7 @@
                     android:layout_height="wrap_content"
                     android:text="Логин"
                     android:textColor="@color/gray_1"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
                     android:letterSpacing="0.05"
                     android:textStyle="bold" />
 
@@ -77,7 +77,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textColor="@color/gray_1"
-                    android:textSize="16sp"
+                    android:textSize="14sp"
                     tools:text="user_login" />
 
             </LinearLayout>
@@ -86,7 +86,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/data_field_background"
                 android:orientation="vertical"
                 android:paddingHorizontal="12dp">
@@ -96,7 +96,7 @@
                     android:layout_height="wrap_content"
                     android:text="Подразделение"
                     android:textColor="@color/gray_1"
-                    android:textSize="16sp"
+                    android:textSize="14sp"
                     android:letterSpacing="0.05"
                     android:textStyle="bold" />
 
@@ -107,7 +107,7 @@
 
                     android:text="Неизвестно"
                     android:textColor="@color/gray_1"
-                    android:textSize="16sp" />
+                    android:textSize="14sp" />
 
             </LinearLayout>
 
@@ -115,7 +115,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="12dp"
                 android:background="@drawable/data_field_background"
                 android:orientation="vertical"
                 android:paddingHorizontal="12dp">
@@ -125,7 +125,7 @@
                     android:layout_height="wrap_content"
                     android:text="Версия"
                     android:textColor="@color/gray_1"
-                    android:textSize="16sp"
+                    android:textSize="14sp"
                     android:letterSpacing="0.05"
                     android:textStyle="bold" />
 
@@ -134,7 +134,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textColor="@color/gray_1"
-                    android:textSize="16sp"
+                    android:textSize="14sp"
                     tools:text="version" />
 
             </LinearLayout>

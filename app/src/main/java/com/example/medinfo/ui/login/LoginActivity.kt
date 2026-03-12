@@ -10,7 +10,6 @@ import android.os.PowerManager
 import android.provider.Settings
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.example.medinfo.data.repository.LoginRepository
@@ -43,9 +42,6 @@ class LoginActivity: AppCompatActivity() {
         setContentView(binding.root)
 
         sharedPreferences = getSharedPreferences("app_session", Context.MODE_PRIVATE)
-
-        // Показываем уведомление о работе в фоне
-        showBackgroundServiceNotification()
 
         // Проверяем обязательные разрешения перед стартом с помощью PermissionManager
         PermissionManager.enforcePermissions(this) {
@@ -88,7 +84,7 @@ class LoginActivity: AppCompatActivity() {
                     }
                 } catch (e: Exception) {
                     hideKeyboard()
-                    binding.errorTextView.text = "Ошибка подключения к серверу: ${e.message}"
+                    binding.errorTextView.text = "Ошибка подключения к серверу. Проверьте интернет-соединение."
                     binding.errorTextView.visibility = View.VISIBLE
                     e.printStackTrace()
                 }
@@ -119,15 +115,6 @@ class LoginActivity: AppCompatActivity() {
             putBoolean("isLoggedIn", true)
             putString("user_login", login)
         }
-    }
-
-    // Показывает уведомление о работе в фоновом режиме
-    private fun showBackgroundServiceNotification() {
-        Toast.makeText(
-            this,
-            "Приложение будет работать в фоновом режиме для приема вызовов",
-            Toast.LENGTH_LONG
-        ).show()
     }
 
     private fun proceedWithInitialization() {
