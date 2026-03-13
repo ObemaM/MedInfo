@@ -98,13 +98,10 @@ class MainActivity : AppCompatActivity() {
             window.isStatusBarContrastEnforced = false
         }
 
-        // Enforce permissions on every MainActivity start
-        PermissionManager.enforcePermissions(this) {
-            setupViews()
-            setupLogoutConfirmationListener()
-            observeViewModel()
-            viewModel.fetchCalls()
-        }
+        setupViews()
+        setupLogoutConfirmationListener()
+        observeViewModel()
+        viewModel.fetchCalls()
     }
 
     override fun onResume() {

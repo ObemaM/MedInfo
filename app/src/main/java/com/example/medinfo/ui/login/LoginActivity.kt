@@ -43,12 +43,6 @@ class LoginActivity: AppCompatActivity() {
 
         sharedPreferences = getSharedPreferences("app_session", Context.MODE_PRIVATE)
 
-        // Проверяем обязательные разрешения перед стартом с помощью PermissionManager
-        PermissionManager.enforcePermissions(this) {
-            // Все разрешения получены, продолжаем инициализацию
-            proceedWithInitialization()
-        }
-
         binding.loginButton.setOnClickListener {
             val inputText = binding.login.text?.toString()
             val inputPassword = binding.password.text?.toString()
@@ -117,36 +111,12 @@ class LoginActivity: AppCompatActivity() {
         }
     }
 
-    private fun proceedWithInitialization() {
-        // Запрашиваем разрешение на отображение поверх других приложений при старте
-        IncomingCallPermissionHelper.ensurePermissions(this)
-
-        // Если версия андроида 13 и выше, то запрос на уведомления
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            androidx.core.app.ActivityCompat.requestPermissions(
-                this,
-                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
-                101
-            )
-        }
-
-        // Автоматический вход - только если разрешения granted
-        if (sharedPreferences.getBoolean("isLoggedIn", false)) {
-            startSignalRService()
-            startActivity(Intent(this, MainActivity::class.java))
-            finish()
-            return
-        }
-    }
-
     // Called when returning from settings to continue permission checks
     override fun onResume() {
         super.onResume()
         // Re-check permissions when returning from settings
         PermissionManager.enforcePermissions(this) {
-            if (!loginFlowStarted) {
-                proceedWithLoginFlow()
-            }
+            proceedWithLoginFlow()
         }
     }
 
