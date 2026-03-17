@@ -7,72 +7,70 @@
     android:background="@color/background_1"
     android:fitsSystemWindows="true">
 
-    <!-- Header Container -->
-
-    <TextView
-        android:id="@+id/title_text2"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="30dp"
-        android:paddingHorizontal="5dp"
-        android:text="Вызовы"
-        android:letterSpacing="0.05"
-        android:textStyle="bold"
-        android:textSize="22sp"
-        android:textAppearance="@style/CustomToolbarTitleTextStyle"
-        android:textColor="@color/gray_1"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintBottom_toBottomOf="@+id/profile_card"
-        app:layout_constraintTop_toTopOf="@+id/profile_card"
-        app:layout_constraintVertical_bias="0.5" />
-
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/profile_card"
-        android:layout_width="wrap_content"
-        android:layout_height="60dp"
-        android:layout_marginTop="16dp"
-        android:layout_marginEnd="20dp"
+        android:id="@+id/header_card"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
         app:cardBackgroundColor="@color/background_2"
         app:cardCornerRadius="24dp"
-        app:cardElevation="2dp"
+        app:cardElevation="0dp"
         app:strokeColor="@color/border_gray_1"
         app:strokeWidth="1dp"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent">
 
         <androidx.constraintlayout.widget.ConstraintLayout
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent">
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:padding="6dp">
 
             <ImageButton
                 android:id="@+id/call_button"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginStart="5dp"
-                android:background="@drawable/main_button_ripple"
+                android:layout_width="55dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="2dp"
+                android:background="@drawable/circular_button_ripple"
                 android:contentDescription="Звонок"
+                android:padding="10dp"
                 android:scaleType="fitCenter"
-                android:padding="14dp"
                 android:src="@drawable/ic_call_24"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/profile_button"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/gray_1" />
 
+            <TextView
+                android:id="@+id/title_text2"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_marginEnd="8dp"
+                android:gravity="center"
+                android:text="Вызовы"
+                android:textStyle="bold"
+                android:textColor="@color/gray_1"
+                android:textSize="20sp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/profile_button"
+                app:layout_constraintStart_toEndOf="@+id/call_button"
+                app:layout_constraintTop_toTopOf="parent" />
+
             <ImageButton
                 android:id="@+id/profile_button"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:layout_marginEnd="5dp"
-                android:background="@drawable/main_button_ripple"
+                android:layout_width="55dp"
+                android:layout_height="52dp"
+                android:layout_marginEnd="2dp"
+                android:background="@drawable/circular_button_ripple"
                 android:contentDescription="Профиль"
-                android:padding="14dp"
+                android:padding="10dp"
                 android:scaleType="fitCenter"
                 android:src="@drawable/ic_person_24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/call_button"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/gray_1" />
 
@@ -80,16 +78,13 @@
 
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Search and Filter Container -->
-
-    <!-- Search and Filter Container with Bottom Border -->
     <androidx.constraintlayout.widget.ConstraintLayout
         android:id="@+id/search_filter_container"
         android:layout_width="0dp"
         android:layout_height="80dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/profile_card">
+        app:layout_constraintTop_toBottomOf="@+id/header_card">
 
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/search_input_layout"
@@ -121,8 +116,6 @@
 
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Bottom Border Divider -->
-
         <ImageButton
             android:id="@+id/filter_button"
             android:layout_width="55dp"
@@ -146,8 +139,6 @@
             app:layout_constraintStart_toStartOf="parent" />
 
     </androidx.constraintlayout.widget.ConstraintLayout>
-
-    <!-- Bottom Menu Divider -->
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"

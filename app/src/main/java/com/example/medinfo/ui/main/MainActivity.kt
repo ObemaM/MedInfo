@@ -1,7 +1,6 @@
 package com.example.medinfo.ui.main
 
 import android.app.Dialog
-import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -36,8 +35,6 @@ import android.view.inputmethod.EditorInfo
 import com.example.medinfo.ui.incoming.IncomingCallActivity
 import com.google.android.material.textfield.TextInputEditText
 import android.os.Build
-import android.os.PowerManager
-import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
@@ -323,7 +320,7 @@ class MainActivity : AppCompatActivity() {
                     .show(supportFragmentManager, ConfirmLogoutDialogFragment.TAG)
         }
 
-        popupWindow.showAsDropDown(anchor, 0, 24)
+        popupWindow.showAsDropDown(anchor, 0, 36)
     }
 
     private fun showUserDataDialog() {

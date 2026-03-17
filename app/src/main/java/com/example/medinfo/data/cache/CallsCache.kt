@@ -2,6 +2,7 @@ package com.example.medinfo.data.cache
 
 import android.content.Context
 import com.example.medinfo.model.Hospitalization
+import com.example.medinfo.util.DateFormatter.parseCallTimeMillis
 import com.example.medinfo.util.toSha256
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -65,15 +66,23 @@ class CallsCache(private val context: Context) {
             val file = cacheFile(userLogin)
             val json = gson.toJson(calls)
             file.writeText(json, Charsets.UTF_8)
-        } catch (e: Exception) {
-        }
+        } catch (e: Exception) {}
     }
 
     // Очистка кэша
     fun clear(userLogin: String) {
         try {
             cacheFile(userLogin).delete()
-        } catch (e: Exception) {
+        } catch (e: Exception) {}
+    }
+
+    // Очистка старых записей
+    fun cleanupOldCache(calls: List<Hospitalization>): List<Hospitalization> {
+        val twoMonthsAgo = System.currentTimeMillis() - (60L * 24 * 60 * 60 * 1000)
+        return calls.filter { call ->
+            val callMillis = parseCallTimeMillis(call.callTime) ?: return@filter true
+            callMillis > twoMonthsAgo
         }
     }
+
 }

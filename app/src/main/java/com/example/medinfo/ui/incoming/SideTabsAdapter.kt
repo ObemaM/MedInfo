@@ -11,7 +11,6 @@ import com.example.medinfo.R
 import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.databinding.ItemSideTabBinding
 
-
 class SideTabsAdapter(
     private val onTabClick: (CallNotificationDto) -> Unit
 ) : ListAdapter<CallNotificationDto, SideTabsAdapter.TabViewHolder>(DiffCallback()) {
@@ -69,7 +68,7 @@ class SideTabsAdapter(
             numberTextDay.text = "№${callNumberParts.getOrNull(0) ?: ""}/"
             numberTextYear.text = callNumberParts.getOrNull(1) ?: "-"
 
-            // 1. Подсветка выбранной вкладки
+            // Подсветка выбранной вкладки
             if (isSelected) {
                 card.strokeColor = ContextCompat.getColor(itemView.context, R.color.main_1)
                 card.setCardBackgroundColor(ContextCompat.getColor(itemView.context, R.color.background_1))

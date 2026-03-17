@@ -22,7 +22,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.text.SimpleDateFormat
 import java.util.Locale
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -51,11 +50,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Текущие пользовательские фильтры
     private var currentFilters = CallFilters()
 
-    private val callTimeInputFormat =
-            SimpleDateFormat(
-                    "yyyy-MM-dd'T'HH:mm:ss",
-                    Locale.getDefault()
-            )
 
     // Состояния для UI
 
@@ -78,56 +72,61 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val logoutEvent: SharedFlow<Unit> = _logoutEvent.asSharedFlow()
 
     // Загрузка вызовов
-    fun fetchCalls() {
+    // forceFullReload=true - загружает 2000 записей
+    // forceFullReload=false - загружает 500 записей (для оптиммизации)
+    fun fetchCalls(forceFullReload: Boolean = false) {
         viewModelScope.launch {
             try {
                 val userLogin = getUserLogin()
 
-                val tCacheStart = SystemClock.elapsedRealtime()
-
                 val cachedCalls =
-                        if (!userLogin.isNullOrBlank()) {
-                            withContext(Dispatchers.IO) {
-                                callsCache.readCalls(userLogin)
-                            }
+                    if (!userLogin.isNullOrBlank()) {
+                        withContext(Dispatchers.IO) {
+                            callsCache.readCalls(userLogin)
                         }
-                        else { null }
+                    }
+                    else {
+                        null
+                    }
 
-
+                // Если кэш есть - показываем сразу
                 if (!cachedCalls.isNullOrEmpty()) {
                     updateCalls(cachedCalls)
-                    val first = cachedCalls.first()
                 }
 
-                val tApiStart = SystemClock.elapsedRealtime()
+                // Определяем размер страницы: 500 если кэш есть и не требуется полная загрузка
+                val pageSize = if (!cachedCalls.isNullOrEmpty() && !forceFullReload) {
+                    500  // Новые записи
+                } else {
+                    2000 // Полная загрузка
+                }
+
+                // Параллельно запрашиваем данные с API
                 val apiResult =
-                        withContext(Dispatchers.IO) {
-                            callRepository.getCalls(
-                                    pageNumber = 1,
-                                    pageSize = 2000,
-                                    getCount = true
-                            )
-                        }
+                    withContext(Dispatchers.IO) {
+                        callRepository.getCalls(
+                                pageNumber = 1,
+                                pageSize = pageSize,
+                                getCount = true
+                        )
+                    }
 
                 if (apiResult.isSuccess) {
                     val apiCalls = apiResult.getOrThrow().calls
                     val callsToShow =
-                            if (cachedCalls.isNullOrEmpty()) {
-                                apiCalls
-                            } else {
-                                mergeCalls(apiCalls, cachedCalls)
-                            }
+                        if (cachedCalls.isNullOrEmpty()) {
+                            apiCalls
+                        } else {
+                            mergeCalls(apiCalls, cachedCalls)
+                        }
 
-                    if (callsToShow.isNotEmpty()) {
-                        val first = callsToShow.first()
-                    } else {
-                    }
-
-                    updateCalls(callsToShow)
+                    // Очищаем старые записи (старше 2 месяцев)
+                    val filteredCalls = callsCache.cleanupOldCache(callsToShow)
+                    updateCalls(filteredCalls)
 
                     if (!userLogin.isNullOrBlank()) {
                         withContext(Dispatchers.IO) {
-                            callsCache.writeCalls(userLogin, callsToShow)
+                            callsCache.writeCalls(userLogin, filteredCalls)
                         }
                     }
                 } else {
@@ -142,7 +141,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             } catch (e: Exception) {
                 _toastMessage.emit("Ошибка сети при загрузке данных.")
-                e.printStackTrace()
             }
         }
     }
@@ -273,7 +271,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (filters.dateFromMillis != null || filters.dateToMillis != null) {
-            val callMillis = parseCallTimeMillis(call.callTime) ?: return false
+            val callMillis = DateFormatter.parseCallTimeMillis(call.callTime) ?: return false
             if (filters.dateFromMillis != null && callMillis < filters.dateFromMillis) return false
             if (filters.dateToMillis != null && callMillis > filters.dateToMillis) return false
         }
@@ -297,22 +295,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (age.isNullOrBlank()) return null
         return age.trim().toIntOrNull()
     }
-
-    private fun parseCallTimeMillis(callTime: String?): Long? {
-        if (callTime.isNullOrBlank()) return null
-        return try {
-            val normalized =
-                    if (callTime.length >= 19) {
-                        callTime.substring(0, 19)
-                    } else {
-                        callTime
-                    }
-            callTimeInputFormat.parse(normalized)?.time
-        } catch (_: Exception) {
-            null
-        }
-    }
-
+    
     private fun prepareCallsForSearch(calls: List<Hospitalization>) {
         calls.forEach { call ->
             if (call.formattedCallTime.isNullOrBlank()) {

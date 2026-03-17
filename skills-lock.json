@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "magento-xml-specialist": {
+      "source": "maxnorm/magento2-agent-skills",
+      "sourceType": "github",
+      "computedHash": "0a3926d9db652b5ad672c4fa35abd77545a5c82ed45df2cabd2c79289e37efc8"
+    }
+  }
+}

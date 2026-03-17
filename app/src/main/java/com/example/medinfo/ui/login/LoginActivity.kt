@@ -3,14 +3,10 @@ package com.example.medinfo.ui.login
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.os.PowerManager
-import android.provider.Settings
 import android.view.View
 import android.view.inputmethod.InputMethodManager
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.example.medinfo.data.repository.LoginRepository
 import com.example.medinfo.data.network.RetrofitClient
@@ -24,7 +20,6 @@ import kotlinx.coroutines.withContext
 import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.databinding.ActivityLoginBinding
 import androidx.core.content.edit
-import androidx.core.app.NotificationManagerCompat
 import com.example.medinfo.ui.incoming.IncomingCallPermissionHelper
 import com.example.medinfo.util.PermissionManager
 

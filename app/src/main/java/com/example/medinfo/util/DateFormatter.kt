@@ -37,4 +37,21 @@ object DateFormatter {
             return dateTime
         }
     }
+
+    // Парсит дату вызова в миллисекунды (для фильтрации по дате)
+    fun parseCallTimeMillis(callTime: String?): Long? {
+        if (callTime.isNullOrBlank()) return null
+        return try {
+            // Если длина даты больше 19, то сокращаем до 19, чтобы точно парсилось
+            val normalized =
+                if (callTime.length >= 19) {
+                    callTime.take(19)
+                } else {
+                    callTime
+                }
+            inputFormat.get()?.parse(normalized)?.time
+        } catch (_: Exception) {
+            null
+        }
+    }
 }
