@@ -2,17 +2,21 @@ package com.example.medinfo.ui.main
 
 import android.app.Application
 import android.content.Context
-import android.os.SystemClock
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.medinfo.data.repository.CallRepository
 import com.example.medinfo.data.cache.CallsCache
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.network.TokenInterceptor
+import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.model.Hospitalization
-import com.example.medinfo.util.DateFormatter
+import com.example.medinfo.model.api.GetHospitalizationsFiltersRequestDto
+import com.example.medinfo.model.api.HospitalizationDecision
+import com.example.medinfo.model.api.HospitalizationResponseDto
+import com.example.medinfo.model.api.HospitalizationStatus
 import com.example.medinfo.ui.incoming.IncomingCallRinger
+import com.example.medinfo.util.DateFormatter
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -22,27 +26,27 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
 
-    // Загрузка данных с API
-    private val callRepository = CallRepository(RetrofitClient.apiServiceService)
+    // Загрузка данных с нового API госпитализаций
+    private val hospitalizationRepository = HospitalizationRepository(RetrofitClient.apiServiceService)
 
-    // Кэш
+    // Кэш пока нужен для очистки при выходе из аккаунта и legacy-сценариев
     private val callsCache = CallsCache(application)
 
-    // Какой список сейчас показываем: Активные или Архив
+    // Какой список сейчас показываем: требуют решения, активные или архив
     enum class TabFilter {
+        REQUIRES_DECISION,
         ACTIVE,
         ARCHIVE
     }
 
-    // Полный список всех вызовов
+    // Полный список текущей серверной выборки
     private val allCalls = mutableListOf<Hospitalization>()
 
-    // Отслеживание выбранной вкладки (активное/архив)
-    private var currentTabFilter = TabFilter.ACTIVE
+    // Отслеживание выбранной вкладки
+    private var currentTabFilter = TabFilter.REQUIRES_DECISION
 
     // Отслеживание поисковой строки
     private var currentSearchQuery = ""
@@ -50,104 +54,51 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Текущие пользовательские фильтры
     private var currentFilters = CallFilters()
 
-
-    // Состояния для UI
-
     // filteredCalls для RecyclerView
     private val _filteredCalls = MutableStateFlow<List<Hospitalization>>(emptyList())
-
-    // Для UI
     val filteredCalls: StateFlow<List<Hospitalization>> = _filteredCalls.asStateFlow()
 
     private val _isFilterActive = MutableStateFlow(false)
     val isFilterActive: StateFlow<Boolean> = _isFilterActive.asStateFlow()
 
-    // Уведомление
-
     private val _toastMessage = MutableSharedFlow<String>()
     val toastMessage: SharedFlow<String> = _toastMessage.asSharedFlow()
 
-    // Событие выхода из аккаунта
     private val _logoutEvent = MutableSharedFlow<Unit>()
     val logoutEvent: SharedFlow<Unit> = _logoutEvent.asSharedFlow()
 
-    // Загрузка вызовов
-    // forceFullReload=true - загружает 2000 записей
-    // forceFullReload=false - загружает 500 записей (для оптиммизации)
+    // Метод оставлен со старым именем, чтобы пока не ломать MainActivity
     fun fetchCalls(forceFullReload: Boolean = false) {
         viewModelScope.launch {
             try {
-                val userLogin = getUserLogin()
-
-                val cachedCalls =
-                    if (!userLogin.isNullOrBlank()) {
-                        withContext(Dispatchers.IO) {
-                            callsCache.readCalls(userLogin)
-                        }
-                    }
-                    else {
-                        null
-                    }
-
-                // Если кэш есть - показываем сразу
-                if (!cachedCalls.isNullOrEmpty()) {
-                    updateCalls(cachedCalls)
+                val pageSize = if (forceFullReload) FULL_RELOAD_PAGE_SIZE else DEFAULT_PAGE_SIZE
+                val response = withContext(Dispatchers.IO) {
+                    hospitalizationRepository.getHospitalizations(
+                        pageNumber = FIRST_PAGE,
+                        pageSize = pageSize,
+                        getCount = true,
+                        filters = createServerFilters(currentTabFilter)
+                    )
                 }
 
-                // Определяем размер страницы: 500 если кэш есть и не требуется полная загрузка
-                val pageSize = if (!cachedCalls.isNullOrEmpty() && !forceFullReload) {
-                    500  // Новые записи
-                } else {
-                    2000 // Полная загрузка
-                }
+                val hospitalizations = response.content
+                    ?.hospitalizations
+                    ?.map { it.toUiHospitalization() }
+                    .orEmpty()
 
-                // Параллельно запрашиваем данные с API
-                val apiResult =
-                    withContext(Dispatchers.IO) {
-                        callRepository.getCalls(
-                                pageNumber = 1,
-                                pageSize = pageSize,
-                                getCount = true
-                        )
-                    }
-
-                if (apiResult.isSuccess) {
-                    val apiCalls = apiResult.getOrThrow().calls
-                    val callsToShow =
-                        if (cachedCalls.isNullOrEmpty()) {
-                            apiCalls
-                        } else {
-                            mergeCalls(apiCalls, cachedCalls)
-                        }
-
-                    // Очищаем старые записи (старше 2 месяцев)
-                    val filteredCalls = callsCache.cleanupOldCache(callsToShow)
-                    updateCalls(filteredCalls)
-
-                    if (!userLogin.isNullOrBlank()) {
-                        withContext(Dispatchers.IO) {
-                            callsCache.writeCalls(userLogin, filteredCalls)
-                        }
-                    }
-                } else {
-                    val error =
-                            apiResult.exceptionOrNull()?.message
-                                    ?: "Не удалось загрузить список вызовов."
-                    _toastMessage.emit("Ошибка: $error")
-
-                    if (cachedCalls.isNullOrEmpty()) {
-                        updateCalls(emptyList())
-                    }
-                }
+                updateCalls(hospitalizations)
             } catch (e: Exception) {
-                _toastMessage.emit("Ошибка сети при загрузке данных.")
+                updateCalls(emptyList())
+                _toastMessage.emit(
+                    "Ошибка сети при загрузке списка госпитализаций: ${e.message ?: "неизвестная ошибка"}"
+                )
             }
         }
     }
 
     fun setTabFilter(tab: TabFilter) {
         currentTabFilter = tab
-        applyFilters()
+        fetchCalls()
     }
 
     fun setSearchQuery(query: String) {
@@ -179,11 +130,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun getUserLogin(): String? {
         return getApplication<Application>()
-                .getSharedPreferences("app_session", Context.MODE_PRIVATE)
-                .getString("user_login", null)
+            .getSharedPreferences("app_session", Context.MODE_PRIVATE)
+            .getString("user_login", null)
     }
 
-    // --- Внутренняя логика ---
+    // Формируем серверные фильтры для рабочих вкладок
+    private fun createServerFilters(tab: TabFilter): GetHospitalizationsFiltersRequestDto {
+        return when (tab) {
+            TabFilter.REQUIRES_DECISION ->
+                GetHospitalizationsFiltersRequestDto(
+                    decisions = listOf(HospitalizationDecision.NONE.id),
+
+                    // Проверяем, чтобы вызовы не были завершенными
+                    statuses = listOf(
+                        HospitalizationStatus.CREW_EN_ROUTE.id,
+                        HospitalizationStatus.CREW_ON_SITE.id
+                    )
+                )
+
+            TabFilter.ACTIVE ->
+                GetHospitalizationsFiltersRequestDto(
+                    statuses = listOf(
+                        HospitalizationStatus.CREW_EN_ROUTE.id,
+                        HospitalizationStatus.CREW_ON_SITE.id
+                    )
+                )
+
+            TabFilter.ARCHIVE ->
+                GetHospitalizationsFiltersRequestDto(
+                    statuses = listOf(
+                        HospitalizationStatus.COMPLETED.id,
+                        HospitalizationStatus.REFERRED_TO_OTHER_LPU.id
+                    )
+                )
+        }
+    }
 
     private fun updateCalls(calls: List<Hospitalization>) {
         allCalls.clear()
@@ -197,48 +178,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         _isFilterActive.value = currentFilters.isActive()
 
-        // 1. Сначала фильструем по вкладке
-        val baseList =
-                when (currentTabFilter) {
-                    TabFilter.ACTIVE ->
-                            allCalls.filter { call ->
-                                // В "Активные" попадают все, у кого статус НЕ "архив"
-                                val status = call.status?.lowercase()?.trim()
-                                status == null || !status.contains("архив")
-                            }
-                    TabFilter.ARCHIVE ->
-                            allCalls.filter { call ->
-                                // В "Архив" попадают все, у кого статус содержит "архив"
-                                val status = call.status?.lowercase()?.trim()
-                                status?.contains("архив") == true
-                            }
-                }
-
-        // 2. Фильтры из окна
         val baseListWithCustomFilters =
-                baseList.filter { call ->
-                    matchesCustomFilters(call, currentFilters)
-                }
+            allCalls.filter { call ->
+                matchesCustomFilters(call, currentFilters)
+            }
 
-        // 3. Затем накладываем текстовый поиск (если он есть)
         val filteredList =
-                if (lowerCaseQuery.isEmpty()) {
-                    baseListWithCustomFilters
-                } else {
-                    baseListWithCustomFilters.filter { call ->
-                        if (call.searchCache.isNullOrBlank()) {
-                            call.searchCache = buildSearchIndex(call)
-                        }
-                        call.searchCache?.contains(lowerCaseQuery) == true
+            if (lowerCaseQuery.isEmpty()) {
+                baseListWithCustomFilters
+            } else {
+                baseListWithCustomFilters.filter { call ->
+                    if (call.searchCache.isNullOrBlank()) {
+                        call.searchCache = buildSearchIndex(call)
                     }
+                    call.searchCache?.contains(lowerCaseQuery) == true
                 }
+            }
 
         _filteredCalls.value = filteredList
     }
 
     private fun matchesCustomFilters(
-            call: Hospitalization,
-            filters: CallFilters
+        call: Hospitalization,
+        filters: CallFilters
     ): Boolean {
         if (filters.urgencyFrom != null) {
             val urgency = call.urgency ?: return false
@@ -251,8 +213,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         if (filters.sex != SexFilter.ANY) {
             val sex = call.sex?.lowercase(Locale.getDefault())?.trim().orEmpty()
-            val isMale = sex.contains("муж") || sex.contains("male")
-            val isFemale = sex.contains("жен") || sex.contains("female")
+            val isMale = sex.contains("муж") || sex.contains("male") || sex == "м"
+            val isFemale = sex.contains("жен") || sex.contains("female") || sex == "ж"
             when (filters.sex) {
                 SexFilter.MALE -> if (!isMale) return false
                 SexFilter.FEMALE -> if (!isFemale) return false
@@ -262,12 +224,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         val age = parseAge(call.age)
         if (filters.ageFrom != null) {
-            val v = age ?: return false
-            if (v < filters.ageFrom) return false
+            val value = age ?: return false
+            if (value < filters.ageFrom) return false
         }
         if (filters.ageTo != null) {
-            val v = age ?: return false
-            if (v > filters.ageTo) return false
+            val value = age ?: return false
+            if (value > filters.ageTo) return false
         }
 
         if (filters.dateFromMillis != null || filters.dateToMillis != null) {
@@ -295,7 +257,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (age.isNullOrBlank()) return null
         return age.trim().toIntOrNull()
     }
-    
+
     private fun prepareCallsForSearch(calls: List<Hospitalization>) {
         calls.forEach { call ->
             if (call.formattedCallTime.isNullOrBlank()) {
@@ -310,63 +272,92 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun buildSearchIndex(call: Hospitalization): String {
         val age = call.age?.trim().orEmpty()
         val ageVariants =
-                if (age.isNotEmpty()) {
-                    listOf("$age лет", "$age год", "$age года")
-                } else {
-                    emptyList()
-                }
+            if (age.isNotEmpty()) {
+                listOf("$age лет", "$age год", "$age года")
+            } else {
+                emptyList()
+            }
 
         val formattedTime =
-                call.formattedCallTime
-                        ?: DateFormatter.formatDateTime(call.callTime).also { v ->
-                            call.formattedCallTime = v
-                        }
+            call.formattedCallTime
+                ?: DateFormatter.formatDateTime(call.callTime).also { value ->
+                    call.formattedCallTime = value
+                }
 
         val callNumber =
-                if (call.dayNumber != null && call.yearNumber != null) {
-                    "${call.dayNumber}/${call.yearNumber}"
-                } else {
-                    null
-                }
+            if (call.dayNumber != null && call.yearNumber != null) {
+                "${call.dayNumber}/${call.yearNumber}"
+            } else {
+                null
+            }
 
         return buildList {
-                    add(call.patientFullName)
-                    add(call.patientName)
-                    add(call.patientSurname)
-                    add(call.patientPatronymic)
-                    add(age)
-                    addAll(ageVariants)
-                    add(call.sex)
-                    add(call.reason)
-                    add(call.yearNumber)
-                    add(call.dayNumber)
-                    add(callNumber)
-                    add(call.district)
-                    add(call.point)
-                    add(call.street)
-                    add(call.house)
-                    add(call.apartment)
-                    add(call.comment)
-                    add(formattedTime)
-                }
-                .filterNotNull()
-                .joinToString(separator = " ")
-                .lowercase()
+            add(call.patientFullName)
+            add(call.patientName)
+            add(call.patientSurname)
+            add(call.patientPatronymic)
+            add(age)
+            addAll(ageVariants)
+            add(call.sex)
+            add(call.reason)
+            add(call.yearNumber)
+            add(call.dayNumber)
+            add(callNumber)
+            add(call.district)
+            add(call.point)
+            add(call.street)
+            add(call.house)
+            add(call.apartment)
+            add(call.comment)
+            add(formattedTime)
+        }
+            .filterNotNull()
+            .joinToString(separator = " ")
+            .lowercase()
     }
 
-    private fun mergeCalls(
-            apiCalls: List<Hospitalization>,
-            cachedCalls: List<Hospitalization>
-    ): List<Hospitalization> {
-        val byId = LinkedHashMap<String, Hospitalization>()
-        apiCalls.forEach { call ->
-            byId[call.id] = call
-        }
-        cachedCalls.forEach { call ->
-            if (!byId.containsKey(call.id)) {
-                byId[call.id] = call
-            }
-        }
-        return byId.values.toList()
+    // Временный mapper: новый DTO приводим к старой UI-модели, чтобы не переписывать весь экран сразу
+    private fun HospitalizationResponseDto.toUiHospitalization(): Hospitalization {
+        val responseCall = call
+
+        return Hospitalization(
+            id = id,
+            patientFullName = listOfNotNull(
+                responseCall.patientSurname,
+                responseCall.patientName,
+                responseCall.patientPatronymic
+            ).joinToString(" ").ifBlank { null },
+            patientName = responseCall.patientName,
+            patientSurname = responseCall.patientSurname,
+            patientPatronymic = responseCall.patientPatronymic,
+            age = responseCall.age,
+            sex = responseCall.sex,
+            reason = responseCall.reason,
+            additionalInfo = responseCall.additionalInfo,
+            district = responseCall.district,
+            point = responseCall.point,
+            street = responseCall.street,
+            house = responseCall.house,
+            apartment = responseCall.apartment,
+            entrance = responseCall.entrance,
+            comment = responseCall.comment,
+            longitude = responseCall.longitude,
+            latitude = responseCall.latitude,
+            brigadeNumber = responseCall.brigadeNumber,
+            brigadeProfile = responseCall.brigadeProfile,
+            seniorFullName = responseCall.seniorFullName,
+            dayNumber = responseCall.dayNumber,
+            yearNumber = responseCall.yearNumber,
+            status = statusName,
+            callTime = responseCall.callTime,
+            urgency = responseCall.urgency,
+            isArchived = HospitalizationStatus.fromId(statusId)?.isArchive == true
+        )
+    }
+
+    private companion object {
+        const val FIRST_PAGE = 1
+        const val DEFAULT_PAGE_SIZE = 20
+        const val FULL_RELOAD_PAGE_SIZE = 200
     }
 }

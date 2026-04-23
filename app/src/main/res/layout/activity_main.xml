@@ -17,11 +17,11 @@
         app:cardBackgroundColor="@color/background_2"
         app:cardCornerRadius="24dp"
         app:cardElevation="0dp"
-        app:strokeColor="@color/border_gray_1"
-        app:strokeWidth="1dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent">
+        app:layout_constraintTop_toTopOf="parent"
+        app:strokeColor="@color/border_gray_1"
+        app:strokeWidth="1dp">
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:layout_width="match_parent"
@@ -51,9 +51,9 @@
                 android:layout_marginEnd="8dp"
                 android:gravity="center"
                 android:text="Вызовы"
-                android:textStyle="bold"
                 android:textColor="@color/gray_1"
                 android:textSize="20sp"
+                android:textStyle="bold"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toStartOf="@+id/profile_button"
                 app:layout_constraintStart_toEndOf="@+id/call_button"
@@ -176,11 +176,11 @@
         app:cardBackgroundColor="@color/background_2"
         app:cardCornerRadius="24dp"
         app:cardElevation="2dp"
-        app:strokeColor="@color/border_gray_1"
-        app:strokeWidth="1dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        app:layout_constraintStart_toStartOf="parent"
+        app:strokeColor="@color/border_gray_1"
+        app:strokeWidth="1dp">
 
         <com.google.android.material.tabs.TabLayout
             android:id="@+id/tab_layout"
@@ -195,6 +195,11 @@
             app:tabSelectedTextColor="@color/main_1"
             app:tabTextAppearance="@style/CustomTabTextStyle"
             app:tabTextColor="@color/gray_1">
+
+            <com.google.android.material.tabs.TabItem
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Требуют решения" />
 
             <com.google.android.material.tabs.TabItem
                 android:layout_width="wrap_content"

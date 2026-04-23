@@ -270,9 +270,10 @@ class MainActivity : AppCompatActivity() {
                     override fun onTabSelected(tab: TabLayout.Tab?) {
                         val tabFilter =
                                 when (tab?.position) {
-                                    0 -> MainViewModel.TabFilter.ACTIVE
-                                    1 -> MainViewModel.TabFilter.ARCHIVE
-                                    else -> MainViewModel.TabFilter.ACTIVE
+                                    0 -> MainViewModel.TabFilter.REQUIRES_DECISION
+                                    1 -> MainViewModel.TabFilter.ACTIVE
+                                    2 -> MainViewModel.TabFilter.ARCHIVE
+                                    else -> MainViewModel.TabFilter.REQUIRES_DECISION
                                 }
 
                         // При смене вкладки сразу обновляем список с учётом текущей строки поиска
@@ -287,8 +288,10 @@ class MainActivity : AppCompatActivity() {
                         // При повторном нажатии можно обновить данные, но пока просто перефильтруем
                         viewModel.setTabFilter(
                                 when (tab?.position) {
-                                    1 -> MainViewModel.TabFilter.ARCHIVE
-                                    else -> MainViewModel.TabFilter.ACTIVE
+                                    0 -> MainViewModel.TabFilter.REQUIRES_DECISION
+                                    1 -> MainViewModel.TabFilter.ACTIVE
+                                    2 -> MainViewModel.TabFilter.ARCHIVE
+                                    else -> MainViewModel.TabFilter.REQUIRES_DECISION
                                 }
                         )
                     }

@@ -35,7 +35,7 @@ object RetrofitClient {
 
         // Собираем Retrofit
         return Retrofit.Builder()
-                .baseUrl(ConfigManager.serverBaseUrl)
+            .baseUrl(ConfigManager.serverBaseUrl)
             .client(client)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
