@@ -45,6 +45,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Полный список текущей серверной выборки
     private val allCalls = mutableListOf<Hospitalization>()
 
+    // Номер текущей загруженной страницы
+    private var currentPage = FIRST_PAGE
+
+    // Размер страницы, которую запрашиваем у сервера
+    private val pageSize = DEFAULT_PAGE_SIZE
+
+    // Защита от повторной одновременной подгрузки
+    private var isLoadingNextPage = false
+
+    // Есть ли у сервера еще страницы для загрузки
+    private var hasMorePages = true
+
+    // Уже загруженные элементы с сервера
+    private val loadedCalls = mutableListOf<Hospitalization>()
+
     // Отслеживание выбранной вкладки
     private var currentTabFilter = TabFilter.REQUIRES_DECISION
 
@@ -67,31 +82,72 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _logoutEvent = MutableSharedFlow<Unit>()
     val logoutEvent: SharedFlow<Unit> = _logoutEvent.asSharedFlow()
 
-    // Метод оставлен со старым именем, чтобы пока не ломать MainActivity
-    fun fetchCalls(forceFullReload: Boolean = false) {
+    // Загрузка для первой страницы
+    fun fetchCalls() {
+        currentPage = FIRST_PAGE
+        hasMorePages = true
+        isLoadingNextPage = false
+        loadedCalls.clear()
+
+        loadPage(page = FIRST_PAGE, resetBeforeLoad = true)
+    }
+
+    // Загрузка для следующих страниц
+    fun loadNextPage() {
+        if (isLoadingNextPage || !hasMorePages) return
+        loadPage(page = currentPage + 1, resetBeforeLoad = false)
+    }
+
+    private fun loadPage(page: Int, resetBeforeLoad: Boolean) {
         viewModelScope.launch {
+            // Если и так идет загрузка, то выходим из корутины, не запуская еще одну
+            if (isLoadingNextPage) return@launch
+
+            isLoadingNextPage = true
+
             try {
-                val pageSize = if (forceFullReload) FULL_RELOAD_PAGE_SIZE else DEFAULT_PAGE_SIZE
                 val response = withContext(Dispatchers.IO) {
                     hospitalizationRepository.getHospitalizations(
-                        pageNumber = FIRST_PAGE,
+                        pageNumber = page,
                         pageSize = pageSize,
                         getCount = true,
                         filters = createServerFilters(currentTabFilter)
                     )
                 }
 
-                val hospitalizations = response.content
-                    ?.hospitalizations
-                    ?.map { it.toUiHospitalization() }
-                    .orEmpty()
+                val content = response.content
+                val newCalls = content?.hospitalizations?.map {it.toUiHospitalization()}.orEmpty()
 
-                updateCalls(hospitalizations)
+                if (resetBeforeLoad){
+                    loadedCalls.clear()
+                }
+
+                // Добавляем к общему списку вызовов новые вызовы
+                loadedCalls.addAll(newCalls)
+                currentPage = page
+
+                val totalCount = content?.count
+
+                // Проверка можно ли подгружать новые страницы
+                hasMorePages =
+                    if (totalCount != null) {
+                        loadedCalls.size < totalCount
+                    } else {
+                        // Если запросили 20, а пришло 7, значит больше вызовов нет => hasMorePages = false
+                        newCalls.size >= pageSize
+                    }
+
+                updateCalls(loadedCalls.toList())
             } catch (e: Exception) {
-                updateCalls(emptyList())
+                if (resetBeforeLoad) {
+                    updateCalls(emptyList())
+                }
+
                 _toastMessage.emit(
                     "Ошибка сети при загрузке списка госпитализаций: ${e.message ?: "неизвестная ошибка"}"
                 )
+            } finally {
+                isLoadingNextPage = false
             }
         }
     }
@@ -351,6 +407,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             status = statusName,
             callTime = responseCall.callTime,
             urgency = responseCall.urgency,
+            isNotificationSent = isNotificationSent,
             isArchived = HospitalizationStatus.fromId(statusId)?.isArchive == true
         )
     }

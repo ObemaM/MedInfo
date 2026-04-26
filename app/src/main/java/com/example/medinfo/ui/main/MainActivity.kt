@@ -45,6 +45,8 @@ import com.example.medinfo.databinding.DialogUserDataBinding
 import com.example.medinfo.databinding.PopupMenuCustomBinding
 import com.example.medinfo.util.PermissionManager
 import kotlinx.coroutines.flow.collectLatest
+import androidx.recyclerview.widget.RecyclerView
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -110,6 +112,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun observeViewModel() {
+
         // Подписка на отфильтрованный список вызовов
         lifecycleScope.launch {
             viewModel.filteredCalls.collectLatest { calls ->
@@ -117,12 +120,35 @@ class MainActivity : AppCompatActivity() {
                 hospitalizationList.addAll(calls)
 
                 if (!::adapter.isInitialized) {
-                    adapter =
-                            HospitalizationAdapter(hospitalizationList) { }
+                    adapter = HospitalizationAdapter(hospitalizationList) { }
+
+                    // Объекты идут друг за другом
+                    val layoutManager = LinearLayoutManager(this@MainActivity)
+
+                    binding.recyclerView.layoutManager = layoutManager
                     binding.recyclerView.adapter = adapter
-                    binding.recyclerView.layoutManager = LinearLayoutManager(this@MainActivity)
+
+                    binding.recyclerView.addOnScrollListener(
+                        object : RecyclerView.OnScrollListener() {
+                            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                                super.onScrolled(recyclerView, dx, dy)
+
+                                // Реагируем только на прокрутку вниз
+                                if (dy <= 0) return
+
+                                val totalItemCount = layoutManager.itemCount
+                                val lastVisibleItemPosition = layoutManager.findLastVisibleItemPosition()
+
+                                // Если пользователь приблизился к концу списка, догружаем следующую страницу
+                                if (totalItemCount > 0 && lastVisibleItemPosition >= totalItemCount - 3) {
+                                    viewModel.loadNextPage()
+                                }
+                            }
+                        }
+                    )
                 } else {
                     adapter.notifyDataSetChanged()
+
                 }
             }
         }

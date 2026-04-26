@@ -22,6 +22,18 @@ enum class HospitalizationStatus(val id: Int) {
     }
 }
 
+// Типы сообщений
+enum class MessageType(val id: Int) {
+    TEXT(1),
+    PATIENT_CONDITION(2);
+
+    companion object {
+        fun fromId(id: Int?): MessageType? = entries.firstOrNull {
+            it.id == id
+        }
+    }
+}
+
 // Решение о госпитализации при вызове
 enum class HospitalizationDecision(val id: Int) {
     NONE(0), // Нет решения
