@@ -84,6 +84,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Загрузка для первой страницы
     fun fetchCalls() {
+        // Очищаем список loadedCalls и начинаем с первой страницы
         currentPage = FIRST_PAGE
         hasMorePages = true
         isLoadingNextPage = false
@@ -414,7 +415,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private companion object {
         const val FIRST_PAGE = 1
-        const val DEFAULT_PAGE_SIZE = 20
-        const val FULL_RELOAD_PAGE_SIZE = 200
+        const val DEFAULT_PAGE_SIZE = 40
     }
 }

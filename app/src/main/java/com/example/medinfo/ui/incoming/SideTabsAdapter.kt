@@ -8,18 +8,18 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.example.medinfo.R
-import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.databinding.ItemSideTabBinding
+import com.example.medinfo.model.api.HospitalizationResponseDto
 
 class SideTabsAdapter(
-    private val onTabClick: (CallNotificationDto) -> Unit
-) : ListAdapter<CallNotificationDto, SideTabsAdapter.TabViewHolder>(DiffCallback()) {
+    private val onTabClick: (HospitalizationResponseDto) -> Unit
+) : ListAdapter<HospitalizationResponseDto, SideTabsAdapter.TabViewHolder>(DiffCallback()) {
 
-    // Храним ID выбранного вызова для визуальной подсветки
-    private var selectedCallNumber: String? = null
+    // Храним id выбранной госпитализации для подсветки вкладки.
+    private var selectedHospitalizationId: String? = null
 
-    fun setSelectedCallNumber(callNumber: String?) {
-        selectedCallNumber = callNumber
+    fun setSelectedHospitalizationId(hospitalizationId: String?) {
+        selectedHospitalizationId = hospitalizationId
         notifyDataSetChanged()
     }
 
@@ -29,49 +29,40 @@ class SideTabsAdapter(
     }
 
     override fun onBindViewHolder(holder: TabViewHolder, position: Int) {
-        val call = getItem(position)
-        holder.bind(call, call.callNumber == selectedCallNumber)
+        val item = getItem(position)
+        holder.bind(item, item.id == selectedHospitalizationId)
 
         holder.itemView.setOnClickListener {
-            selectedCallNumber = call.callNumber
-
-            // Перерисовываем только то, что изменилось
+            selectedHospitalizationId = item.id
             notifyDataSetChanged()
-            onTabClick(call)
+            onTabClick(item)
         }
     }
 
-    class TabViewHolder(private val binding: ItemSideTabBinding) : RecyclerView.ViewHolder(binding.root) {
+    class TabViewHolder(
+        private val binding: ItemSideTabBinding
+    ) : RecyclerView.ViewHolder(binding.root) {
         private val card = binding.tabCardView
         private val numberTextDay = binding.tabCallNumberDay
-
         private val numberTextYear = binding.tabCallNumberYear
         private val indicator = binding.urgencyIndicator
 
-        // Функция для получения номера дня и года из CallNumber (для корректного отображения)
-        fun CallNumberToDayAndYear(call: CallNotificationDto) : List<String> {
-            var data = listOf("-", "-")
-            if (call.callNumber != null) {
-                data = call.callNumber.split("/")
-                return data
-            }
-            else {
-                return data
-            }
+        // Разбивает номер вызова на день и год для компактного отображения.
+        private fun getDayAndYear(item: HospitalizationResponseDto): Pair<String, String> {
+            val responseCall = item.call
+            return responseCall.dayNumber.toString() to responseCall.yearNumber.toString()
         }
 
-        fun bind(call: CallNotificationDto, isSelected: Boolean) {
+        fun bind(item: HospitalizationResponseDto, isSelected: Boolean) {
+            val (dayNumber, yearNumber) = getDayAndYear(item)
+            numberTextDay.text = "№$dayNumber/"
+            numberTextYear.text = yearNumber
 
-            val callNumberParts : List<String> = CallNumberToDayAndYear(call)
-
-            // Безопасное обращение
-            numberTextDay.text = "№${callNumberParts.getOrNull(0) ?: ""}/"
-            numberTextYear.text = callNumberParts.getOrNull(1) ?: "-"
-
-            // Подсветка выбранной вкладки
             if (isSelected) {
                 card.strokeColor = ContextCompat.getColor(itemView.context, R.color.main_1)
-                card.setCardBackgroundColor(ContextCompat.getColor(itemView.context, R.color.background_1))
+                card.setCardBackgroundColor(
+                    ContextCompat.getColor(itemView.context, R.color.background_1)
+                )
                 card.cardElevation = 8f
             } else {
                 card.strokeColor = ContextCompat.getColor(itemView.context, R.color.border_gray_1)
@@ -79,23 +70,28 @@ class SideTabsAdapter(
                 card.cardElevation = 2f
             }
 
-            // Цвет индикатора в зависимости от срочности
-            val color = when (call.urgency) {
+            // Цвет индикатора сохраняем по старой логике срочности.
+            val color = when (item.call.urgency) {
                 in 3..6 -> ContextCompat.getColor(itemView.context, R.color.yellow_1)
-                in 7 .. 9 -> ContextCompat.getColor(itemView.context, R.color.red_1)
+                in 7..9 -> ContextCompat.getColor(itemView.context, R.color.red_1)
                 else -> ContextCompat.getColor(itemView.context, R.color.green_1)
             }
             indicator.setBackgroundColor(color)
         }
-
     }
 
-    class DiffCallback : DiffUtil.ItemCallback<CallNotificationDto>() {
-        override fun areItemsTheSame(oldItem: CallNotificationDto, newItem: CallNotificationDto): Boolean {
-            return oldItem.callNumber == newItem.callNumber
+    class DiffCallback : DiffUtil.ItemCallback<HospitalizationResponseDto>() {
+        override fun areItemsTheSame(
+            oldItem: HospitalizationResponseDto,
+            newItem: HospitalizationResponseDto
+        ): Boolean {
+            return oldItem.id == newItem.id
         }
 
-        override fun areContentsTheSame(oldItem: CallNotificationDto, newItem: CallNotificationDto): Boolean {
+        override fun areContentsTheSame(
+            oldItem: HospitalizationResponseDto,
+            newItem: HospitalizationResponseDto
+        ): Boolean {
             return oldItem == newItem
         }
     }

@@ -27,7 +27,7 @@ object ConfigManager {
             fun defaults(): AppConfig {
                 return AppConfig(
                     serverBaseUrl = "http://46.146.213.95:27234",
-                    signalrHubUrl = "http://46.146.213.95:27234/call",
+                    signalrHubUrl = "http://46.146.213.95:27234/notifications",
                     httpConnectTimeoutSeconds = 20,
                     httpReadTimeoutSeconds = 20,
                     maxCallDurationMs = 2_400_000L,
@@ -42,10 +42,6 @@ object ConfigManager {
         }
     }
 
-    /**
-     * Loads config from internal storage if present.
-     * On first run copies the seed config from assets into internal storage.
-     */
     @Synchronized
     fun initialize(context: Context) {
         val internalFile = File(context.filesDir, CONFIG_FILE_NAME)
@@ -85,7 +81,10 @@ object ConfigManager {
     fun getConfig(): AppConfig = config
 
     val serverBaseUrl: String get() = config.serverBaseUrl
-    val signalrHubUrl: String get() = config.signalrHubUrl
+
+    // Всегда собираем адрес нового SignalR-хаба из базового адреса сервера.
+    val signalrHubUrl: String
+        get() = "${config.serverBaseUrl.trimEnd('/')}/notifications"
     val httpConnectTimeoutSeconds: Int get() = config.httpConnectTimeoutSeconds
     val httpReadTimeoutSeconds: Int get() = config.httpReadTimeoutSeconds
     val maxCallDurationMs: Long get() = config.maxCallDurationMs

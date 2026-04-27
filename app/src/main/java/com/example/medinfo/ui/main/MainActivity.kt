@@ -184,7 +184,7 @@ class MainActivity : AppCompatActivity() {
 
         // Кнопка звонка
         binding.callButton.setOnClickListener {
-            android.util.Log.i("CALL_LOG", "[MainActivity] *** TEST BUTTON PRESSED *** at ${System.currentTimeMillis()}")
+            android.util.Log.i("CALL_LOG", "[MainActivity] TEST BUTTON PRESSED at ${System.currentTimeMillis()}")
             simulateIncomingCall()
             Toast.makeText(this, "Тестовый звонок", Toast.LENGTH_SHORT).show()
         }
@@ -484,7 +484,7 @@ class MainActivity : AppCompatActivity() {
                 putExtra("CALL_DATA", mockCall)
             }
 
-            android.util.Log.i("CALL_LOG", "[MainActivity] *** LAUNCHING TEST CALL SCREEN *** Call#: ${mockCall.callNumber}")
+            android.util.Log.i("CALL_LOG", "[MainActivity] LAUNCHING TEST CALL SCREEN Call#: ${mockCall.callNumber}")
             startActivity(intent)
             android.util.Log.i("CALL_LOG", "[MainActivity] Test call screen launched successfully")
         }

@@ -3,80 +3,67 @@ package com.example.medinfo.ui.incoming
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
-import android.os.*
+import android.os.Build
+import android.os.Bundle
+import android.os.CountDownTimer
+import android.os.PowerManager
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.view.Gravity
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.R
-import com.example.medinfo.data.repository.CallRepository
-import com.example.medinfo.data.cache.CallsCache
-import com.example.medinfo.data.manager.CallsManager // Наш синглтон для очереди
+import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.network.RetrofitClient
-import com.example.medinfo.model.CallNotificationDto
-import com.example.medinfo.model.Hospitalization
+import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.databinding.ActivityIncomingCallBinding
+import com.example.medinfo.databinding.DialogCallDataBinding
+import com.example.medinfo.model.CallNotificationDto
+import com.example.medinfo.model.api.CallResponseDto
+import com.example.medinfo.model.api.HospitalizationDecision
+import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.util.DateFormatter
 import com.google.android.flexbox.FlexDirection
 import com.google.android.flexbox.FlexWrap
 import com.google.android.flexbox.FlexboxLayoutManager
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.Locale
 
 class IncomingCallActivity : AppCompatActivity() {
 
     private var wakeLock: PowerManager.WakeLock? = null
-    private val callRepository = CallRepository(RetrofitClient.apiServiceService)
-    private val callsCache by lazy { CallsCache(applicationContext) }
+    private val hospitalizationRepository = HospitalizationRepository(RetrofitClient.apiServiceService)
     private var vibrator: Vibrator? = null
-    private var cachedHospitalizations: List<Hospitalization>? = null
-    private var cacheLoadJob: Job? = null
 
     private lateinit var binding: ActivityIncomingCallBinding
-    private lateinit var sideAdapter: SideTabsAdapter // Создадим далее
+    private lateinit var sideAdapter: SideTabsAdapter
 
-    private var currentCall: CallNotificationDto? = null
+    private var currentHospitalization: HospitalizationResponseDto? = null
     private var countdownTimer: CountDownTimer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] ===== onCreate START =====")
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Timestamp: ${System.currentTimeMillis()}")
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Intent action: ${intent?.action}")
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Intent flags: ${intent?.flags}")
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Has CALL_DATA: ${intent?.hasExtra("CALL_DATA")}")
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] SavedInstanceState: ${savedInstanceState != null}")
-        
-        // Log stack trace to identify caller
-        val stackTrace = Thread.currentThread().stackTrace
-        android.util.Log.d("CALL_LOG", "[IncomingCallActivity] Call stack (first 10 frames):")
-        stackTrace.take(10).forEachIndexed { index, element ->
-            android.util.Log.d("CALL_LOG", "  [$index] ${element.className}.${element.methodName}")
-        }
-        
+        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] onCreate START")
         super.onCreate(savedInstanceState)
+
         bringToFront()
         setupLockScreenFlags()
 
         binding = ActivityIncomingCallBinding.inflate(layoutInflater)
         setContentView(binding.root)
-        android.util.Log.d("INCOMING_CALL", "Layout inflated and set")
 
         setupWindowFlags()
-        preloadCachedCallsIfPossible()
-
         setupSidePanel()
-        android.util.Log.d("INCOMING_CALL", "Side panel setup complete")
-        
-        android.util.Log.d("INCOMING_CALL", "Handling incoming intent...")
+
+        // Оставляем поддержку legacy-intent для локальных тестовых сценариев.
         handleIncomingIntent(intent)
         observeCallsQueue()
 
         binding.buttonConfirm.setOnClickListener { showConfirmAcceptDialog() }
         binding.buttonReject.setOnClickListener { showConfirmRejectDialog() }
-
         binding.closeButton.setOnClickListener { finish() }
         binding.infoButton.setOnClickListener { showCallDataDialog() }
 
@@ -86,63 +73,27 @@ class IncomingCallActivity : AppCompatActivity() {
             binding.buttonStopAlerts.visibility = android.view.View.GONE
         }
         binding.buttonStopAlerts.visibility = android.view.View.VISIBLE
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] ===== onCreate COMPLETE =====")
-    }
-
-    private fun preloadCachedCallsIfPossible() {
-        if (cachedHospitalizations != null || cacheLoadJob?.isActive == true) return
-
-        val sharedPrefs = getSharedPreferences("app_session", MODE_PRIVATE)
-        val userLogin = sharedPrefs.getString("user_login", null)
-        if (userLogin.isNullOrBlank()) return
-
-        cacheLoadJob = lifecycleScope.launch {
-            val cached = withContext(Dispatchers.IO) {
-                callsCache.readCalls(userLogin)
-            }
-            cachedHospitalizations = cached
-            currentCall?.let { displayCallDetails(it) }
-        }
     }
 
     override fun onNewIntent(intent: Intent) {
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] ===== onNewIntent called =====")
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Timestamp: ${System.currentTimeMillis()}")
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Intent action: ${intent.action}")
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Intent flags: ${intent.flags}")
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] Has CALL_DATA: ${intent.hasExtra("CALL_DATA")}")
-        
         super.onNewIntent(intent)
         setIntent(intent)
 
         binding.buttonStopAlerts.visibility = android.view.View.VISIBLE
 
         if (!IncomingCallRinger.isPlaying()) {
-            android.util.Log.d("CALL_LOG", "[IncomingCallActivity] Starting ringer")
             IncomingCallRinger.start(this)
         }
         startVibration()
 
+        // Нужен только для совместимости с тестовыми CALL_DATA.
         handleIncomingIntent(intent)
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] ===== onNewIntent complete =====")
     }
 
+    // Читаем старый extra только для тестовых запусков экрана.
     private fun handleIncomingIntent(intent: Intent?) {
-        android.util.Log.d("CALL_LOG", "[IncomingCallActivity] handleIncomingIntent called")
-        if (intent == null) {
-            android.util.Log.w("CALL_LOG", "[IncomingCallActivity] Intent is NULL")
-            return
-        }
-
-        val callFromIntent = intent.getSerializableExtra("CALL_DATA") as? CallNotificationDto
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] CALL_DATA from intent: Call#=${callFromIntent?.callNumber}, Status=${callFromIntent?.status}")
-
-        if (callFromIntent != null) {
-            android.util.Log.d("CALL_LOG", "[IncomingCallActivity] Adding call to CallsManager")
-            CallsManager.addCall(callFromIntent)
-        } else {
-            android.util.Log.w("CALL_LOG", "[IncomingCallActivity] CALL_DATA is null or not CallNotificationDto")
-        }
+        val legacyCall = intent?.getSerializableExtra("CALL_DATA") as? CallNotificationDto ?: return
+        CallsManager.upsertCall(legacyCall.toHospitalizationResponseDto())
     }
 
     private fun setupLockScreenFlags() {
@@ -150,22 +101,13 @@ class IncomingCallActivity : AppCompatActivity() {
             setShowWhenLocked(true)
             setTurnScreenOn(true)
             (getSystemService(Context.KEYGUARD_SERVICE) as? KeyguardManager)
-                ?.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {
-                    override fun onDismissSucceeded() {
-                        super.onDismissSucceeded()
-                    }
-
-                    override fun onDismissCancelled() {
-                        super.onDismissCancelled()
-                    }
-                })
+                ?.requestDismissKeyguard(this, object : KeyguardManager.KeyguardDismissCallback() {})
         } else {
-            @Suppress("DEPRECATION")
             window.addFlags(
                 WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
-                        WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
-                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
-                        WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+                    WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD or
+                    WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON or
+                    WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
             )
         }
         acquireWakeLock()
@@ -182,9 +124,10 @@ class IncomingCallActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
+    // Боковая панель теперь показывает госпитализации из нового SignalR-потока.
     private fun setupSidePanel() {
-        sideAdapter = SideTabsAdapter { selectedCall ->
-            displayCallDetails(selectedCall)
+        sideAdapter = SideTabsAdapter { selectedHospitalization ->
+            displayCallDetails(selectedHospitalization)
         }
 
         val flexboxLayoutManager = FlexboxLayoutManager(this).apply {
@@ -195,6 +138,7 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.rvSideTabs.adapter = sideAdapter
     }
 
+    // Следим за очередью входящих госпитализаций через CallsManager.
     private fun observeCallsQueue() {
         lifecycleScope.launch {
             CallsManager.calls.collect { list ->
@@ -204,110 +148,68 @@ class IncomingCallActivity : AppCompatActivity() {
                 } else {
                     sideAdapter.submitList(list)
 
-                    val currentId = currentCall?.callNumber
-                    val currentStillExists = currentId != null && list.any { it.callNumber == currentId }
+                    val currentId = currentHospitalization?.id
+                    val currentUpdated = currentId?.let { id -> list.firstOrNull { it.id == id } }
 
-                    if (!currentStillExists) {
-                        currentCall = null
-                        displayCallDetails(list[0])
+                    if (currentUpdated != null) {
+                        displayCallDetails(currentUpdated)
                     } else {
-                        sideAdapter.setSelectedCallNumber(currentId)
+                        displayCallDetails(list.first())
                     }
                 }
             }
         }
     }
 
-    private fun displayCallDetails(call: CallNotificationDto) {
-        android.util.Log.d("INCOMING_CALL", "displayCallDetails: callNumber=${call.callNumber}")
-        currentCall = call
-        sideAdapter.setSelectedCallNumber(call.callNumber)
-        android.util.Log.d("INCOMING_CALL", "Selected call number set in adapter")
+    // Заполняем экран данными новой госпитализации и вложенного вызова.
+    private fun displayCallDetails(hospitalization: HospitalizationResponseDto) {
+        currentHospitalization = hospitalization
+        sideAdapter.setSelectedHospitalizationId(hospitalization.id)
 
+        val responseCall = hospitalization.call
         val infoBlock = binding.patientInfoBlock
-        val cached = findCachedHospitalization(call.callNumber)
 
-        val callNumberText = when {
-            cached?.dayNumber != null && cached.yearNumber != null -> "${cached.dayNumber}/${cached.yearNumber}"
-            !call.callNumber.isNullOrBlank() -> call.callNumber
-            else -> "Н/Д"
-        }
-        infoBlock.callNumberText.text = "Вызов №$callNumberText"
+        infoBlock.callNumberText.text = "Вызов №${responseCall.dayNumber}/${responseCall.yearNumber}"
+        infoBlock.statusText.text = hospitalization.statusName
 
-        val status = cached?.status ?: call.status
-        infoBlock.statusText.text = status ?: "Неизвестно"
+        val patientName = listOfNotNull(
+            responseCall.patientSurname,
+            responseCall.patientName,
+            responseCall.patientPatronymic
+        ).joinToString(" ").ifBlank { "Неизвестный пациент" }
 
-        val patientName =
-            cached?.patientName
-                ?: cached?.patientFullName
-                ?: call.fullName
-                ?: "Неизвестный пациент"
-        val patientAge = cached?.age ?: call.age ?: "Н/Д"
-        val patientSex = cached?.sex ?: call.sex ?: "Н/Д"
-        infoBlock.patientDetailsText.text = "$patientName, $patientAge лет, $patientSex"
+        infoBlock.patientDetailsText.text =
+            "$patientName, ${responseCall.age ?: "Н/Д"} лет, ${responseCall.sex ?: "Н/Д"}"
 
-        val reason = cached?.reason ?: call.reason
-        infoBlock.callReasonText.text = reason ?: "Не указана"
+        infoBlock.callReasonText.text = responseCall.reason ?: "Не указана"
 
-        val district = cached?.district ?: call.district
-        val point = cached?.point ?: call.point
-        val street = cached?.street ?: call.street
-        val house = cached?.house ?: call.house
-        val apartment = cached?.apartment ?: call.apartment
         infoBlock.callAddressText.text = buildString {
-            append("Район: ${district ?: "Н/Д"}, ")
-            if (!point.isNullOrBlank()) {
-                append("${point.trim()}, ")
+            append("Район: ${responseCall.district ?: "Н/Д"}, ")
+            if (!responseCall.point.isNullOrBlank()) {
+                append("${responseCall.point.trim()}, ")
             }
-            append("ул. ${street ?: "Н/Д"}")
-            if (!house.isNullOrBlank()) {
-                append(", д. ${house.trim()}")
+            append("ул. ${responseCall.street ?: "Н/Д"}")
+            if (!responseCall.house.isNullOrBlank()) {
+                append(", д. ${responseCall.house.trim()}")
             }
-            if (!apartment.isNullOrBlank() && apartment != "0") {
-                append(", кв. ${apartment.trim()}")
+            if (!responseCall.apartment.isNullOrBlank() && responseCall.apartment != "0") {
+                append(", кв. ${responseCall.apartment.trim()}")
             }
         }
 
-        val timeValue = cached?.callTime ?: call.callTime
-        infoBlock.timeData.text = "Дата: ${DateFormatter.formatDateTime(timeValue)}"
-
-        val urgency = cached?.urgency ?: call.urgency
+        infoBlock.timeData.text = "Дата: ${DateFormatter.formatDateTime(responseCall.callTime)}"
         infoBlock.urgencyData.text =
-            urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
+            responseCall.urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
 
-        val callId = call.callNumber
-        val remainingMs = callId?.let { CallsManager.getRemainingIgnoreMillis(it) }
-        val secondsToShow =
-            if (remainingMs != null) {
-                ((remainingMs + 999L) / 1000L).toInt()
-            } else {
-                2400
-            }
+        val remainingMs = CallsManager.getRemainingIgnoreMillis(hospitalization.id)
+        val secondsToShow = if (remainingMs != null) ((remainingMs + 999L) / 1000L).toInt() else 2400
         startVisualCountdown(secondsToShow)
         binding.messageEditText.setText("")
     }
 
-    private fun findCachedHospitalization(callNumber: String?): Hospitalization? {
-        val number = callNumber?.trim().orEmpty()
-        if (number.isEmpty()) return null
-
-        val list = cachedHospitalizations ?: return null
-
-        val normalized = number.lowercase(Locale.getDefault())
-        return list.firstOrNull { h ->
-            val hn =
-                if (h.dayNumber != null && h.yearNumber != null) {
-                    "${h.dayNumber}/${h.yearNumber}"
-                } else {
-                    null
-                }
-            hn?.lowercase(Locale.getDefault()) == normalized
-        }
-    }
-
     private fun startVisualCountdown(seconds: Int) {
         countdownTimer?.cancel()
-        countdownTimer = object : CountDownTimer(seconds * 1000L, 1000) {
+        countdownTimer = object : CountDownTimer(seconds * 1000L, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
                 val totalSeconds = (millisUntilFinished / 1000).toInt()
                 val minutes = totalSeconds / 60
@@ -315,7 +217,6 @@ class IncomingCallActivity : AppCompatActivity() {
                 binding.tvTimer.text =
                     "Осталось: ${String.format("%02d", minutes)}:${String.format("%02d", secRemaining)}"
 
-                // Если осталось меньше 10 сек — красим в красный
                 if (totalSeconds <= 10) {
                     binding.tvTimer.setTextColor(resources.getColor(R.color.red_1, null))
                     binding.timerIcon.setColorFilter(resources.getColor(R.color.red_1, null))
@@ -327,58 +228,66 @@ class IncomingCallActivity : AppCompatActivity() {
 
             override fun onFinish() {
                 binding.tvTimer.text = "ВРЕМЯ ИСТЕКЛО"
-                currentCall?.callNumber?.let { callId ->
-                    CallsManager.removeCall(callId)
+                currentHospitalization?.id?.let { hospitalizationId ->
+                    CallsManager.removeCall(hospitalizationId)
                 }
-                currentCall = null
+                currentHospitalization = null
             }
         }.start()
     }
 
-    private fun handleCallAnswer(accepted: Boolean) {
-        val call = currentCall ?: return
-        val callId = call.callNumber ?: return
-        val comment = binding.messageEditText.text.toString()
-        val decision = if (accepted) "Accept" else "Reject"
+    // Отправляем решение по госпитализации и опциональный комментарий отдельным сообщением.
+    private fun handleDecision(accepted: Boolean) {
+        val hospitalization = currentHospitalization ?: return
+        val comment = binding.messageEditText.text.toString().trim()
+        val decisionId = if (accepted) {
+            HospitalizationDecision.ACCEPTED.id
+        } else {
+            HospitalizationDecision.REJECTED.id
+        }
 
         lifecycleScope.launch {
             try {
-                val result = withContext(Dispatchers.IO) {
-                    callRepository.answerCall(callId, decision, comment)
+                withContext(Dispatchers.IO) {
+                    if (comment.isNotBlank()) {
+                        hospitalizationRepository.sendMessage(
+                            hospitalizationId = hospitalization.id,
+                            messageText = comment
+                        )
+                    }
+
+                    hospitalizationRepository.saveDecision(
+                        hospitalizationId = hospitalization.id,
+                        decisionId = decisionId
+                    )
                 }
 
-                if (result.isSuccess) {
-                    Toast.makeText(this@IncomingCallActivity, "Отправлено", Toast.LENGTH_SHORT).show()
-                    CallsManager.removeCall(callId)
-                    currentCall = null
-                } else {
-                    Toast.makeText(this@IncomingCallActivity, "Ошибка сервера", Toast.LENGTH_SHORT).show()
-                }
+                Toast.makeText(this@IncomingCallActivity, "Отправлено", Toast.LENGTH_SHORT).show()
+                CallsManager.removeCall(hospitalization.id)
+                currentHospitalization = null
             } catch (e: Exception) {
+                Toast.makeText(
+                    this@IncomingCallActivity,
+                    e.message ?: "Ошибка сервера",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
     }
 
-    // --- Вспомогательные методы (Звук/Вибро) ---
-
-    /**
-     * Start continuous alerts - ringer and vibration that persist until stopAlerts() is called
-     */
     private fun startContinuousAlerts() {
         IncomingCallRinger.start(this)
         startVibration()
         binding.buttonStopAlerts.visibility = android.view.View.VISIBLE
     }
 
-    /**
-     * Start continuous vibration pattern (until manually stopped)
-     */
+
     private fun startVibration() {
         vibrator?.cancel()
-        
+
         val vib = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
         if (vib?.hasVibrator() != true) return
-        
+
         vibrator = vib
         val pattern = longArrayOf(0, 500, 500)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -389,9 +298,6 @@ class IncomingCallActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Stop all alerts (ringer and vibration)
-     */
     private fun stopAlerts() {
         stopRinger()
         stopVibration()
@@ -412,94 +318,88 @@ class IncomingCallActivity : AppCompatActivity() {
             PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
             "MedInfo:WakeLock"
         )
-        wakeLock?.acquire(3 * 60 * 1000L) // 3 минуты
+        wakeLock?.acquire(3 * 60 * 1000L)
     }
 
+    // Диалог оставляем, но показываем только данные, которые реально есть в новом DTO вызова.
     private fun showCallDataDialog() {
-        val call = currentCall ?: return
+        val hospitalization = currentHospitalization ?: return
+        val responseCall = hospitalization.call
 
-        val dialogBinding = com.example.medinfo.databinding.DialogCallDataBinding.inflate(layoutInflater)
-
+        val dialogBinding = DialogCallDataBinding.inflate(layoutInflater)
         val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
             .setView(dialogBinding.root)
             .create()
 
-        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setBackgroundDrawable(
+            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
+        )
         dialog.window?.setLayout(
             android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
             android.view.ViewGroup.LayoutParams.WRAP_CONTENT
         )
-        dialog.window?.setGravity(android.view.Gravity.CENTER)
+        dialog.window?.setGravity(Gravity.CENTER)
 
         val container = dialogBinding.dataContainer
 
-        addDataField(container, "ФИО", call.fullName)
-        addDataField(container, "Возраст", call.age)
-        addDataField(container, "Пол", call.sex)
-        addDataField(container, "Причина вызова", call.reason)
-        addDataField(container, "Доп. информация", call.additionalInfo)
-        addDataField(container, "Район", call.district)
-        addDataField(container, "Населенный пункт", call.point)
-        addDataField(container, "Улица", call.street)
-        addDataField(container, "Дом", call.house)
-        addDataField(container, "Квартира", call.apartment)
-        addDataField(container, "Подъезд", call.enterance?.toString())
-        addDataField(container, "Долгота", call.longitude?.toString())
-        addDataField(container, "Широта", call.latitude?.toString())
-        addDataField(container, "Номер бригады", call.brigadeNumber?.toString())
-        addDataField(container, "Профиль бригады", call.brigadeProfile)
-        addDataField(container, "Номер вызова", call.callNumber)
-        addDataField(container, "Время вызова", call.callTime)
-        addDataField(container, "Срочность", call.urgency?.toString())
-        addDataField(container, "Статус", call.status)
-        addDataField(container, "АД", call.bloodPressure)
-        
-        addDataField(container, "Сознание", call.consciousness)
-        addDataField(container, "Судороги", call.convulsions?.let { if (it) "Да" else "Нет" })
-        addDataField(container, "Глюкометрия", call.glucometry?.toString())
-        addDataField(container, "ЧСС", call.heartRate?.toString())
-        addDataField(container, "Кислородная поддержка", call.oxygenSupport?.let { if (it) "Да" else "Нет" })
-        addDataField(container, "Беременность", call.pregnant?.let { if (it) "Да" else "Нет" })
-        addDataField(container, "ЧДД", call.respirationRate?.toString())
-        addDataField(container, "SpO2", call.spO2?.toString())
-        addDataField(container, "Время от начала заболевания (ч)", call.startDisease?.toString())
-        addDataField(container, "Стеноз", call.stenosis?.let { if (it) "Да" else "Нет" })
-        addDataField(container, "Температура", call.temperature?.toString())
-        addDataField(container, "LAMS", call.lams?.toString())
-        addDataField(container, "mRS", call.mrs?.toString())
-        addDataField(container, "VAS", call.vas?.toString())
-
-        call.bleeding?.let { bleeding ->
-            addDataField(container, "Кровотечение", bleeding.presence?.let { if (it) "Да" else "Нет" })
-            addDataField(container, "Тип кровотечения", bleeding.type)
-            bleeding.arterialTourniquet?.let { tourniquet ->
-                addDataField(container, "Артериальный жгут", tourniquet.presence?.let { if (it) "Да" else "Нет" })
-                addDataField(container, "Время наложения жгута", tourniquet.applicationTime)
-            }
-        }
-
-        call.venousAccess?.let { venous ->
-            addDataField(container, "Венозный доступ", venous.presence?.let { if (it) "Да" else "Нет" })
-            addDataField(container, "Метод венозного доступа", venous.method?.joinToString(", "))
-        }
-
-        call.ifa?.let { ifa ->
-            addDataField(container, "Протезирование ДП", ifa.presence?.let { if (it) "Да" else "Нет" })
-            addDataField(container, "Инструменты", ifa.tool?.joinToString(", "))
-            addDataField(container, "ИВЛ", ifa.alv?.let { if (it) "Да" else "Нет" })
-        }
-
-        addDataField(container, "ID сообщения", call.messageId?.toString())
-        addDataField(container, "Текст сообщения", call.messageValue)
-        addDataField(container, "DPRM", call.dprm)
-        addDataField(container, "NGOD", call.ngod?.toString())
-        addDataField(container, "NUMV", call.numv?.toString())
-        addDataField(container, "SSMP", call.ssmp?.toString())
-        addDataField(container, "TEAM", call.team?.toString())
-        addDataField(container, "VOZR", call.vozr)
+        addDataField(
+            container,
+            "ФИО",
+            listOfNotNull(
+                responseCall.patientSurname,
+                responseCall.patientName,
+                responseCall.patientPatronymic
+            ).joinToString(" ").ifBlank { null }
+        )
+        addDataField(container, "Возраст", responseCall.age)
+        addDataField(container, "Пол", responseCall.sex)
+        addDataField(container, "Причина вызова", responseCall.reason)
+        addDataField(container, "Доп. информация", responseCall.additionalInfo)
+        addDataField(container, "Кто вызвал", responseCall.whoCall)
+        addDataField(container, "Тип вызова", responseCall.callType)
+        addDataField(container, "Профиль вызова", responseCall.callProfile)
+        addDataField(container, "Комментарий к вызову", responseCall.comment)
+        addDataField(container, "Район", responseCall.district)
+        addDataField(container, "Населенный пункт", responseCall.point)
+        addDataField(container, "Улица", responseCall.street)
+        addDataField(container, "Дом", responseCall.house)
+        addDataField(container, "Квартира", responseCall.apartment)
+        addDataField(container, "Подъезд", responseCall.entrance?.toString())
+        addDataField(container, "Долгота", responseCall.longitude?.toString())
+        addDataField(container, "Широта", responseCall.latitude?.toString())
+        addDataField(container, "Номер бригады", responseCall.brigadeNumber?.toString())
+        addDataField(container, "Профиль бригады", responseCall.brigadeProfile)
+        addDataField(container, "Код ССМП бригады", responseCall.brigadeSmpCode.toString())
+        addDataField(container, "Номер вызова", "${responseCall.dayNumber}/${responseCall.yearNumber}")
+        addDataField(container, "Время вызова", DateFormatter.formatDateTime(responseCall.callTime))
+        addDataField(container, "Срочность", responseCall.urgency?.toString())
+        addDataField(container, "Статус вызова", responseCall.status)
+        addDataField(container, "Статус госпитализации", hospitalization.statusName)
+        addDataField(container, "Решение", hospitalization.decisionName)
+        addDataField(container, "Место госпитализации", responseCall.hospitalizationPlace)
+        addDataField(container, "Результат вызова", responseCall.callResult)
+        addDataField(container, "Код МКБ", responseCall.mkbCode)
+        addDataField(container, "Основной диагноз", responseCall.mainDiagnosis)
+        addDataField(container, "Осложнение", responseCall.secondDiagnosis)
+        addDataField(container, "Комментарий к диагнозу", responseCall.diagnosisComment)
+        addDataField(container, "Вид травмы", responseCall.diseaseType)
+        addDataField(container, "СНИЛС", responseCall.snils)
+        addDataField(container, "Тип документа", responseCall.documentType)
+        addDataField(container, "Номер документа", responseCall.documentNumber)
+        addDataField(container, "СМО", responseCall.smo)
+        addDataField(container, "Страховой полис", responseCall.insuranceNumber)
+        addDataField(container, "Рация", responseCall.radio)
+        addDataField(container, "Машина", responseCall.carNumber)
+        addDataField(container, "Километраж", responseCall.mileage)
+        addDataField(container, "Код территориальной ССМП", responseCall.territorialSmpCode?.toString())
+        addDataField(container, "Номер подстанции", responseCall.substationSmp?.toString())
+        addDataField(container, "Номер старшего", responseCall.seniorPersonalNumber)
+        addDataField(container, "ФИО старшего", responseCall.seniorFullName)
+        addDataField(container, "Первый помощник", responseCall.member1)
+        addDataField(container, "Второй помощник", responseCall.member2)
+        addDataField(container, "Водитель", responseCall.driver)
 
         dialogBinding.buttonClose.setOnClickListener { dialog.dismiss() }
-
         dialog.show()
     }
 
@@ -529,17 +429,13 @@ class IncomingCallActivity : AppCompatActivity() {
             textSize = 14f
             letterSpacing = 0.05f
             typeface = android.graphics.Typeface.create(typeface, android.graphics.Typeface.BOLD)
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            )
         }
 
         val valueView = android.widget.TextView(this).apply {
             text = value
             setTextColor(resources.getColor(R.color.gray_1, null))
             textSize = 16f
-            gravity = android.view.Gravity.START
+            gravity = Gravity.START
             layoutParams = android.widget.LinearLayout.LayoutParams(
                 android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
                 android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
@@ -555,13 +451,13 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private fun showConfirmAcceptDialog() {
         ConfirmAcceptDialogFragment { confirmed ->
-            if (confirmed) handleCallAnswer(true)
+            if (confirmed) handleDecision(true)
         }.show(supportFragmentManager, "ConfirmAcceptDialog")
     }
 
     private fun showConfirmRejectDialog() {
         ConfirmRejectDialogFragment { confirmed ->
-            if (confirmed) handleCallAnswer(false)
+            if (confirmed) handleDecision(false)
         }.show(supportFragmentManager, "ConfirmRejectDialog")
     }
 
@@ -570,5 +466,95 @@ class IncomingCallActivity : AppCompatActivity() {
         stopAlerts()
         if (wakeLock?.isHeld == true) wakeLock?.release()
         countdownTimer?.cancel()
+    }
+
+    // Преобразование нужно только для старых тестовых сценариев.
+    private fun CallNotificationDto.toHospitalizationResponseDto(): HospitalizationResponseDto {
+        val (dayNumber, yearNumber) = parseLegacyCallNumber(callNumber)
+
+        return HospitalizationResponseDto(
+            id = callNumber ?: UUID.randomUUID().toString(),
+            isNotificationSent = true,
+            decisionId = HospitalizationDecision.NONE.id,
+            decisionName = "Нет решения",
+            statusId = 1,
+            statusName = status ?: "Бригада в пути",
+            notificationTime = null,
+            decisionTime = null,
+            call = CallResponseDto(
+                id = UUID.randomUUID().toString(),
+                brigadeSmpCode = ssmp ?: 0,
+                dayNumber = dayNumber,
+                yearNumber = yearNumber,
+                status = status ?: "",
+                hospitalizationPlace = null,
+                callTime = callTime ?: "",
+                transferTime = null,
+                departureTime = null,
+                brigadeArrivalTime = null,
+                hospitalizationTime = null,
+                arrivalHospitalTime = null,
+                closeCallTime = null,
+                backTime = null,
+                reason = reason,
+                additionalInfo = additionalInfo,
+                whoCall = null,
+                callType = null,
+                callProfile = null,
+                comment = null,
+                urgency = urgency,
+                callResult = null,
+                mkbCode = null,
+                mainDiagnosis = null,
+                secondDiagnosis = null,
+                diagnosisComment = null,
+                diseaseType = null,
+                place = null,
+                sector = null,
+                district = district,
+                point = point,
+                street = street,
+                house = house,
+                apartment = apartment,
+                entrance = enterance,
+                entranceCode = null,
+                floor = null,
+                longitude = longitude,
+                latitude = latitude,
+                patientName = fullName,
+                patientSurname = null,
+                patientPatronymic = null,
+                sex = sex,
+                age = age,
+                birthDay = null,
+                alcohol = false,
+                snils = null,
+                documentType = null,
+                documentNumber = null,
+                smo = null,
+                insuranceNumber = null,
+                brigadeNumber = brigadeNumber,
+                brigadeProfile = brigadeProfile,
+                radio = null,
+                carNumber = null,
+                mileage = null,
+                territorialSmpCode = null,
+                substationSmp = null,
+                substationNumberControl = null,
+                substationNumberBase = null,
+                seniorPersonalNumber = null,
+                seniorFullName = null,
+                member1 = null,
+                member2 = null,
+                driver = null
+            )
+        )
+    }
+
+    private fun parseLegacyCallNumber(callNumber: String?): Pair<Int, Int> {
+        val parts = callNumber?.split("/") ?: return 0 to 0
+        val dayNumber = parts.getOrNull(0)?.toIntOrNull() ?: 0
+        val yearNumber = parts.getOrNull(1)?.toIntOrNull() ?: 0
+        return dayNumber to yearNumber
     }
 }

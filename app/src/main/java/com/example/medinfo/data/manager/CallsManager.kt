@@ -2,7 +2,9 @@ package com.example.medinfo.data.manager
 
 import android.os.SystemClock
 import com.example.medinfo.config.ConfigManager
-import com.example.medinfo.model.CallNotificationDto
+import com.example.medinfo.model.api.HospitalizationDecision
+import com.example.medinfo.model.api.HospitalizationResponseDto
+import com.example.medinfo.model.api.HospitalizationStatus
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -13,97 +15,91 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
 object CallsManager {
-    private val _calls = MutableStateFlow<List<CallNotificationDto>>(emptyList())
-    val calls: StateFlow<List<CallNotificationDto>> = _calls
 
+    // Актуальная очередь госпитализаций, требующих внимания пользователя.
+    private val _calls = MutableStateFlow<List<HospitalizationResponseDto>>(emptyList())
+    val calls: StateFlow<List<HospitalizationResponseDto>> = _calls
+
+    // Отдельный scope нужен для таймеров авто-игнора.
     private val managerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-    private val activeJobs = mutableMapOf<String, Job>() // Храним таймеры по номеру вызова
+    private val activeJobs = mutableMapOf<String, Job>()
     private val callAddedAtMs = mutableMapOf<String, Long>()
 
-
-    fun addCall(call: CallNotificationDto): Boolean {
+    // Добавляет новую госпитализацию в очередь или обновляет уже существующую.
+    fun upsertCall(call: HospitalizationResponseDto): Boolean {
         val currentList = _calls.value.toMutableList()
-        if (currentList.none { it.callNumber == call.callNumber }) {
+        val existingIndex = currentList.indexOfFirst { it.id == call.id }
+        val isNew = existingIndex == -1
+
+        if (existingIndex == -1) {
             currentList.add(call)
-            _calls.value = currentList
+        } else {
+            currentList[existingIndex] = call
+        }
 
-            call.callNumber?.let { callId ->
-                if (!callAddedAtMs.containsKey(callId)) {
-                    callAddedAtMs[callId] = SystemClock.elapsedRealtime()
-                }
-            }
+        _calls.value = currentList
 
-            // Если статус "транспортировка" — запускаем таймер на 40 минут
-            val statusLower = call.status?.lowercase()
-            if (statusLower == "транспортировка") {
+        if (shouldStartIgnoreTimer(call)) {
+            callAddedAtMs.putIfAbsent(call.id, SystemClock.elapsedRealtime())
+            if (!activeJobs.containsKey(call.id)) {
                 startIgnoreTimer(call)
-            } else {
             }
-
-            return true
+        } else {
+            removeTimer(call.id)
         }
-        return false
+
+        return isNew
     }
 
-    fun getRemainingIgnoreMillis(callId: String, totalMillis: Long = ConfigManager.maxCallDurationMs): Long? {
-        val addedAt = callAddedAtMs[callId]
-        if (addedAt == null) {
-            return null
-        }
+    // Возвращает оставшееся время до авто-игнора госпитализации.
+    fun getRemainingIgnoreMillis(
+        hospitalizationId: String,
+        totalMillis: Long = ConfigManager.maxCallDurationMs
+    ): Long? {
+        val addedAt = callAddedAtMs[hospitalizationId] ?: return null
         val elapsed = SystemClock.elapsedRealtime() - addedAt
-        val remaining = totalMillis - elapsed
-        val result = if (remaining > 0) remaining else 0L
-        return result
+        return (totalMillis - elapsed).coerceAtLeast(0L)
     }
 
-    private fun startIgnoreTimer(call: CallNotificationDto) {
-        val callId = call.callNumber ?: run {
-            return
-        }
-
-        // Отменяем старый таймер, если он был (на всякий случай)
-        activeJobs[callId]?.let { oldJob ->
-            oldJob.cancel()
-        }
-
-        activeJobs[callId] = managerScope.launch {
-            val remaining = getRemainingIgnoreMillis(callId) ?: ConfigManager.maxCallDurationMs
-            delay(remaining) // Ждем до истечения таймера
-
-            // Если через 40 минут вызов всё еще в списке — значит его проигнорировали
-            val stillExists = _calls.value.any { it.callNumber == callId }
-                if (stillExists) {
-                handleIgnore(callId)
-            } else {
-            }
-        }
+    // Удаляет госпитализацию из очереди и очищает ее таймер.
+    fun removeCall(hospitalizationId: String) {
+        removeTimer(hospitalizationId)
+        _calls.value = _calls.value.filterNot { it.id == hospitalizationId }
     }
 
-    private fun handleIgnore(callId: String) {
-        // 1. Отправляем на сервер статус "Игнор"
-        // Здесь нужно вызвать метод ApiService, аналогично answerCall, но со статусом "Ignore"
-
-        // 2. Удаляем из списка
-        removeCall(callId)
-    }
-
-    fun removeCall(callId: String) {
-        activeJobs[callId]?.let { job ->
-            job.cancel()
-        }
-        activeJobs.remove(callId)
-        callAddedAtMs.remove(callId)
-        val previousSize = _calls.value.size
-        _calls.value = _calls.value.filter { it.callNumber != callId }
-        val newSize = _calls.value.size
-    }
-
+    // Полная очистка очереди и всех таймеров.
     fun clearAll() {
-        activeJobs.values.forEach { job ->
-            job.cancel()
-        }
+        activeJobs.values.forEach { it.cancel() }
         activeJobs.clear()
         callAddedAtMs.clear()
         _calls.value = emptyList()
+    }
+
+    // Запускает таймер для госпитализации без решения.
+    private fun startIgnoreTimer(call: HospitalizationResponseDto) {
+        activeJobs[call.id]?.cancel()
+
+        activeJobs[call.id] = managerScope.launch {
+            val remaining = getRemainingIgnoreMillis(call.id) ?: ConfigManager.maxCallDurationMs
+            delay(remaining)
+
+            val stillExists = _calls.value.any { it.id == call.id }
+            if (stillExists) {
+                removeCall(call.id)
+            }
+        }
+    }
+
+    // Останавливает и удаляет таймер для конкретной госпитализации.
+    private fun removeTimer(hospitalizationId: String) {
+        activeJobs[hospitalizationId]?.cancel()
+        activeJobs.remove(hospitalizationId)
+        callAddedAtMs.remove(hospitalizationId)
+    }
+
+    // Таймер нужен только для активных госпитализаций без решения.
+    private fun shouldStartIgnoreTimer(call: HospitalizationResponseDto): Boolean {
+        return call.decisionId == HospitalizationDecision.NONE.id &&
+            HospitalizationStatus.fromId(call.statusId)?.isActive == true
     }
 }
