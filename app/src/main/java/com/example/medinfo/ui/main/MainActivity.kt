@@ -135,9 +135,10 @@ class MainActivity : AppCompatActivity() {
             viewModel.filteredCalls.collectLatest { calls ->
                 hospitalizationList.clear()
                 hospitalizationList.addAll(calls)
+                val callsSnapshot = calls.toList()
 
                 if (!::adapter.isInitialized) {
-                    adapter = HospitalizationAdapter(hospitalizationList) { hospitalization ->
+                    adapter = HospitalizationAdapter(callsSnapshot) { hospitalization ->
                         if (currentTabFilter == MainViewModel.TabFilter.REQUIRES_DECISION) {
                             openDecisionScreen(hospitalization)
                         } else {
@@ -172,8 +173,7 @@ class MainActivity : AppCompatActivity() {
                     )
                 } else {
                     adapter.setShowDecisionTimer(currentTabFilter == MainViewModel.TabFilter.REQUIRES_DECISION)
-                    adapter.notifyDataSetChanged()
-
+                    adapter.submitItems(callsSnapshot)
                 }
             }
         }
@@ -462,8 +462,10 @@ class MainActivity : AppCompatActivity() {
 
         decisionTimerJob = lifecycleScope.launch {
             while (true) {
-                // Карточки должны тикать сами, без повторного открытия вызова пользователем.
-                viewModel.refreshDecisionTimers()
+                // Каждую секунду обновляем только текст таймера, а не весь список карточек.
+                if (::adapter.isInitialized) {
+                    adapter.refreshDecisionTimersOnly()
+                }
                 delay(1000)
             }
         }

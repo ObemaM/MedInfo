@@ -19,11 +19,12 @@ import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.databinding.ActivityIncomingCallBinding
-import com.example.medinfo.databinding.DialogCallDataBinding
 import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
+import com.example.medinfo.ui.chat.ChatActivity
+import com.example.medinfo.util.CallLog
 import com.example.medinfo.util.DateFormatter
 import java.util.Locale
 import java.util.UUID
@@ -42,9 +43,11 @@ class IncomingCallActivity : AppCompatActivity() {
     private var currentHospitalization: HospitalizationResponseDto? = null
     private var requestedHospitalizationId: String? = null
     private var countdownTimer: CountDownTimer? = null
+    private var countdownHospitalizationId: String? = null
+    private var boundHospitalizationId: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        android.util.Log.i("CALL_LOG", "[IncomingCallActivity] onCreate START")
+        CallLog.event("IncomingCallActivity", "onCreate START")
         super.onCreate(savedInstanceState)
 
         bringToFront()
@@ -61,11 +64,8 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.buttonConfirm.setOnClickListener { showConfirmAcceptDialog() }
         binding.buttonReject.setOnClickListener { showConfirmRejectDialog() }
         binding.closeButton.setOnClickListener { finish() }
-        binding.infoButton.setOnClickListener { showCallDataDialog() }
-        binding.chatButton.setOnClickListener {
-            // Пока чат не реализован, кнопка явно показывает, что место под него уже зарезервировано.
-            Toast.makeText(this, "Чат будет добавлен отдельно", Toast.LENGTH_SHORT).show()
-        }
+        binding.chatButton.setOnClickListener { openChatScreen() }
+        binding.openChatCard.setOnClickListener { openChatScreen() }
 
         binding.buttonStopAlerts.setOnClickListener {
             stopAlerts()
@@ -105,12 +105,15 @@ class IncomingCallActivity : AppCompatActivity() {
             // После удаления нижней очереди экран должен оставаться на вызове, выбранном в списке.
             requestedHospitalizationId = hospitalization.id
             currentHospitalization = hospitalization
+            CallLog.hospitalization("IncomingCallActivity", hospitalization, "received EXTRA_HOSPITALIZATION")
             CallsManager.upsertCall(hospitalization)
             return
         }
 
         val legacyCall = intent?.getSerializableExtra("CALL_DATA") as? CallNotificationDto ?: return
-        CallsManager.upsertCall(legacyCall.toHospitalizationResponseDto())
+        val converted = legacyCall.toHospitalizationResponseDto()
+        CallLog.hospitalization("IncomingCallActivity", converted, "received legacy CALL_DATA")
+        CallsManager.upsertCall(converted)
     }
 
     private fun readHospitalizationExtra(intent: Intent?): HospitalizationResponseDto? {
@@ -159,6 +162,7 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun observeCallsQueue() {
         lifecycleScope.launch {
             CallsManager.calls.collect { list ->
+                updateRemainingDecisionCount(list.size)
                 if (list.isEmpty()) {
                     stopAlerts()
                     finish()
@@ -179,75 +183,189 @@ class IncomingCallActivity : AppCompatActivity() {
     // Заполняем экран данными новой госпитализации и вложенного вызова.
     private fun displayCallDetails(hospitalization: HospitalizationResponseDto) {
         currentHospitalization = hospitalization
+        CallLog.hospitalization("IncomingCallActivity", hospitalization, "display details")
 
-        val responseCall = hospitalization.call
-        val infoBlock = binding.patientInfoBlock
-
-        infoBlock.callNumberText.text = "Вызов №${responseCall.dayNumber}/${responseCall.yearNumber}"
-        infoBlock.statusText.text = hospitalization.statusName
-
-        val patientName = listOfNotNull(
-            responseCall.patientSurname,
-            responseCall.patientName,
-            responseCall.patientPatronymic
-        ).joinToString(" ").ifBlank { "Неизвестный пациент" }
-
-        infoBlock.patientDetailsText.text =
-            "$patientName, ${responseCall.age ?: "Н/Д"} лет, ${responseCall.sex ?: "Н/Д"}"
-
-        infoBlock.callReasonText.text = responseCall.reason ?: "Не указана"
-
-        infoBlock.callAddressText.text = buildString {
-            append("Район: ${responseCall.district ?: "Н/Д"}, ")
-            if (!responseCall.point.isNullOrBlank()) {
-                append("${responseCall.point.trim()}, ")
-            }
-            append("ул. ${responseCall.street ?: "Н/Д"}")
-            if (!responseCall.house.isNullOrBlank()) {
-                append(", д. ${responseCall.house.trim()}")
-            }
-            if (!responseCall.apartment.isNullOrBlank() && responseCall.apartment != "0") {
-                append(", кв. ${responseCall.apartment.trim()}")
-            }
+        if (boundHospitalizationId != hospitalization.id) {
+            // Данные карточки биндим хотя бы один раз; отдельно следим только за тем, чтобы не перезапускать таймер.
+            bindSummary(hospitalization)
+            bindDetails(hospitalization)
+            boundHospitalizationId = hospitalization.id
         }
-
-        infoBlock.timeData.text = "Дата: ${DateFormatter.formatDateTime(responseCall.callTime)}"
-        infoBlock.urgencyData.text =
-            responseCall.urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
 
         // Таймер берём из CallsManager, чтобы экран решения и список "Требуют решения" шли синхронно.
         val remainingMs = CallsManager.getRemainingIgnoreMillis(hospitalization.id)
         val secondsToShow = if (remainingMs != null) ((remainingMs + 999L) / 1000L).toInt() else 2400
-        startVisualCountdown(secondsToShow)
+        if (countdownHospitalizationId != hospitalization.id) {
+            startVisualCountdown(hospitalization.id, secondsToShow)
+        }
     }
 
-    private fun startVisualCountdown(seconds: Int) {
+    private fun updateRemainingDecisionCount(count: Int) {
+        binding.remainingDecisionsText.text = "Требуют решения: $count"
+        val color = if (count > 1) R.color.red_1 else R.color.main_1
+        binding.remainingDecisionsText.backgroundTintList =
+            android.content.res.ColorStateList.valueOf(resources.getColor(color, null))
+    }
+
+    private fun bindSummary(hospitalization: HospitalizationResponseDto) {
+        val call = hospitalization.call
+        val summary = binding.summaryBlock
+
+        summary.callNumberText.text = "Вызов №${call.dayNumber}/${call.yearNumber}"
+        summary.statusText.text = hospitalization.statusName
+        summary.patientDetailsText.text =
+            "${buildPatientName(call).ifBlank { "Неизвестный пациент" }}, ${call.age ?: "Н/Д"} лет, ${call.sex ?: "Н/Д"}"
+        summary.callReasonText.text = call.reason ?: "Не указана"
+        summary.callAddressText.text = buildAddress(call).ifBlank { "Адрес не указан" }
+        summary.timeData.text = "Дата: ${DateFormatter.formatDateTime(call.callTime)}"
+        summary.urgencyData.text = call.urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
+        summary.decisionTimerText.visibility = android.view.View.GONE
+        summary.root.setOnClickListener(null)
+        summary.root.isClickable = false
+    }
+
+    private fun bindDetails(hospitalization: HospitalizationResponseDto) {
+        val call = hospitalization.call
+        val container = binding.fieldsContainer
+
+        container.removeAllViews()
+
+        // На экране решения показываем тот же список полей, что и в деталях, чтобы интерфейс был единым.
+        addSection(container, "Госпитализация")
+        addDataField(container, "ID госпитализации", hospitalization.id)
+        addDataField(container, "Статус госпитализации", "${hospitalization.statusName} (${hospitalization.statusId})")
+        addDataField(container, "Решение", "${hospitalization.decisionName} (${hospitalization.decisionId})")
+        addDataField(container, "Уведомление отправлено", formatBoolean(hospitalization.isNotificationSent))
+        addDataField(container, "Время подтверждения уведомления", formatDateTime(hospitalization.notificationTime))
+        addDataField(container, "Время принятия решения", formatDateTime(hospitalization.decisionTime))
+
+        addSection(container, "Вызов")
+        addDataField(container, "ID вызова", call.id)
+        addDataField(container, "Номер вызова", "${call.dayNumber}/${call.yearNumber}")
+        addDataField(container, "Статус вызова", call.status)
+        addDataField(container, "Код ССМП бригады", call.brigadeSmpCode.toString())
+        addDataField(container, "Место госпитализации", call.hospitalizationPlace)
+        addDataField(container, "Время вызова", formatDateTime(call.callTime))
+        addDataField(container, "Передан бригаде", formatDateTime(call.transferTime))
+        addDataField(container, "Выезд на вызов", formatDateTime(call.departureTime))
+        addDataField(container, "Прибытие бригады", formatDateTime(call.brigadeArrivalTime))
+        addDataField(container, "Начало госпитализации", formatDateTime(call.hospitalizationTime))
+        addDataField(container, "Прибытие в стационар", formatDateTime(call.arrivalHospitalTime))
+        addDataField(container, "Закрытие вызова", formatDateTime(call.closeCallTime))
+        addDataField(container, "Возвращение на станцию", formatDateTime(call.backTime))
+        addDataField(container, "Срочность", call.urgency?.toString())
+
+        addSection(container, "Основная информация")
+        addDataField(container, "Повод", call.reason)
+        addDataField(container, "Дополнительная информация", call.additionalInfo)
+        addDataField(container, "Кто вызвал", call.whoCall)
+        addDataField(container, "Тип вызова", call.callType)
+        addDataField(container, "Профиль вызова", call.callProfile)
+        addDataField(container, "Комментарий к вызову", call.comment)
+        addDataField(container, "Результат вызова", call.callResult)
+
+        addSection(container, "Диагноз")
+        addDataField(container, "Код МКБ", call.mkbCode)
+        addDataField(container, "Основной диагноз", call.mainDiagnosis)
+        addDataField(container, "Осложнение", call.secondDiagnosis)
+        addDataField(container, "Комментарий к диагнозу", call.diagnosisComment)
+        addDataField(container, "Вид травмы", call.diseaseType)
+
+        addSection(container, "Адрес")
+        addDataField(container, "Место", call.place)
+        addDataField(container, "Сектор", call.sector?.toString())
+        addDataField(container, "Район", call.district)
+        addDataField(container, "Населенный пункт", call.point)
+        addDataField(container, "Улица", call.street)
+        addDataField(container, "Дом", call.house)
+        addDataField(container, "Квартира", call.apartment)
+        addDataField(container, "Подъезд", call.entrance?.toString())
+        addDataField(container, "Код подъезда", call.entranceCode)
+        addDataField(container, "Этаж", call.floor?.toString())
+        addDataField(container, "Долгота", call.longitude?.toString())
+        addDataField(container, "Широта", call.latitude?.toString())
+
+        addSection(container, "Пациент")
+        addDataField(container, "ФИО", buildPatientName(call))
+        addDataField(container, "Фамилия", call.patientSurname)
+        addDataField(container, "Имя", call.patientName)
+        addDataField(container, "Отчество", call.patientPatronymic)
+        addDataField(container, "Пол", call.sex)
+        addDataField(container, "Возраст", call.age)
+        addDataField(container, "Дата рождения", call.birthDay)
+        addDataField(container, "Алкогольное опьянение", formatBoolean(call.alcohol))
+        addDataField(container, "СНИЛС", call.snils)
+        addDataField(container, "Тип документа", call.documentType)
+        addDataField(container, "Номер документа", call.documentNumber)
+        addDataField(container, "СМО", call.smo)
+        addDataField(container, "Страховой полис", call.insuranceNumber)
+
+        addSection(container, "Бригада")
+        addDataField(container, "Номер бригады", call.brigadeNumber?.toString())
+        addDataField(container, "Профиль бригады", call.brigadeProfile)
+        addDataField(container, "Рация", call.radio)
+        addDataField(container, "Номер машины", call.carNumber)
+        addDataField(container, "Километраж", call.mileage)
+        addDataField(container, "Код территориальной ССМП", call.territorialSmpCode?.toString())
+        addDataField(container, "Номер подстанции", call.substationSmp?.toString())
+        addDataField(container, "Подстанция по управлению", call.substationNumberControl?.toString())
+        addDataField(container, "Подстанция базирования", call.substationNumberBase?.toString())
+        addDataField(container, "Номер старшего", call.seniorPersonalNumber)
+        addDataField(container, "ФИО старшего", call.seniorFullName)
+        addDataField(container, "Первый помощник", call.member1)
+        addDataField(container, "Второй помощник", call.member2)
+        addDataField(container, "Водитель", call.driver)
+    }
+
+    private fun startVisualCountdown(hospitalizationId: String, seconds: Int) {
         countdownTimer?.cancel()
+        countdownHospitalizationId = hospitalizationId
         countdownTimer = object : CountDownTimer(seconds * 1000L, 1000L) {
             override fun onTick(millisUntilFinished: Long) {
                 val totalSeconds = (millisUntilFinished / 1000).toInt()
                 val minutes = totalSeconds / 60
                 val secRemaining = totalSeconds % 60
-                binding.tvTimer.text =
+                binding.timerText.text =
                     "Осталось: ${String.format(Locale.ROOT, "%02d:%02d", minutes, secRemaining)}"
 
                 if (totalSeconds <= 10) {
-                    binding.tvTimer.setTextColor(resources.getColor(R.color.red_1, null))
+                    binding.timerText.setTextColor(resources.getColor(R.color.red_1, null))
                     binding.timerIcon.setColorFilter(resources.getColor(R.color.red_1, null))
                 } else {
-                    binding.tvTimer.setTextColor(resources.getColor(R.color.gray_1, null))
-                    binding.timerIcon.setColorFilter(resources.getColor(R.color.gray_1, null))
+                    binding.timerText.setTextColor(resources.getColor(R.color.gray_1, null))
+                    binding.timerIcon.setColorFilter(resources.getColor(R.color.main_1, null))
                 }
             }
 
             override fun onFinish() {
-                binding.tvTimer.text = "ВРЕМЯ ИСТЕКЛО"
+                binding.timerText.text = "ВРЕМЯ ИСТЕКЛО"
+                countdownHospitalizationId = null
+                boundHospitalizationId = null
                 currentHospitalization?.id?.let { hospitalizationId ->
                     CallsManager.removeCall(hospitalizationId)
                 }
                 currentHospitalization = null
             }
         }.start()
+    }
+
+    private fun openChatScreen() {
+        val hospitalization = currentHospitalization
+        if (hospitalization == null) {
+            Toast.makeText(this, "Нет данных для открытия чата", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Чат сразу привязываем к госпитализации, чтобы потом без переделок подключить историю сообщений.
+        val intent = Intent(this, ChatActivity::class.java).apply {
+            putExtra(ChatActivity.EXTRA_HOSPITALIZATION_ID, hospitalization.id)
+            putExtra(
+                ChatActivity.EXTRA_CHAT_TITLE,
+                "Вызов №${hospitalization.call.dayNumber}/${hospitalization.call.yearNumber}"
+            )
+            putExtra(ChatActivity.EXTRA_READ_ONLY, false)
+        }
+        startActivity(intent)
     }
 
     // Отправляем только решение по госпитализации. Сообщения будут жить в отдельном чате.
@@ -327,87 +445,50 @@ class IncomingCallActivity : AppCompatActivity() {
         wakeLock?.acquire(3 * 60 * 1000L)
     }
 
-    // Диалог оставляем, но показываем только данные, которые реально есть в новом DTO вызова.
-    private fun showCallDataDialog() {
-        val hospitalization = currentHospitalization ?: return
-        val responseCall = hospitalization.call
-
-        val dialogBinding = DialogCallDataBinding.inflate(layoutInflater)
-        val dialog = androidx.appcompat.app.AlertDialog.Builder(this)
-            .setView(dialogBinding.root)
-            .create()
-
-        dialog.window?.setBackgroundDrawable(
-            android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT)
-        )
-        dialog.window?.setLayout(
-            android.view.ViewGroup.LayoutParams.WRAP_CONTENT,
-            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
-        )
-        dialog.window?.setGravity(Gravity.CENTER)
-
-        val container = dialogBinding.dataContainer
-
-        addDataField(
-            container,
-            "ФИО",
-            listOfNotNull(
-                responseCall.patientSurname,
-                responseCall.patientName,
-                responseCall.patientPatronymic
-            ).joinToString(" ").ifBlank { null }
-        )
-        addDataField(container, "Возраст", responseCall.age)
-        addDataField(container, "Пол", responseCall.sex)
-        addDataField(container, "Причина вызова", responseCall.reason)
-        addDataField(container, "Доп. информация", responseCall.additionalInfo)
-        addDataField(container, "Кто вызвал", responseCall.whoCall)
-        addDataField(container, "Тип вызова", responseCall.callType)
-        addDataField(container, "Профиль вызова", responseCall.callProfile)
-        addDataField(container, "Комментарий к вызову", responseCall.comment)
-        addDataField(container, "Район", responseCall.district)
-        addDataField(container, "Населенный пункт", responseCall.point)
-        addDataField(container, "Улица", responseCall.street)
-        addDataField(container, "Дом", responseCall.house)
-        addDataField(container, "Квартира", responseCall.apartment)
-        addDataField(container, "Подъезд", responseCall.entrance?.toString())
-        addDataField(container, "Долгота", responseCall.longitude?.toString())
-        addDataField(container, "Широта", responseCall.latitude?.toString())
-        addDataField(container, "Номер бригады", responseCall.brigadeNumber?.toString())
-        addDataField(container, "Профиль бригады", responseCall.brigadeProfile)
-        addDataField(container, "Код ССМП бригады", responseCall.brigadeSmpCode.toString())
-        addDataField(container, "Номер вызова", "${responseCall.dayNumber}/${responseCall.yearNumber}")
-        addDataField(container, "Время вызова", DateFormatter.formatDateTime(responseCall.callTime))
-        addDataField(container, "Срочность", responseCall.urgency?.toString())
-        addDataField(container, "Статус вызова", responseCall.status)
-        addDataField(container, "Статус госпитализации", hospitalization.statusName)
-        addDataField(container, "Решение", hospitalization.decisionName)
-        addDataField(container, "Место госпитализации", responseCall.hospitalizationPlace)
-        addDataField(container, "Результат вызова", responseCall.callResult)
-        addDataField(container, "Код МКБ", responseCall.mkbCode)
-        addDataField(container, "Основной диагноз", responseCall.mainDiagnosis)
-        addDataField(container, "Осложнение", responseCall.secondDiagnosis)
-        addDataField(container, "Комментарий к диагнозу", responseCall.diagnosisComment)
-        addDataField(container, "Вид травмы", responseCall.diseaseType)
-        addDataField(container, "СНИЛС", responseCall.snils)
-        addDataField(container, "Тип документа", responseCall.documentType)
-        addDataField(container, "Номер документа", responseCall.documentNumber)
-        addDataField(container, "СМО", responseCall.smo)
-        addDataField(container, "Страховой полис", responseCall.insuranceNumber)
-        addDataField(container, "Рация", responseCall.radio)
-        addDataField(container, "Машина", responseCall.carNumber)
-        addDataField(container, "Километраж", responseCall.mileage)
-        addDataField(container, "Код территориальной ССМП", responseCall.territorialSmpCode?.toString())
-        addDataField(container, "Номер подстанции", responseCall.substationSmp?.toString())
-        addDataField(container, "Номер старшего", responseCall.seniorPersonalNumber)
-        addDataField(container, "ФИО старшего", responseCall.seniorFullName)
-        addDataField(container, "Первый помощник", responseCall.member1)
-        addDataField(container, "Второй помощник", responseCall.member2)
-        addDataField(container, "Водитель", responseCall.driver)
-
-        dialogBinding.buttonClose.setOnClickListener { dialog.dismiss() }
-        dialog.show()
+    private fun addSection(container: android.widget.LinearLayout, title: String) {
+        val sectionView = android.widget.TextView(this).apply {
+            text = title
+            setTextColor(resources.getColor(R.color.gray_1, null))
+            textSize = 18f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            layoutParams = android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = if (container.childCount == 0) 8.dp() else 20.dp()
+                leftMargin = 8.dp()
+                rightMargin = 8.dp()
+            }
+        }
+        container.addView(sectionView)
     }
+
+    private fun buildPatientName(call: CallResponseDto): String {
+        return listOfNotNull(
+            call.patientSurname,
+            call.patientName,
+            call.patientPatronymic
+        ).joinToString(" ").trim()
+    }
+
+    private fun buildAddress(call: CallResponseDto): String {
+        return buildList {
+            add(call.district)
+            add(call.point)
+            call.street?.let { add("ул. $it") }
+            call.house?.let { add("д. $it") }
+            call.apartment?.takeIf { it != "0" }?.let { add("кв. $it") }
+        }
+            .filterNot { it.isNullOrBlank() }
+            .joinToString(", ")
+    }
+
+    private fun formatDateTime(value: String?): String? {
+        if (value.isNullOrBlank()) return null
+        return DateFormatter.formatDateTime(value)
+    }
+
+    private fun formatBoolean(value: Boolean): String = if (value) "Да" else "Нет"
 
     private fun addDataField(container: android.widget.LinearLayout, label: String, value: String?) {
         if (value.isNullOrBlank()) return
@@ -472,6 +553,8 @@ class IncomingCallActivity : AppCompatActivity() {
         stopAlerts()
         if (wakeLock?.isHeld == true) wakeLock?.release()
         countdownTimer?.cancel()
+        countdownHospitalizationId = null
+        boundHospitalizationId = null
     }
 
     // Преобразование нужно только для старых тестовых сценариев.
@@ -563,6 +646,8 @@ class IncomingCallActivity : AppCompatActivity() {
         val yearNumber = parts.getOrNull(1)?.toIntOrNull() ?: 0
         return dayNumber to yearNumber
     }
+
+    private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 
     companion object {
         const val EXTRA_HOSPITALIZATION = "EXTRA_HOSPITALIZATION"

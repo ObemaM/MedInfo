@@ -22,6 +22,7 @@ import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.ReceptionNotificationType
 import com.example.medinfo.ui.incoming.IncomingCallActivity
 import com.example.medinfo.ui.incoming.IncomingCallRinger
+import com.example.medinfo.util.CallLog
 import com.microsoft.signalr.HubConnection
 import com.microsoft.signalr.HubConnectionBuilder
 import io.reactivex.rxjava3.core.Single
@@ -134,11 +135,15 @@ class SignalRService : Service() {
 
     // Обрабатываем госпитализации как основной источник очереди входящих решений.
     private fun handleHospitalizationNotifications(items: Array<out HospitalizationResponseDto>) {
-        android.util.Log.i("CALL_LOG", "[SignalR] HospitalizationNotification count=${items.size}")
+        CallLog.event("SignalR", "HospitalizationNotification count=${items.size}")
 
         val idsToConfirm = items
             .filter { !it.isNotificationSent }
             .map { it.id }
+
+        if (idsToConfirm.isNotEmpty()) {
+            CallLog.event("SignalR", "confirm hospitalization notifications count=${idsToConfirm.size}")
+        }
 
         if (idsToConfirm.isNotEmpty()) {
             serviceScope.launch {
@@ -152,16 +157,34 @@ class SignalRService : Service() {
         }
 
         items.forEach { hospitalization ->
+            CallLog.hospitalization(
+                source = "SignalR",
+                call = hospitalization,
+                message = "received requiresDecision=${hospitalization.requiresIncomingDecision()}"
+            )
+
             if (hospitalization.requiresIncomingDecision()) {
                 val isNew = CallsManager.upsertCall(hospitalization)
                 if (isNew) {
-                    android.util.Log.i(
-                        "CALL_LOG",
-                        "[SignalR] New incoming hospitalization: ${hospitalization.id}"
+                    CallLog.hospitalization(
+                        source = "SignalR",
+                        call = hospitalization,
+                        message = "new incoming decision call, opening fullscreen alert"
                     )
-                    triggerFullscreenAlert()
+                    triggerFullscreenAlert(hospitalization)
+                } else {
+                    CallLog.hospitalization(
+                        source = "SignalR",
+                        call = hospitalization,
+                        message = "updated existing decision call"
+                    )
                 }
             } else {
+                CallLog.hospitalization(
+                    source = "SignalR",
+                    call = hospitalization,
+                    message = "not requiring decision, removing from local queue"
+                )
                 CallsManager.removeCall(hospitalization.id)
                 if (CallsManager.calls.value.isEmpty()) {
                     IncomingCallRinger.stop()
@@ -172,16 +195,23 @@ class SignalRService : Service() {
 
     // Для сообщений подтверждаем только уведомления от планшета.
     private fun handleMessageNotifications(items: Array<out MessageResponseDto>) {
-        android.util.Log.i("CALL_LOG", "[SignalR] MessageNotification count=${items.size}")
+        CallLog.event("SignalR", "MessageNotification count=${items.size}")
 
         items
             .filter { MessageOrigin.fromId(it.origin) == MessageOrigin.TABLET }
             // Сообщение от бригады считается моментом, когда врачу реально нужно начать принимать решение.
-            .forEach { CallsManager.markDecisionTimerStarted(it.hospitalizationId) }
+            .forEach {
+                CallLog.message("SignalR", it, "tablet message starts/keeps decision timer")
+                CallsManager.markDecisionTimerStarted(it.hospitalizationId)
+            }
 
         val idsToConfirm = items
             .filter { !it.isNotificationSent && MessageOrigin.fromId(it.origin) == MessageOrigin.TABLET }
             .map { it.id }
+
+        if (idsToConfirm.isNotEmpty()) {
+            CallLog.event("SignalR", "confirm brigade message notifications count=${idsToConfirm.size}")
+        }
 
         if (idsToConfirm.isNotEmpty()) {
             serviceScope.launch {
@@ -245,8 +275,8 @@ class SignalRService : Service() {
         }
     }
 
-    // Открываем входящий экран без передачи legacy-данных через intent.
-    private fun triggerFullscreenAlert() {
+    // Открываем входящий экран сразу с конкретной госпитализацией, пришедшей из SignalR.
+    private fun triggerFullscreenAlert(hospitalization: HospitalizationResponseDto) {
         IncomingCallRinger.start(this)
 
         val fullScreenIntent = Intent(this, IncomingCallActivity::class.java).apply {
@@ -255,6 +285,7 @@ class SignalRService : Service() {
                 Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
                 Intent.FLAG_ACTIVITY_SINGLE_TOP or
                 Intent.FLAG_ACTIVITY_EXCLUDE_FROM_RECENTS
+            putExtra(IncomingCallActivity.EXTRA_HOSPITALIZATION, hospitalization)
         }
 
         try {

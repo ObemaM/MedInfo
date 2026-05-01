@@ -14,6 +14,7 @@ import com.example.medinfo.databinding.ActivityHospitalizationDetailsBinding
 import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
+import com.example.medinfo.ui.chat.ChatActivity
 import com.example.medinfo.util.DateFormatter
 
 class HospitalizationDetailsActivity : AppCompatActivity() {
@@ -166,6 +167,21 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
         // В архиве чат скрываем: переписку планируем только для активных вызовов.
         val isArchive = HospitalizationStatus.fromId(hospitalization.statusId)?.isArchive == true
         binding.chatPlaceholderCard.visibility = if (isArchive) View.GONE else View.VISIBLE
+        binding.chatPlaceholderCard.setOnClickListener {
+            openChat(hospitalization)
+        }
+    }
+
+    private fun openChat(hospitalization: HospitalizationResponseDto) {
+        val intent = android.content.Intent(this, ChatActivity::class.java).apply {
+            putExtra(ChatActivity.EXTRA_HOSPITALIZATION_ID, hospitalization.id)
+            putExtra(
+                ChatActivity.EXTRA_CHAT_TITLE,
+                "Вызов №${hospitalization.call.dayNumber}/${hospitalization.call.yearNumber}"
+            )
+            putExtra(ChatActivity.EXTRA_READ_ONLY, false)
+        }
+        startActivity(intent)
     }
 
     private fun addSection(container: LinearLayout, title: String) {

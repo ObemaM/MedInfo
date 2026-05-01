@@ -8,7 +8,7 @@
     "httpReadTimeoutSeconds": 20
   },
   "intervals": {
-    "maxCallDurationMs": 2400000
+    "maxCallDurationMs": 2700000
   },
   "storage": {
     "sessionPrefsName": "app_session",

@@ -52,6 +52,10 @@
             android:exported="false"
             android:screenOrientation="portrait" />
         <activity
+            android:name=".ui.chat.ChatActivity"
+            android:exported="false"
+            android:screenOrientation="portrait" />
+        <activity
             android:name=".ui.incoming.IncomingCallActivity"
             android:launchMode="singleTask"
             android:exported="false"

@@ -16,6 +16,7 @@ import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
 import com.example.medinfo.ui.incoming.IncomingCallRinger
+import com.example.medinfo.util.CallLog
 import com.example.medinfo.util.DateFormatter
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -118,7 +119,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 val content = response.content
-                val newCalls = content?.hospitalizations?.map {it.toUiHospitalization()}.orEmpty()
+                val hospitalizations = content?.hospitalizations.orEmpty()
+                CallLog.event(
+                    source = "MainViewModel",
+                    message = "loaded hospitalizations tab=$currentTabFilter page=$page count=${hospitalizations.size} total=${content?.count ?: "unknown"}"
+                )
+
+                if (currentTabFilter == TabFilter.REQUIRES_DECISION) {
+                    CallsManager.syncDecisionCallsFromServer(hospitalizations)
+                }
+
+                val newCalls = hospitalizations.map { it.toUiHospitalization() }
 
                 if (resetBeforeLoad){
                     loadedCalls.clear()
@@ -209,9 +220,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return when (tab) {
             TabFilter.REQUIRES_DECISION ->
                 GetHospitalizationsFiltersRequestDto(
-                    decisions = listOf(HospitalizationDecision.NONE.id),
-
-                    // Проверяем, чтобы вызовы не были завершенными
+                    // Для надежности берем активные вызовы и ниже дополнительно фильтруем decisionId = 0 на клиенте.
                     statuses = listOf(
                         HospitalizationStatus.CREW_EN_ROUTE.id,
                         HospitalizationStatus.CREW_ON_SITE.id
@@ -248,8 +257,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         _isFilterActive.value = currentFilters.isActive()
 
+        val baseListWithTabFilter = allCalls.filter { call ->
+            matchesCurrentTab(call)
+        }
+
         val baseListWithCustomFilters =
-            allCalls.filter { call ->
+            baseListWithTabFilter.filter { call ->
                 matchesCustomFilters(call, currentFilters)
             }
 
@@ -266,6 +279,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
 
         _filteredCalls.value = sortForCurrentTab(filteredList)
+    }
+
+    private fun matchesCurrentTab(call: Hospitalization): Boolean {
+        val details = call.details
+        return when (currentTabFilter) {
+            TabFilter.REQUIRES_DECISION ->
+                call.decisionId == HospitalizationDecision.NONE.id &&
+                    details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true } != false
+
+            TabFilter.ACTIVE ->
+                details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true }
+                    ?: !call.isArchived
+
+            TabFilter.ARCHIVE ->
+                details?.let { HospitalizationStatus.fromId(it.statusId)?.isArchive == true }
+                    ?: call.isArchived
+        }
     }
 
     private fun sortForCurrentTab(calls: List<Hospitalization>): List<Hospitalization> {
@@ -440,6 +470,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             urgency = responseCall.urgency,
             isNotificationSent = isNotificationSent,
             isArchived = HospitalizationStatus.fromId(statusId)?.isArchive == true,
+            decisionId = decisionId,
             decisionRemainingMillis = calculateDecisionRemainingMillis(this),
             details = this
         )
@@ -451,10 +482,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         // Если вызов уже есть в локальной очереди, используем ее монотонный таймер без скачков системного времени.
         CallsManager.getRemainingIgnoreMillis(hospitalization.id)?.let { return it }
 
-        val startedAtMillis =
-            DateFormatter.parseCallTimeMillis(hospitalization.notificationTime)
-                ?: DateFormatter.parseCallTimeMillis(hospitalization.call.callTime)
-                ?: return null
+        // Первичный расчет нужен только для серверных уведомлений с известным notificationTime.
+        // Если времени уведомления нет, CallsManager создаст локальный якорь при получении вызова.
+        val startedAtMillis = DateFormatter.parseCallTimeMillis(hospitalization.notificationTime)
+            ?: return null
 
         val deadlineMillis = startedAtMillis + ConfigManager.maxCallDurationMs
         return (deadlineMillis - System.currentTimeMillis())

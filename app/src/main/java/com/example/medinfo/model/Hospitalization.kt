@@ -46,6 +46,7 @@ data class Hospitalization(
     // Локальные поля (не из ApiService, для нужд UI/логики)
     var isNotificationSent: Boolean = true,
     var isArchived: Boolean = false,
+    val decisionId: Int? = null,
     var formattedCallTime: String? = null,
     var searchCache: String? = null,
     var decisionRemainingMillis: Long? = null,

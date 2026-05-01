@@ -1,6 +1,10 @@
 package com.example.medinfo.util
 
 import java.text.SimpleDateFormat
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 object DateFormatter {
@@ -41,13 +45,42 @@ object DateFormatter {
     // Парсит дату вызова в миллисекунды (для фильтрации по дате)
     fun parseCallTimeMillis(callTime: String?): Long? {
         if (callTime.isNullOrBlank()) return null
+
+        parseIsoOffsetMillis(callTime)?.let { return it }
+        parseIsoLocalMillis(callTime)?.let { return it }
+
+        return parseLegacyMillis(callTime)
+    }
+
+    private fun parseIsoOffsetMillis(value: String): Long? {
+        return try {
+            OffsetDateTime.parse(value, DateTimeFormatter.ISO_OFFSET_DATE_TIME)
+                .toInstant()
+                .toEpochMilli()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun parseIsoLocalMillis(value: String): Long? {
+        return try {
+            LocalDateTime.parse(value.take(19), DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                .atZone(ZoneId.systemDefault())
+                .toInstant()
+                .toEpochMilli()
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun parseLegacyMillis(value: String): Long? {
         return try {
             // Если длина даты больше 19, то сокращаем до 19, чтобы точно парсилось
             val normalized =
-                if (callTime.length >= 19) {
-                    callTime.take(19)
+                if (value.length >= 19) {
+                    value.take(19)
                 } else {
-                    callTime
+                    value
                 }
             inputFormat.get()?.parse(normalized)?.time
         } catch (_: Exception) {
