@@ -82,7 +82,4 @@ dependencies {
     // Для работы с JSON внутри SignalR
     implementation(libs.gson)
 
-    // Для RecyclerView в экране звонков, чтобы вызовы шли горизонтально, а не вертикально
-    implementation(libs.flexbox)
-
 }

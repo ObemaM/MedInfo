@@ -61,6 +61,11 @@ object CallsManager {
         return (totalMillis - elapsed).coerceAtLeast(0L)
     }
 
+    // Фиксирует локальный старт таймера решения, если серверного времени пока недостаточно.
+    fun markDecisionTimerStarted(hospitalizationId: String) {
+        callAddedAtMs.putIfAbsent(hospitalizationId, SystemClock.elapsedRealtime())
+    }
+
     // Удаляет госпитализацию из очереди и очищает ее таймер.
     fun removeCall(hospitalizationId: String) {
         removeTimer(hospitalizationId)

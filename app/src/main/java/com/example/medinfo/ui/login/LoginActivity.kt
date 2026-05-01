@@ -12,6 +12,7 @@ import com.example.medinfo.data.repository.LoginRepository
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.network.TokenInterceptor
 import com.example.medinfo.data.signalr.SignalRService
+import com.example.medinfo.ui.config.ConfigActivity
 import com.example.medinfo.ui.main.MainActivity
 import com.example.medinfo.util.toSha256
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +47,14 @@ class LoginActivity: AppCompatActivity() {
                 hideKeyboard()
                 binding.errorTextView.text = "Введите логин и пароль"
                 binding.errorTextView.visibility = View.VISIBLE
+                return@setOnClickListener
+            }
+
+            if (isLocalConfigLogin(inputText, inputPassword)) {
+                // Локальный админ-вход открывает только настройки и не создает серверную сессию.
+                hideKeyboard()
+                binding.errorTextView.visibility = View.GONE
+                startActivity(Intent(this, ConfigActivity::class.java))
                 return@setOnClickListener
             }
 
@@ -106,6 +115,11 @@ class LoginActivity: AppCompatActivity() {
         }
     }
 
+    private fun isLocalConfigLogin(login: String, password: String): Boolean {
+        // Временный простой доступ к конфигу: позже пароль можно вынести в защищенную настройку.
+        return login.trim().equals(CONFIG_LOGIN, ignoreCase = true) && password == CONFIG_PASSWORD
+    }
+
     // Called when returning from settings to continue permission checks
     override fun onResume() {
         super.onResume()
@@ -138,5 +152,10 @@ class LoginActivity: AppCompatActivity() {
             startActivity(Intent(this, MainActivity::class.java))
             finish()
         }
+    }
+
+    private companion object {
+        const val CONFIG_LOGIN = "admin"
+        const val CONFIG_PASSWORD = "0000"
     }
 }

@@ -1,7 +1,7 @@
 {
   "server": {
     "baseUrl": "http://46.146.213.95:27234",
-    "signalrHubUrl": "http://46.146.213.95:27234/call"
+    "signalrHubUrl": "http://46.146.213.95:27234/notifications"
   },
   "timeouts": {
     "httpConnectTimeoutSeconds": 20,
@@ -13,5 +13,13 @@
   "storage": {
     "sessionPrefsName": "app_session",
     "jwtTokenKey": "jwt_token"
+  },
+  "testing": {
+    "disableSignalR": false,
+    "fakeCallDelayMinutes": 35
+  },
+  "notifications": {
+    "serviceNotificationId": 101,
+    "serviceChannelId": "MedInfo_SignalR_Service"
   }
 }

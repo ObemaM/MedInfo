@@ -19,6 +19,7 @@ import com.example.medinfo.model.BleedingInfo
 import com.example.medinfo.model.ArterialTourniquetInfo
 import com.example.medinfo.model.VenousAccessInfo
 import com.example.medinfo.model.IfaInfo
+import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.signalr.SignalRService
 import com.example.medinfo.receiver.FakeCallAlarmReceiver
 import com.example.medinfo.ui.login.LoginActivity
@@ -43,6 +44,7 @@ import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.databinding.ActivityMainBinding
 import com.example.medinfo.databinding.DialogUserDataBinding
 import com.example.medinfo.databinding.PopupMenuCustomBinding
+import com.example.medinfo.ui.details.HospitalizationDetailsActivity
 import com.example.medinfo.util.PermissionManager
 import kotlinx.coroutines.flow.collectLatest
 import androidx.recyclerview.widget.RecyclerView
@@ -55,6 +57,9 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var viewModel: MainViewModel
     private var searchJob: Job? = null
+    private var decisionTimerJob: Job? = null
+    private var currentTabFilter = MainViewModel.TabFilter.REQUIRES_DECISION
+    private var shouldRefreshCallsOnResume = false
 
     // Список для адаптера (обновляется при получении данных из ViewModel)
     private val hospitalizationList = mutableListOf<Hospitalization>()
@@ -109,6 +114,18 @@ class MainActivity : AppCompatActivity() {
         PermissionManager.enforcePermissions(this) {
             // Permissions granted, continue normal operation
         }
+
+        if (shouldRefreshCallsOnResume && ::viewModel.isInitialized) {
+            shouldRefreshCallsOnResume = false
+            viewModel.fetchCalls()
+        }
+
+        startDecisionTimerUpdatesIfNeeded()
+    }
+
+    override fun onPause() {
+        stopDecisionTimerUpdates()
+        super.onPause()
     }
 
     private fun observeViewModel() {
@@ -120,7 +137,14 @@ class MainActivity : AppCompatActivity() {
                 hospitalizationList.addAll(calls)
 
                 if (!::adapter.isInitialized) {
-                    adapter = HospitalizationAdapter(hospitalizationList) { }
+                    adapter = HospitalizationAdapter(hospitalizationList) { hospitalization ->
+                        if (currentTabFilter == MainViewModel.TabFilter.REQUIRES_DECISION) {
+                            openDecisionScreen(hospitalization)
+                        } else {
+                            openHospitalizationDetails(hospitalization)
+                        }
+                    }
+                    adapter.setShowDecisionTimer(currentTabFilter == MainViewModel.TabFilter.REQUIRES_DECISION)
 
                     // Объекты идут друг за другом
                     val layoutManager = LinearLayoutManager(this@MainActivity)
@@ -147,6 +171,7 @@ class MainActivity : AppCompatActivity() {
                         }
                     )
                 } else {
+                    adapter.setShowDecisionTimer(currentTabFilter == MainViewModel.TabFilter.REQUIRES_DECISION)
                     adapter.notifyDataSetChanged()
 
                 }
@@ -303,6 +328,8 @@ class MainActivity : AppCompatActivity() {
                                 }
 
                         // При смене вкладки сразу обновляем список с учётом текущей строки поиска
+                        currentTabFilter = tabFilter
+                        startDecisionTimerUpdatesIfNeeded()
                         viewModel.setTabFilter(tabFilter)
                     }
 
@@ -318,6 +345,9 @@ class MainActivity : AppCompatActivity() {
                                     1 -> MainViewModel.TabFilter.ACTIVE
                                     2 -> MainViewModel.TabFilter.ARCHIVE
                                     else -> MainViewModel.TabFilter.REQUIRES_DECISION
+                                }.also {
+                                    currentTabFilter = it
+                                    startDecisionTimerUpdatesIfNeeded()
                                 }
                         )
                     }
@@ -389,6 +419,59 @@ class MainActivity : AppCompatActivity() {
 
     private fun logout() {
         viewModel.logout()
+    }
+
+    private fun openHospitalizationDetails(hospitalization: Hospitalization) {
+        val details = hospitalization.details
+        if (details == null) {
+            Toast.makeText(this, "Нет подробных данных вызова", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val intent = Intent(this, HospitalizationDetailsActivity::class.java).apply {
+            putExtra(HospitalizationDetailsActivity.EXTRA_HOSPITALIZATION, details)
+        }
+        startActivity(intent)
+    }
+
+    private fun openDecisionScreen(hospitalization: Hospitalization) {
+        val details = hospitalization.details
+        if (details == null) {
+            Toast.makeText(this, "Нет данных для принятия решения", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        CallsManager.upsertCall(details)
+        shouldRefreshCallsOnResume = true
+
+        // Из списка "Требуют решения" открываем выбранный вызов без повторного звука и вибрации.
+        val intent = Intent(this, IncomingCallActivity::class.java).apply {
+            putExtra(IncomingCallActivity.EXTRA_HOSPITALIZATION, details)
+            putExtra(IncomingCallActivity.EXTRA_START_ALERTS, false)
+        }
+        startActivity(intent)
+    }
+
+    private fun startDecisionTimerUpdatesIfNeeded() {
+        if (currentTabFilter != MainViewModel.TabFilter.REQUIRES_DECISION) {
+            stopDecisionTimerUpdates()
+            return
+        }
+
+        if (decisionTimerJob?.isActive == true) return
+
+        decisionTimerJob = lifecycleScope.launch {
+            while (true) {
+                // Карточки должны тикать сами, без повторного открытия вызова пользователем.
+                viewModel.refreshDecisionTimers()
+                delay(1000)
+            }
+        }
+    }
+
+    private fun stopDecisionTimerUpdates() {
+        decisionTimerJob?.cancel()
+        decisionTimerJob = null
     }
 
      private fun showConfirmArchiveDialog() {

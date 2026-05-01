@@ -113,22 +113,42 @@ class FakeCallAlarmReceiver : BroadcastReceiver() {
             
             android.util.Log.i("CALL_LOG", "[FakeCallAlarmReceiver] Scheduling fake call in $delayMinutes minutes at ${java.util.Date(triggerTime)}")
             
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                // Use setExactAndAllowWhileIdle to bypass Doze mode
-                alarmManager.setExactAndAllowWhileIdle(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerTime,
-                    pendingIntent
-                )
-            } else {
-                alarmManager.setExact(
-                    AlarmManager.RTC_WAKEUP,
-                    triggerTime,
-                    pendingIntent
-                )
+            try {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+                    // Если exact alarm запрещен системой, оставляем тест рабочим через обычный будильник.
+                    alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+                    android.widget.Toast.makeText(
+                        context,
+                        "Точный будильник недоступен, тестовый вызов запланирован примерно через $delayMinutes минут",
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                    return
+                }
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    // Точный будильник нужен для проверки появления вызова в Doze-режиме.
+                    alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTime,
+                        pendingIntent
+                    )
+                } else {
+                    alarmManager.setExact(
+                        AlarmManager.RTC_WAKEUP,
+                        triggerTime,
+                        pendingIntent
+                    )
+                }
+
+                android.widget.Toast.makeText(context, "Тестовый вызов запланирован через $delayMinutes минут", android.widget.Toast.LENGTH_LONG).show()
+            } catch (e: SecurityException) {
+                alarmManager.set(AlarmManager.RTC_WAKEUP, triggerTime, pendingIntent)
+                android.widget.Toast.makeText(
+                    context,
+                    "Нет разрешения на точный будильник, тестовый вызов запланирован примерно через $delayMinutes минут",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
             }
-            
-            android.widget.Toast.makeText(context, "Тестовый вызов запланирован через $delayMinutes минут", android.widget.Toast.LENGTH_LONG).show()
         }
         
         fun cancelFakeCall(context: Context) {

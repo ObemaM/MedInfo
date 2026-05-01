@@ -119,5 +119,21 @@
             android:textColor="@color/menu_text_color_1"
             android:textStyle="italic" />
 
+        <TextView
+            android:id="@+id/decision_timer_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:background="@drawable/rounded_status_background"
+            android:gravity="center"
+            android:paddingHorizontal="10dp"
+            android:paddingVertical="6dp"
+            android:textColor="@color/white_1"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:text="Осталось на решение: 12:34"
+            tools:visibility="visible" />
+
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

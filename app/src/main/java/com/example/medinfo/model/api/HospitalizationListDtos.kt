@@ -1,23 +1,25 @@
 package com.example.medinfo.model.api
 
+import java.io.Serializable
+
 // POST /hospitalizations/get-hospitalizations
 data class GetHospitalizationsRequestDto(
     val pageNumber: Int,
     val pageSize: Int,
     val getCount: Boolean,
     val filters: GetHospitalizationsFiltersRequestDto? = null
-)
+) : Serializable
 
 data class GetHospitalizationsFiltersRequestDto(
     val statuses: List<Int>? = null,
     val decisions: List<Int>? = null
-)
+) : Serializable
 
 // GET для данных госпитализаций
 data class GetHospitalizationsResponseDto(
     val count: Int?,
     val hospitalizations: List<HospitalizationResponseDto>
-)
+) : Serializable
 
 data class HospitalizationResponseDto(
     val id: String,
@@ -29,7 +31,7 @@ data class HospitalizationResponseDto(
     val decisionTime: String?,
     val call: CallResponseDto,
     val isNotificationSent: Boolean
-)
+) : Serializable
 
 data class CallResponseDto(
     val id: String,
@@ -97,4 +99,4 @@ data class CallResponseDto(
     val member1: String?,
     val member2: String?,
     val driver: String?
-)
+) : Serializable

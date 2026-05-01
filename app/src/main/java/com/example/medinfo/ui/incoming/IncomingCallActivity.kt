@@ -25,9 +25,7 @@ import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.util.DateFormatter
-import com.google.android.flexbox.FlexDirection
-import com.google.android.flexbox.FlexWrap
-import com.google.android.flexbox.FlexboxLayoutManager
+import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -40,9 +38,9 @@ class IncomingCallActivity : AppCompatActivity() {
     private var vibrator: Vibrator? = null
 
     private lateinit var binding: ActivityIncomingCallBinding
-    private lateinit var sideAdapter: SideTabsAdapter
 
     private var currentHospitalization: HospitalizationResponseDto? = null
+    private var requestedHospitalizationId: String? = null
     private var countdownTimer: CountDownTimer? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,9 +54,7 @@ class IncomingCallActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         setupWindowFlags()
-        setupSidePanel()
 
-        // Оставляем поддержку legacy-intent для локальных тестовых сценариев.
         handleIncomingIntent(intent)
         observeCallsQueue()
 
@@ -66,34 +62,69 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.buttonReject.setOnClickListener { showConfirmRejectDialog() }
         binding.closeButton.setOnClickListener { finish() }
         binding.infoButton.setOnClickListener { showCallDataDialog() }
+        binding.chatButton.setOnClickListener {
+            // Пока чат не реализован, кнопка явно показывает, что место под него уже зарезервировано.
+            Toast.makeText(this, "Чат будет добавлен отдельно", Toast.LENGTH_SHORT).show()
+        }
 
-        startContinuousAlerts()
         binding.buttonStopAlerts.setOnClickListener {
             stopAlerts()
             binding.buttonStopAlerts.visibility = android.view.View.GONE
         }
-        binding.buttonStopAlerts.visibility = android.view.View.VISIBLE
+
+        if (shouldStartAlerts(intent)) {
+            startContinuousAlerts()
+        } else {
+            stopAlerts()
+            binding.buttonStopAlerts.visibility = android.view.View.GONE
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
 
-        binding.buttonStopAlerts.visibility = android.view.View.VISIBLE
-
-        if (!IncomingCallRinger.isPlaying()) {
-            IncomingCallRinger.start(this)
+        if (shouldStartAlerts(intent)) {
+            binding.buttonStopAlerts.visibility = android.view.View.VISIBLE
+            if (!IncomingCallRinger.isPlaying()) {
+                IncomingCallRinger.start(this)
+            }
+            startVibration()
+        } else {
+            stopAlerts()
+            binding.buttonStopAlerts.visibility = android.view.View.GONE
         }
-        startVibration()
 
-        // Нужен только для совместимости с тестовыми CALL_DATA.
         handleIncomingIntent(intent)
     }
 
-    // Читаем старый extra только для тестовых запусков экрана.
+    // Читаем новую госпитализацию из списка или старый extra для тестовых запусков экрана.
     private fun handleIncomingIntent(intent: Intent?) {
+        val hospitalization = readHospitalizationExtra(intent)
+        if (hospitalization != null) {
+            // После удаления нижней очереди экран должен оставаться на вызове, выбранном в списке.
+            requestedHospitalizationId = hospitalization.id
+            currentHospitalization = hospitalization
+            CallsManager.upsertCall(hospitalization)
+            return
+        }
+
         val legacyCall = intent?.getSerializableExtra("CALL_DATA") as? CallNotificationDto ?: return
         CallsManager.upsertCall(legacyCall.toHospitalizationResponseDto())
+    }
+
+    private fun readHospitalizationExtra(intent: Intent?): HospitalizationResponseDto? {
+        if (intent == null) return null
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.getSerializableExtra(EXTRA_HOSPITALIZATION, HospitalizationResponseDto::class.java)
+        } else {
+            @Suppress("DEPRECATION")
+            intent.getSerializableExtra(EXTRA_HOSPITALIZATION) as? HospitalizationResponseDto
+        }
+    }
+
+    private fun shouldStartAlerts(intent: Intent?): Boolean {
+        return intent?.getBooleanExtra(EXTRA_START_ALERTS, true) ?: true
     }
 
     private fun setupLockScreenFlags() {
@@ -124,21 +155,7 @@ class IncomingCallActivity : AppCompatActivity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
     }
 
-    // Боковая панель теперь показывает госпитализации из нового SignalR-потока.
-    private fun setupSidePanel() {
-        sideAdapter = SideTabsAdapter { selectedHospitalization ->
-            displayCallDetails(selectedHospitalization)
-        }
-
-        val flexboxLayoutManager = FlexboxLayoutManager(this).apply {
-            flexDirection = FlexDirection.ROW
-            flexWrap = FlexWrap.WRAP
-        }
-        binding.rvSideTabs.layoutManager = flexboxLayoutManager
-        binding.rvSideTabs.adapter = sideAdapter
-    }
-
-    // Следим за очередью входящих госпитализаций через CallsManager.
+    // Следим за текущей госпитализацией через CallsManager.
     private fun observeCallsQueue() {
         lifecycleScope.launch {
             CallsManager.calls.collect { list ->
@@ -146,10 +163,8 @@ class IncomingCallActivity : AppCompatActivity() {
                     stopAlerts()
                     finish()
                 } else {
-                    sideAdapter.submitList(list)
-
-                    val currentId = currentHospitalization?.id
-                    val currentUpdated = currentId?.let { id -> list.firstOrNull { it.id == id } }
+                    val targetId = currentHospitalization?.id ?: requestedHospitalizationId
+                    val currentUpdated = targetId?.let { id -> list.firstOrNull { it.id == id } }
 
                     if (currentUpdated != null) {
                         displayCallDetails(currentUpdated)
@@ -164,7 +179,6 @@ class IncomingCallActivity : AppCompatActivity() {
     // Заполняем экран данными новой госпитализации и вложенного вызова.
     private fun displayCallDetails(hospitalization: HospitalizationResponseDto) {
         currentHospitalization = hospitalization
-        sideAdapter.setSelectedHospitalizationId(hospitalization.id)
 
         val responseCall = hospitalization.call
         val infoBlock = binding.patientInfoBlock
@@ -201,10 +215,10 @@ class IncomingCallActivity : AppCompatActivity() {
         infoBlock.urgencyData.text =
             responseCall.urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
 
+        // Таймер берём из CallsManager, чтобы экран решения и список "Требуют решения" шли синхронно.
         val remainingMs = CallsManager.getRemainingIgnoreMillis(hospitalization.id)
         val secondsToShow = if (remainingMs != null) ((remainingMs + 999L) / 1000L).toInt() else 2400
         startVisualCountdown(secondsToShow)
-        binding.messageEditText.setText("")
     }
 
     private fun startVisualCountdown(seconds: Int) {
@@ -215,7 +229,7 @@ class IncomingCallActivity : AppCompatActivity() {
                 val minutes = totalSeconds / 60
                 val secRemaining = totalSeconds % 60
                 binding.tvTimer.text =
-                    "Осталось: ${String.format("%02d", minutes)}:${String.format("%02d", secRemaining)}"
+                    "Осталось: ${String.format(Locale.ROOT, "%02d:%02d", minutes, secRemaining)}"
 
                 if (totalSeconds <= 10) {
                     binding.tvTimer.setTextColor(resources.getColor(R.color.red_1, null))
@@ -236,10 +250,9 @@ class IncomingCallActivity : AppCompatActivity() {
         }.start()
     }
 
-    // Отправляем решение по госпитализации и опциональный комментарий отдельным сообщением.
+    // Отправляем только решение по госпитализации. Сообщения будут жить в отдельном чате.
     private fun handleDecision(accepted: Boolean) {
         val hospitalization = currentHospitalization ?: return
-        val comment = binding.messageEditText.text.toString().trim()
         val decisionId = if (accepted) {
             HospitalizationDecision.ACCEPTED.id
         } else {
@@ -249,13 +262,6 @@ class IncomingCallActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) {
-                    if (comment.isNotBlank()) {
-                        hospitalizationRepository.sendMessage(
-                            hospitalizationId = hospitalization.id,
-                            messageText = comment
-                        )
-                    }
-
                     hospitalizationRepository.saveDecision(
                         hospitalizationId = hospitalization.id,
                         decisionId = decisionId
@@ -556,5 +562,10 @@ class IncomingCallActivity : AppCompatActivity() {
         val dayNumber = parts.getOrNull(0)?.toIntOrNull() ?: 0
         val yearNumber = parts.getOrNull(1)?.toIntOrNull() ?: 0
         return dayNumber to yearNumber
+    }
+
+    companion object {
+        const val EXTRA_HOSPITALIZATION = "EXTRA_HOSPITALIZATION"
+        const val EXTRA_START_ALERTS = "EXTRA_START_ALERTS"
     }
 }

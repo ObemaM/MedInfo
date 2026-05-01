@@ -174,6 +174,11 @@ class SignalRService : Service() {
     private fun handleMessageNotifications(items: Array<out MessageResponseDto>) {
         android.util.Log.i("CALL_LOG", "[SignalR] MessageNotification count=${items.size}")
 
+        items
+            .filter { MessageOrigin.fromId(it.origin) == MessageOrigin.TABLET }
+            // Сообщение от бригады считается моментом, когда врачу реально нужно начать принимать решение.
+            .forEach { CallsManager.markDecisionTimerStarted(it.hospitalizationId) }
+
         val idsToConfirm = items
             .filter { !it.isNotificationSent && MessageOrigin.fromId(it.origin) == MessageOrigin.TABLET }
             .map { it.id }

@@ -1,5 +1,6 @@
 package com.example.medinfo.model
 
+import com.example.medinfo.model.api.HospitalizationResponseDto
 import java.io.Serializable
 
 // Полная модель данных, представляющая один вызов (госпитализацию),
@@ -46,5 +47,7 @@ data class Hospitalization(
     var isNotificationSent: Boolean = true,
     var isArchived: Boolean = false,
     var formattedCallTime: String? = null,
-    var searchCache: String? = null
+    var searchCache: String? = null,
+    var decisionRemainingMillis: Long? = null,
+    val details: HospitalizationResponseDto? = null
 ) : Serializable

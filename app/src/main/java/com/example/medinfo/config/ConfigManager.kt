@@ -80,6 +80,62 @@ object ConfigManager {
     @Synchronized
     fun getConfig(): AppConfig = config
 
+    @Synchronized
+    fun save(context: Context, newConfig: AppConfig) {
+        val normalizedConfig = newConfig.copy(
+            serverBaseUrl = newConfig.serverBaseUrl.trimEnd('/'),
+            signalrHubUrl = "${newConfig.serverBaseUrl.trimEnd('/')}/notifications"
+        )
+
+        val root = JSONObject().apply {
+            put(
+                "server",
+                JSONObject().apply {
+                    put("baseUrl", normalizedConfig.serverBaseUrl)
+                    put("signalrHubUrl", normalizedConfig.signalrHubUrl)
+                }
+            )
+            put(
+                "timeouts",
+                JSONObject().apply {
+                    put("httpConnectTimeoutSeconds", normalizedConfig.httpConnectTimeoutSeconds)
+                    put("httpReadTimeoutSeconds", normalizedConfig.httpReadTimeoutSeconds)
+                }
+            )
+            put(
+                "intervals",
+                JSONObject().apply {
+                    put("maxCallDurationMs", normalizedConfig.maxCallDurationMs)
+                }
+            )
+            put(
+                "storage",
+                JSONObject().apply {
+                    put("sessionPrefsName", normalizedConfig.sessionPrefsName)
+                    put("jwtTokenKey", normalizedConfig.jwtTokenKey)
+                }
+            )
+            put(
+                "testing",
+                JSONObject().apply {
+                    put("disableSignalR", normalizedConfig.testModeDisableSignalR)
+                    put("fakeCallDelayMinutes", normalizedConfig.fakeCallDelayMinutes)
+                }
+            )
+            put(
+                "notifications",
+                JSONObject().apply {
+                    put("serviceNotificationId", normalizedConfig.notificationIdService)
+                    put("serviceChannelId", normalizedConfig.notificationChannelIdService)
+                }
+            )
+        }
+
+        val internalFile = getInternalConfigFile(context)
+        internalFile.writeText(root.toString(2))
+        config = normalizedConfig
+    }
+
     val serverBaseUrl: String get() = config.serverBaseUrl
 
     // Всегда собираем адрес нового SignalR-хаба из базового адреса сервера.

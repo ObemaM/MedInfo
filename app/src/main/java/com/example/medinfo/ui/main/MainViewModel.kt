@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.cache.CallsCache
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.network.RetrofitClient
@@ -168,6 +169,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         applyFilters()
     }
 
+    fun refreshDecisionTimers() {
+        if (currentTabFilter != TabFilter.REQUIRES_DECISION) return
+
+        // Пересчет идет локально раз в секунду: сервер заново дергать для таймера не нужно.
+        allCalls.forEach { call ->
+            call.decisionRemainingMillis = call.details?.let { details ->
+                calculateDecisionRemainingMillis(details)
+            }
+        }
+        applyFilters()
+    }
+
     fun logout() {
         viewModelScope.launch {
             val app = getApplication<Application>()
@@ -252,7 +265,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-        _filteredCalls.value = filteredList
+        _filteredCalls.value = sortForCurrentTab(filteredList)
+    }
+
+    private fun sortForCurrentTab(calls: List<Hospitalization>): List<Hospitalization> {
+        return when (currentTabFilter) {
+            TabFilter.REQUIRES_DECISION ->
+                calls.sortedWith(
+                    // Врачу сначала показываем вызовы, у которых быстрее закончится время на решение.
+                    compareBy<Hospitalization> {
+                        it.decisionRemainingMillis ?: Long.MAX_VALUE
+                    }.thenBy {
+                        DateFormatter.parseCallTimeMillis(it.callTime) ?: Long.MAX_VALUE
+                    }
+                )
+
+            TabFilter.ACTIVE,
+            TabFilter.ARCHIVE -> calls
+        }
     }
 
     private fun matchesCustomFilters(
@@ -409,8 +439,26 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             callTime = responseCall.callTime,
             urgency = responseCall.urgency,
             isNotificationSent = isNotificationSent,
-            isArchived = HospitalizationStatus.fromId(statusId)?.isArchive == true
+            isArchived = HospitalizationStatus.fromId(statusId)?.isArchive == true,
+            decisionRemainingMillis = calculateDecisionRemainingMillis(this),
+            details = this
         )
+    }
+
+    private fun calculateDecisionRemainingMillis(
+        hospitalization: HospitalizationResponseDto
+    ): Long? {
+        // Если вызов уже есть в локальной очереди, используем ее монотонный таймер без скачков системного времени.
+        CallsManager.getRemainingIgnoreMillis(hospitalization.id)?.let { return it }
+
+        val startedAtMillis =
+            DateFormatter.parseCallTimeMillis(hospitalization.notificationTime)
+                ?: DateFormatter.parseCallTimeMillis(hospitalization.call.callTime)
+                ?: return null
+
+        val deadlineMillis = startedAtMillis + ConfigManager.maxCallDurationMs
+        return (deadlineMillis - System.currentTimeMillis())
+            .coerceIn(0L, ConfigManager.maxCallDurationMs)
     }
 
     private companion object {
