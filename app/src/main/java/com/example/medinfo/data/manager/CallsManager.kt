@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 
+// Синглтон, поэтому делаем методы через Synchronized
 object CallsManager {
 
     // Актуальная очередь госпитализаций, требующих внимания пользователя.
@@ -40,12 +41,13 @@ object CallsManager {
             currentList[existingIndex] = call
         }
 
-        _calls.value = currentList
+        val sortedList = sortByCreationTime(currentList)
+        _calls.value = sortedList
         CallLog.queue(
             source = "CallsManager",
             action = if (isNew) "upsert-new" else "upsert-update",
             call = call,
-            queueSize = currentList.size,
+            queueSize = sortedList.size,
             isNew = isNew
         )
 
@@ -56,7 +58,7 @@ object CallsManager {
                 source = "CallsManager",
                 action = "not-requiring-timer-remove-timer",
                 call = call,
-                queueSize = currentList.size,
+                queueSize = sortedList.size,
                 isNew = isNew
             )
             removeTimer(call.id)
@@ -194,5 +196,18 @@ object CallsManager {
     private fun shouldStartIgnoreTimer(call: HospitalizationResponseDto): Boolean {
         return call.decisionId == HospitalizationDecision.NONE.id &&
             HospitalizationStatus.fromId(call.statusId)?.isActive == true
+    }
+
+    // TODO: Для того чтобы сортировать по таймеру, у чего быстрее истекает время
+    private fun sortByCreationTime(
+        calls: List<HospitalizationResponseDto>
+    ): List<HospitalizationResponseDto> {
+        return calls.sortedWith(
+            compareBy<HospitalizationResponseDto> {
+                DateFormatter.parseCallTimeMillis(it.creationTime)
+                    ?: DateFormatter.parseCallTimeMillis(it.call.callTime)
+                    ?: Long.MAX_VALUE
+            }.thenBy { it.id }
+        )
     }
 }

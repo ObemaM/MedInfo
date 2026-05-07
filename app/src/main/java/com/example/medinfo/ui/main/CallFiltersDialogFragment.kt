@@ -5,6 +5,7 @@ import android.app.Dialog
 import android.app.TimePickerDialog
 import android.os.Build
 import android.os.Bundle
+import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
 import androidx.core.os.bundleOf
@@ -183,6 +184,15 @@ class CallFiltersDialogFragment : DialogFragment() {
 
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
         return dialog
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val margin = (8 * resources.displayMetrics.density).toInt()
+        dialog?.window?.setLayout(
+            resources.displayMetrics.widthPixels - margin * 2,
+            (resources.displayMetrics.heightPixels * 0.86f).toInt()
+        )
     }
 
     private fun pickDateTime(initialMillis: Long?, onPicked: (Long) -> Unit) {

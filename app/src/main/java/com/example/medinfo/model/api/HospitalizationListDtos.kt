@@ -27,6 +27,7 @@ data class HospitalizationResponseDto(
     val decisionName: String,
     val statusId: Int,
     val statusName: String,
+    val creationTime: String?,
     val notificationTime: String?,
     val decisionTime: String?,
     val call: CallResponseDto,

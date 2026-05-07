@@ -3,6 +3,7 @@ package com.example.medinfo.ui.incoming
 import android.app.KeyguardManager
 import android.content.Context
 import android.content.Intent
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.os.CountDownTimer
@@ -11,8 +12,11 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.view.Gravity
 import android.view.WindowManager
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.R
 import com.example.medinfo.data.manager.CallsManager
@@ -45,6 +49,7 @@ class IncomingCallActivity : AppCompatActivity() {
     private var countdownTimer: CountDownTimer? = null
     private var countdownHospitalizationId: String? = null
     private var boundHospitalizationId: String? = null
+    private var isFullDetailsExpanded: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         CallLog.event("IncomingCallActivity", "onCreate START")
@@ -65,7 +70,9 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.buttonReject.setOnClickListener { showConfirmRejectDialog() }
         binding.closeButton.setOnClickListener { finish() }
         binding.chatButton.setOnClickListener { openChatScreen() }
-        binding.openChatCard.setOnClickListener { openChatScreen() }
+        binding.fullDetailsCard.setOnClickListener {
+            setFullDetailsExpanded(!isFullDetailsExpanded)
+        }
 
         binding.buttonStopAlerts.setOnClickListener {
             stopAlerts()
@@ -105,8 +112,12 @@ class IncomingCallActivity : AppCompatActivity() {
             // После удаления нижней очереди экран должен оставаться на вызове, выбранном в списке.
             requestedHospitalizationId = hospitalization.id
             currentHospitalization = hospitalization
-            CallLog.hospitalization("IncomingCallActivity", hospitalization, "received EXTRA_HOSPITALIZATION")
+            boundHospitalizationId = null
+
             CallsManager.upsertCall(hospitalization)
+            displayCallDetails(hospitalization)
+
+            CallLog.hospitalization("IncomingCallActivity", hospitalization, "received EXTRA_HOSPITALIZATION")
             return
         }
 
@@ -189,6 +200,7 @@ class IncomingCallActivity : AppCompatActivity() {
             // Данные карточки биндим хотя бы один раз; отдельно следим только за тем, чтобы не перезапускать таймер.
             bindSummary(hospitalization)
             bindDetails(hospitalization)
+            setFullDetailsExpanded(false)
             boundHospitalizationId = hospitalization.id
         }
 
@@ -235,6 +247,7 @@ class IncomingCallActivity : AppCompatActivity() {
         addDataField(container, "ID госпитализации", hospitalization.id)
         addDataField(container, "Статус госпитализации", "${hospitalization.statusName} (${hospitalization.statusId})")
         addDataField(container, "Решение", "${hospitalization.decisionName} (${hospitalization.decisionId})")
+        addDataField(container, "Время создания госпитализации", formatDateTime(hospitalization.creationTime))
         addDataField(container, "Уведомление отправлено", formatBoolean(hospitalization.isNotificationSent))
         addDataField(container, "Время подтверждения уведомления", formatDateTime(hospitalization.notificationTime))
         addDataField(container, "Время принятия решения", formatDateTime(hospitalization.decisionTime))
@@ -315,6 +328,15 @@ class IncomingCallActivity : AppCompatActivity() {
         addDataField(container, "Первый помощник", call.member1)
         addDataField(container, "Второй помощник", call.member2)
         addDataField(container, "Водитель", call.driver)
+    }
+
+    private fun setFullDetailsExpanded(expanded: Boolean) {
+        isFullDetailsExpanded = expanded
+        binding.fieldsContainer.visibility =
+            if (expanded) android.view.View.VISIBLE else android.view.View.GONE
+        binding.fullDetailsArrow.rotation = if (expanded) 180f else 0f
+        binding.fullDetailsArrow.contentDescription =
+            if (expanded) "Свернуть полные данные вызова" else "Раскрыть полные данные вызова"
     }
 
     private fun startVisualCountdown(hospitalizationId: String, seconds: Int) {
@@ -445,19 +467,24 @@ class IncomingCallActivity : AppCompatActivity() {
         wakeLock?.acquire(3 * 60 * 1000L)
     }
 
-    private fun addSection(container: android.widget.LinearLayout, title: String) {
-        val sectionView = android.widget.TextView(this).apply {
+    private fun addSection(container: LinearLayout, title: String) {
+        val sectionView = TextView(this).apply {
             text = title
-            setTextColor(resources.getColor(R.color.gray_1, null))
-            textSize = 18f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+            setTextColor(ContextCompat.getColor(this@IncomingCallActivity, R.color.main_1))
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.02f
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(ContextCompat.getColor(this@IncomingCallActivity, R.color.blue_3))
+                setStroke(1.dp(), ContextCompat.getColor(this@IncomingCallActivity, R.color.border_gray_1))
+                cornerRadius = 12.dp().toFloat()
+            }
+            setPadding(14.dp(), 10.dp(), 14.dp(), 10.dp())
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = if (container.childCount == 0) 8.dp() else 20.dp()
-                leftMargin = 8.dp()
-                rightMargin = 8.dp()
+                topMargin = if (container.childCount == 0) 0 else 18.dp()
             }
         }
         container.addView(sectionView)
@@ -490,50 +517,63 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private fun formatBoolean(value: Boolean): String = if (value) "Да" else "Нет"
 
-    private fun addDataField(container: android.widget.LinearLayout, label: String, value: String?) {
+    private fun addDataField(container: LinearLayout, label: String, value: String?) {
         if (value.isNullOrBlank()) return
 
-        val fieldLayout = android.widget.LinearLayout(this).apply {
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+        val fieldLayout = LinearLayout(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = if (container.childCount > 0) 16 else 0
+                topMargin = 2.dp()
             }
-            orientation = android.widget.LinearLayout.VERTICAL
-            setBackgroundResource(R.drawable.data_field_background)
-            setPadding(
-                resources.getDimensionPixelSize(R.dimen.field_padding_horizontal),
-                resources.getDimensionPixelSize(R.dimen.field_padding_vertical),
-                resources.getDimensionPixelSize(R.dimen.field_padding_horizontal),
-                resources.getDimensionPixelSize(R.dimen.field_padding_vertical)
-            )
+            gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(14.dp(), 10.dp(), 14.dp(), 10.dp())
         }
 
-        val labelView = android.widget.TextView(this).apply {
+        val labelView = TextView(this).apply {
             text = label
-            setTextColor(resources.getColor(R.color.gray_1, null))
-            textSize = 14f
-            letterSpacing = 0.05f
-            typeface = android.graphics.Typeface.create(typeface, android.graphics.Typeface.BOLD)
+            setTextColor(ContextCompat.getColor(this@IncomingCallActivity, R.color.gray_1))
+            textSize = 15f
+            typeface = Typeface.DEFAULT
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.42f
+            ).apply {
+                rightMargin = 12.dp()
+            }
         }
 
-        val valueView = android.widget.TextView(this).apply {
+        val valueView = TextView(this).apply {
             text = value
-            setTextColor(resources.getColor(R.color.gray_1, null))
-            textSize = 16f
-            gravity = Gravity.START
-            layoutParams = android.widget.LinearLayout.LayoutParams(
-                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = (4 * resources.displayMetrics.density).toInt()
-            }
+            setTextColor(ContextCompat.getColor(this@IncomingCallActivity, R.color.black_1))
+            textSize = 15f
+            gravity = Gravity.END
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.58f
+            )
         }
 
         fieldLayout.addView(labelView)
         fieldLayout.addView(valueView)
         container.addView(fieldLayout)
+
+        val divider = android.view.View(this).apply {
+            setBackgroundColor(ContextCompat.getColor(this@IncomingCallActivity, R.color.border_gray_1))
+            alpha = 0.65f
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1
+            ).apply {
+                leftMargin = 14.dp()
+                rightMargin = 14.dp()
+            }
+        }
+        container.addView(divider)
     }
 
     private fun showConfirmAcceptDialog() {
@@ -568,6 +608,7 @@ class IncomingCallActivity : AppCompatActivity() {
             decisionName = "Нет решения",
             statusId = 1,
             statusName = status ?: "Бригада в пути",
+            creationTime = callTime,
             notificationTime = null,
             decisionTime = null,
             call = CallResponseDto(

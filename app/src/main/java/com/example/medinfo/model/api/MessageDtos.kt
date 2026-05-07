@@ -25,8 +25,8 @@ data class MessageResponseDto(
 
 data class PatientConditionResponseDto(
     val id: String,
-    val startDisease: Int,
-    val vozr: String,
+    val startDisease: Int?,
+    val vozr: String?,
     val consciousness: String?,
     val bloodPressure: String?,
     val heartRate: Int?,
@@ -48,7 +48,7 @@ data class PatientConditionResponseDto(
     val bleedingType: String?,
     val arterialTourniquetPresence: Boolean,
     val arterialTourniquetApplicationTime: String?,
-    val mrs: Int,
+    val mrs: Int?,
     val newsScore: Int?,
     val pewsScore: Int?,
     val algoverIndex: Double?

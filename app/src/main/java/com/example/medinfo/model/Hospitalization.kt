@@ -41,6 +41,7 @@ data class Hospitalization(
     val yearNumber: Int?, // Год (для номера вызова)
     var status: String?, // Текущий статус ("транспортировка", "Активен" и т.д.)
     val callTime: String?, // Время вызова
+    val creationTime: String?, // Время создания госпитализации
     val urgency: Int?, // Срочность
 
     // Локальные поля (не из ApiService, для нужд UI/логики)

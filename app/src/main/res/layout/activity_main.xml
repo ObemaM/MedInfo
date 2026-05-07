@@ -150,7 +150,7 @@
         android:paddingRight="8dp"
         app:layout_constraintBottom_toTopOf="@+id/bottom_divider"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/search_filter_container"
         app:layout_constraintVertical_bias="0.0"
@@ -182,36 +182,71 @@
         app:strokeColor="@color/border_gray_1"
         app:strokeWidth="1dp">
 
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tab_layout"
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/tab_menu_button"
             android:layout_width="match_parent"
             android:layout_height="55dp"
             android:background="@color/background_2"
-            app:tabGravity="center"
-            app:tabIndicatorColor="@color/main_1"
-            app:tabMode="fixed"
-            app:tabPaddingEnd="40dp"
-            app:tabPaddingStart="40dp"
-            app:tabSelectedTextColor="@color/main_1"
-            app:tabTextAppearance="@style/CustomTabTextStyle"
-            app:tabTextColor="@color/gray_1">
+            android:clickable="true"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground">
 
-            <com.google.android.material.tabs.TabItem
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:id="@+id/selected_tab_text_container"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="Требуют решения" />
+                android:layout_marginStart="24dp"
+                android:layout_marginEnd="16dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/tab_menu_icon"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent">
 
-            <com.google.android.material.tabs.TabItem
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Активные" />
+                <TextView
+                    android:id="@+id/selected_tab_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/menu_active"
+                    android:textColor="@color/gray_1"
+                    android:textSize="16sp"
+                    android:textStyle="bold" />
 
-            <com.google.android.material.tabs.TabItem
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Архив" />
+                <TextView
+                    android:id="@+id/selected_tab_count_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/badge_circle"
+                    android:gravity="center"
+                    android:minWidth="24dp"
+                    android:paddingHorizontal="7dp"
+                    android:textColor="@color/white_1"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:visibility="gone"
+                    tools:text="5"
+                    tools:visibility="visible" />
 
-        </com.google.android.material.tabs.TabLayout>
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/tab_menu_icon"
+                android:layout_width="55dp"
+                android:layout_height="55dp"
+                android:layout_marginEnd="18dp"
+                android:contentDescription="@string/menu_settings"
+                android:padding="14dp"
+                android:src="@drawable/ic_menu_24"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:tint="@color/gray_1" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>
 

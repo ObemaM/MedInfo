@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    app:cardBackgroundColor="@color/background_2"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="6dp"
+    app:strokeColor="@color/border_gray_1"
+    app:strokeWidth="1dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <TextView
+                android:id="@+id/requires_decision_menu_item"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:clickable="true"
+                android:drawablePadding="14dp"
+                android:focusable="true"
+                android:gravity="center_vertical"
+                android:paddingStart="24dp"
+                android:paddingEnd="26dp"
+                android:text="@string/menu_requires_decision"
+                android:textColor="@color/gray_1"
+                android:textSize="16sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/requires_decision_count_badge"
+                android:layout_width="wrap_content"
+                android:layout_height="24dp"
+                android:layout_gravity="end|center_vertical"
+                android:layout_marginEnd="24dp"
+                android:background="@drawable/badge_circle"
+                android:gravity="center"
+                android:minWidth="24dp"
+                android:paddingHorizontal="7dp"
+                android:textColor="@color/white_1"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:text="5"
+                tools:visibility="visible" />
+
+        </FrameLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/border_gray_1" />
+
+        <TextView
+            android:id="@+id/active_menu_item"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:clickable="true"
+            android:drawablePadding="14dp"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingStart="24dp"
+            android:paddingEnd="26dp"
+            android:text="@string/menu_active"
+            android:textColor="@color/gray_1"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/border_gray_1" />
+
+        <TextView
+            android:id="@+id/archive_menu_item"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:clickable="true"
+            android:drawablePadding="14dp"
+            android:focusable="true"
+            android:gravity="center_vertical"
+            android:paddingStart="24dp"
+            android:paddingEnd="26dp"
+            android:text="@string/menu_archive"
+            android:textColor="@color/gray_1"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+    </LinearLayout>
+</com.google.android.material.card.MaterialCardView>

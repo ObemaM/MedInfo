@@ -5,14 +5,17 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupWindow
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.example.medinfo.R
 import com.example.medinfo.model.Hospitalization
 import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.model.BleedingInfo
@@ -23,7 +26,6 @@ import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.signalr.SignalRService
 import com.example.medinfo.receiver.FakeCallAlarmReceiver
 import com.example.medinfo.ui.login.LoginActivity
-import com.google.android.material.tabs.TabLayout
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -39,11 +41,13 @@ import android.os.Build
 import androidx.appcompat.app.AlertDialog
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.databinding.ActivityMainBinding
 import com.example.medinfo.databinding.DialogUserDataBinding
 import com.example.medinfo.databinding.PopupMenuCustomBinding
+import com.example.medinfo.databinding.PopupTabMenuBinding
 import com.example.medinfo.ui.details.HospitalizationDetailsActivity
 import com.example.medinfo.util.PermissionManager
 import kotlinx.coroutines.flow.collectLatest
@@ -59,6 +63,8 @@ class MainActivity : AppCompatActivity() {
     private var searchJob: Job? = null
     private var decisionTimerJob: Job? = null
     private var currentTabFilter = MainViewModel.TabFilter.REQUIRES_DECISION
+    private var currentDecisionCount = 0
+    private var tabMenuPopupWindow: PopupWindow? = null
     private var shouldRefreshCallsOnResume = false
 
     // Список для адаптера (обновляется при получении данных из ViewModel)
@@ -178,6 +184,14 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Счётчик "требуют решения" живёт в CallsManager и не зависит от текущей вкладки и поиска.
+        lifecycleScope.launch {
+            CallsManager.calls.collectLatest { decisionCalls ->
+                currentDecisionCount = decisionCalls.size
+                updateSelectedTabTitle()
+            }
+        }
+
         // Подписка на состояние фильтра
         lifecycleScope.launch {
             viewModel.isFilterActive.collectLatest { isActive ->
@@ -241,7 +255,7 @@ class MainActivity : AppCompatActivity() {
 
         // Функции-слушатели для более сложной логики
         setupFiltersListener() // Изменение состояния фильтров
-        setupTabsListener() // Переключение вкладки
+        setupTabMenuListener() // Переключение вкладки
         setupSearchListener() // Ввод текста и поиск
     }
 
@@ -312,47 +326,182 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Слушатель переключения вкладок "Активные" / "Архив"
-     */
-    private fun setupTabsListener() {
-        binding.tabLayout.addOnTabSelectedListener(
-                object : TabLayout.OnTabSelectedListener {
-                    override fun onTabSelected(tab: TabLayout.Tab?) {
-                        val tabFilter =
-                                when (tab?.position) {
-                                    0 -> MainViewModel.TabFilter.REQUIRES_DECISION
-                                    1 -> MainViewModel.TabFilter.ACTIVE
-                                    2 -> MainViewModel.TabFilter.ARCHIVE
-                                    else -> MainViewModel.TabFilter.REQUIRES_DECISION
-                                }
+    private fun setupTabMenuListener() {
+        updateSelectedTabTitle()
+        binding.tabMenuButton.setOnClickListener {
+            showTabMenuPopup(it)
+        }
+    }
 
-                        // При смене вкладки сразу обновляем список с учётом текущей строки поиска
-                        currentTabFilter = tabFilter
-                        startDecisionTimerUpdatesIfNeeded()
-                        viewModel.setTabFilter(tabFilter)
-                    }
+    // Открывает popup с тремя пунктами фильтра НАД нижней плашкой.
+    private fun showTabMenuPopup(anchor: View) {
+        tabMenuPopupWindow?.takeIf { it.isShowing }?.dismiss()
 
-                    override fun onTabUnselected(tab: TabLayout.Tab?) {
-                        // Ничего не делаем
-                    }
-
-                    override fun onTabReselected(tab: TabLayout.Tab?) {
-                        // При повторном нажатии можно обновить данные, но пока просто перефильтруем
-                        viewModel.setTabFilter(
-                                when (tab?.position) {
-                                    0 -> MainViewModel.TabFilter.REQUIRES_DECISION
-                                    1 -> MainViewModel.TabFilter.ACTIVE
-                                    2 -> MainViewModel.TabFilter.ARCHIVE
-                                    else -> MainViewModel.TabFilter.REQUIRES_DECISION
-                                }.also {
-                                    currentTabFilter = it
-                                    startDecisionTimerUpdatesIfNeeded()
-                                }
-                        )
-                    }
-                }
+        val popupBinding = PopupTabMenuBinding.inflate(layoutInflater)
+        bindTabMenuItem(
+                popupBinding.requiresDecisionMenuItem,
+                MainViewModel.TabFilter.REQUIRES_DECISION,
+                isFirst = true,
+                isLast = false
         )
+        bindTabMenuItem(
+                popupBinding.activeMenuItem,
+                MainViewModel.TabFilter.ACTIVE,
+                isFirst = false,
+                isLast = false
+        )
+        bindTabMenuItem(
+                popupBinding.archiveMenuItem,
+                MainViewModel.TabFilter.ARCHIVE,
+                isFirst = false,
+                isLast = true
+        )
+        updateDecisionCountBadge(popupBinding.requiresDecisionCountBadge)
+
+        val popupWindow =
+                PopupWindow(
+                        popupBinding.root,
+                        anchor.width,
+                        ViewGroup.LayoutParams.WRAP_CONTENT,
+                        true
+                ).apply {
+                    setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
+                    isOutsideTouchable = true
+                    elevation = dp(8).toFloat()
+                }
+
+        popupBinding.root.measure(
+                View.MeasureSpec.makeMeasureSpec(anchor.width, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+
+        tabMenuPopupWindow = popupWindow
+        popupWindow.showAsDropDown(
+                anchor,
+                0,
+                -anchor.height - popupBinding.root.measuredHeight - dp(8)
+        )
+    }
+
+    private fun bindTabMenuItem(
+        item: TextView,
+        tabFilter: MainViewModel.TabFilter,
+        isFirst: Boolean,
+        isLast: Boolean
+    ) {
+        val isSelected = currentTabFilter == tabFilter
+        item.text = getTabTitle(tabFilter)
+        item.isSelected = isSelected
+        item.background = createTabItemBackground(tabFilter, isSelected, isFirst, isLast)
+        item.setTextColor(getColor(if (isSelected) R.color.main_1 else R.color.gray_1))
+        item.setOnClickListener {
+            tabMenuPopupWindow?.dismiss()
+            selectTabFilter(tabFilter)
+        }
+    }
+
+    private fun selectTabFilter(tabFilter: MainViewModel.TabFilter) {
+        currentTabFilter = tabFilter
+        updateSelectedTabTitle()
+        startDecisionTimerUpdatesIfNeeded()
+        viewModel.setTabFilter(tabFilter)
+    }
+
+    private fun updateSelectedTabTitle() {
+        binding.selectedTabText.text = getTabTitle(currentTabFilter)
+
+        val showCount = currentTabFilter == MainViewModel.TabFilter.REQUIRES_DECISION &&
+                currentDecisionCount > 0
+        binding.selectedTabCountText.isVisible = showCount
+        if (showCount) {
+            binding.selectedTabCountText.text = getDecisionCountText()
+        }
+    }
+
+    private fun updateDecisionCountBadge(badge: TextView) {
+        val showCount = currentDecisionCount > 0
+        badge.isVisible = showCount
+        if (showCount) {
+            badge.text = getDecisionCountText()
+        }
+    }
+
+    // Сервер всегда отдаёт максимум pageSize=40 элементов на страницу. Если в локальной
+    // очереди достигли потолка — реальное число может быть больше, поэтому показываем "39+".
+    private fun getDecisionCountText(): String {
+        val pageSize = MainViewModel.DEFAULT_PAGE_SIZE
+        return if (currentDecisionCount >= pageSize) {
+            "${pageSize - 1}+"
+        } else {
+            currentDecisionCount.toString()
+        }
+    }
+
+    private fun getTabTitle(tabFilter: MainViewModel.TabFilter): String {
+        return when (tabFilter) {
+            MainViewModel.TabFilter.REQUIRES_DECISION -> getString(R.string.menu_requires_decision)
+            MainViewModel.TabFilter.ACTIVE -> getString(R.string.menu_active)
+            MainViewModel.TabFilter.ARCHIVE -> getString(R.string.menu_archive)
+        }
+    }
+
+    private fun dp(value: Int): Int {
+        return (value * resources.displayMetrics.density).toInt()
+    }
+
+    // Вспомогательные акцентные цвета и круглый маркер. Сейчас не используются —
+    // оставлены на случай возврата цветных точек слева от пунктов popup-меню.
+    private fun getTabAccent(tabFilter: MainViewModel.TabFilter): Int {
+        return when (tabFilter) {
+            MainViewModel.TabFilter.REQUIRES_DECISION -> getColor(R.color.red_1)
+            MainViewModel.TabFilter.ACTIVE -> getColor(R.color.green_1)
+            MainViewModel.TabFilter.ARCHIVE -> getColor(R.color.main_1)
+        }
+    }
+
+    private fun createTabMarker(color: Int): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(color)
+            setSize(dp(9), dp(9))
+            setBounds(0, 0, dp(9), dp(9))
+        }
+    }
+
+    // Подсветка выбранного пункта popup'а должна совпадать со скруглением самой карточки
+    private fun createTabItemBackground(
+        tabFilter: MainViewModel.TabFilter,
+        isSelected: Boolean,
+        isFirst: Boolean,
+        isLast: Boolean
+    ): GradientDrawable {
+        val radius = dp(24).toFloat()
+        val backgroundColor =
+                if (isSelected) getTabSelectedBackground(tabFilter) else Color.TRANSPARENT
+
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(backgroundColor)
+            cornerRadii =
+                    floatArrayOf(
+                            if (isFirst) radius else 0f,
+                            if (isFirst) radius else 0f,
+                            if (isFirst) radius else 0f,
+                            if (isFirst) radius else 0f,
+                            if (isLast) radius else 0f,
+                            if (isLast) radius else 0f,
+                            if (isLast) radius else 0f,
+                            if (isLast) radius else 0f
+                    )
+        }
+    }
+
+    private fun getTabSelectedBackground(tabFilter: MainViewModel.TabFilter): Int {
+        return when (tabFilter) {
+            MainViewModel.TabFilter.REQUIRES_DECISION,
+            MainViewModel.TabFilter.ACTIVE,
+            MainViewModel.TabFilter.ARCHIVE -> getColor(R.color.tab_selected_bg)
+        }
     }
 
     // Обработка кнопок при нажатии на профиль
@@ -400,7 +549,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun getAppVersion(): String? {
         return try {
-            @Suppress("DEPRECATION") packageManager.getPackageInfo(packageName, 0).versionName
+            packageManager.getPackageInfo(packageName, 0).versionName
         } catch (e: PackageManager.NameNotFoundException) {
             "-"
         }

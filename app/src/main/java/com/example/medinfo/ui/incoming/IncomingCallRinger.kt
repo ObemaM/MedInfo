@@ -4,17 +4,21 @@ import android.content.Context
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.media.RingtoneManager
-import android.os.Handler
-import android.os.Looper
 
 object IncomingCallRinger {
 
-    private val handler = Handler(Looper.getMainLooper())
-    private var stopRunnable: Runnable? = null
     private var mediaPlayer: MediaPlayer? = null
     private var isRunning = false
 
+    // Помечает, что звон запустил именно startBrief (для алерта поверх IncomingCallActivity).
+    // Нужен, чтобы при свайпе алерта не задеть continuous-звон основного вызова.
+    private var isBriefMode = false
+
     fun start(context: Context) {
+        // Continuous-режим перебивает brief: если звон уже шёл от brief, дальше он считается
+        // основным звоном вызова и больше не глушится по dismiss алерта.
+        isBriefMode = false
+
         if (isRunning) return
         stopInternal()
 
@@ -43,16 +47,31 @@ object IncomingCallRinger {
 
     @Deprecated("Use start(context) and manual stop() instead")
     fun start(context: Context, durationMs: Long) {
+        startBrief(context, durationMs)
+    }
+
+    // Запускает звон в "brief"-режиме. Без auto-stop: останавливается через stopBrief()
+    // при свайпе/тапе in-app алерта. Если continuous уже играет — не трогаем.
+    @Suppress("UNUSED_PARAMETER")
+    fun startBrief(context: Context, durationMs: Long) {
+        if (isRunning) return
         start(context)
-        val runnable = Runnable { stop() }
-        stopRunnable = runnable
-        handler.postDelayed(runnable, durationMs)
+        if (isRunning) {
+            isBriefMode = true
+        }
     }
 
     fun stop() {
+        isBriefMode = false
         stopInternal()
-        stopRunnable?.let { handler.removeCallbacks(it) }
-        stopRunnable = null
+    }
+
+    // Стопит ringer только если он был запущен brief'ом. continuous-звон основного
+    // вызова трогать нельзя.
+    fun stopBrief() {
+        if (isBriefMode) {
+            stop()
+        }
     }
 
     fun isPlaying(): Boolean {

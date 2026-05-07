@@ -5,7 +5,6 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medinfo.config.ConfigManager
-import com.example.medinfo.data.cache.CallsCache
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.network.TokenInterceptor
@@ -33,9 +32,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Загрузка данных с нового API госпитализаций
     private val hospitalizationRepository = HospitalizationRepository(RetrofitClient.apiServiceService)
-
-    // Кэш пока нужен для очистки при выходе из аккаунта и legacy-сценариев
-    private val callsCache = CallsCache(application)
 
     // Какой список сейчас показываем: требуют решения, активные или архив
     enum class TabFilter {
@@ -199,9 +195,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             CallsManager.clearAll()
             TokenInterceptor.clearToken(app)
             val sharedPrefs = app.getSharedPreferences("app_session", Context.MODE_PRIVATE)
-            sharedPrefs.getString("user_login", null)?.let { login ->
-                callsCache.clear(login)
-            }
             sharedPrefs.edit().remove("isLoggedIn").remove("user_login").apply()
             _logoutEvent.emit(Unit)
         }
@@ -306,13 +299,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     compareBy<Hospitalization> {
                         it.decisionRemainingMillis ?: Long.MAX_VALUE
                     }.thenBy {
-                        DateFormatter.parseCallTimeMillis(it.callTime) ?: Long.MAX_VALUE
+                        it.creationSortMillis()
                     }
                 )
 
             TabFilter.ACTIVE,
-            TabFilter.ARCHIVE -> calls
+            TabFilter.ARCHIVE -> sortByCreationTimeNewestFirst(calls)
         }
+    }
+
+    // Сначала элементы с валидной датой (свежие вверху), затем элементы без даты
+    // в стабильном порядке по id. Long.MAX_VALUE используется как "хвост" для битых дат.
+    private fun sortByCreationTimeNewestFirst(calls: List<Hospitalization>): List<Hospitalization> {
+        return calls.sortedWith(
+            compareBy<Hospitalization> { it.creationSortMillis() == Long.MAX_VALUE }
+                .thenByDescending { it.creationSortMillis() }
+                .thenByDescending { it.id }
+        )
+    }
+
+    // Время создания госпитализации — основной ключ. Если его нет, fallback на callTime.
+    // Если оба пустые/невалидные — Long.MAX_VALUE, чтобы сортировка отправила вниз.
+    private fun Hospitalization.creationSortMillis(): Long {
+        return DateFormatter.parseCallTimeMillis(creationTime)
+            ?: DateFormatter.parseCallTimeMillis(callTime)
+            ?: Long.MAX_VALUE
     }
 
     private fun matchesCustomFilters(
@@ -467,6 +478,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             yearNumber = responseCall.yearNumber,
             status = statusName,
             callTime = responseCall.callTime,
+            creationTime = creationTime,
             urgency = responseCall.urgency,
             isNotificationSent = isNotificationSent,
             isArchived = HospitalizationStatus.fromId(statusId)?.isArchive == true,
@@ -492,8 +504,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .coerceIn(0L, ConfigManager.maxCallDurationMs)
     }
 
-    private companion object {
-        const val FIRST_PAGE = 1
+    companion object {
+        private const val FIRST_PAGE = 1
         const val DEFAULT_PAGE_SIZE = 40
     }
 }

@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import com.example.medinfo.R
 import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.manager.CallsManager
+import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.model.api.HospitalizationDecision
@@ -20,8 +21,10 @@ import com.example.medinfo.model.api.HospitalizationStatus
 import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.ReceptionNotificationType
+import com.example.medinfo.ui.incoming.InAppIncomingCallAlert
 import com.example.medinfo.ui.incoming.IncomingCallActivity
 import com.example.medinfo.ui.incoming.IncomingCallRinger
+import com.example.medinfo.util.AppVisibilityTracker
 import com.example.medinfo.util.CallLog
 import com.microsoft.signalr.HubConnection
 import com.microsoft.signalr.HubConnectionBuilder
@@ -42,6 +45,8 @@ class SignalRService : Service() {
     private var hubConnection: HubConnection? = null
     private val channelIdService = ConfigManager.notificationChannelIdService
     private val notificationIdService = ConfigManager.notificationIdService
+
+    private val foregroundRingDurationMs = 5000L
 
     // Проверяем, что у приложения еще есть активная сессия.
     private fun isSessionActive(): Boolean {
@@ -166,12 +171,7 @@ class SignalRService : Service() {
             if (hospitalization.requiresIncomingDecision()) {
                 val isNew = CallsManager.upsertCall(hospitalization)
                 if (isNew) {
-                    CallLog.hospitalization(
-                        source = "SignalR",
-                        call = hospitalization,
-                        message = "new incoming decision call, opening fullscreen alert"
-                    )
-                    triggerFullscreenAlert(hospitalization)
+                    alertIncomingDecisionCall(hospitalization)
                 } else {
                     CallLog.hospitalization(
                         source = "SignalR",
@@ -196,6 +196,10 @@ class SignalRService : Service() {
     // Для сообщений подтверждаем только уведомления от планшета.
     private fun handleMessageNotifications(items: Array<out MessageResponseDto>) {
         CallLog.event("SignalR", "MessageNotification count=${items.size}")
+
+        // Realtime: пробрасываем все сообщения в шину — открытый ChatActivity
+        // подпишется и отрисует сообщение, если оно для его hospitalizationId.
+        items.forEach { MessagesEventBus.emit(it) }
 
         items
             .filter { MessageOrigin.fromId(it.origin) == MessageOrigin.TABLET }
@@ -275,7 +279,34 @@ class SignalRService : Service() {
         }
     }
 
-    // Открываем входящий экран сразу с конкретной госпитализацией, пришедшей из SignalR.
+    // Если врач уже на IncomingCallActivity — показываем in-app алерт с brief-звоном.
+    // Иначе запускаем экран входящего вызова на весь экран.
+    private fun alertIncomingDecisionCall(hospitalization: HospitalizationResponseDto) {
+        val foregroundActivity =
+            if (AppVisibilityTracker.isAppInForeground) {
+                AppVisibilityTracker.currentActivity()
+            } else {
+                null
+            }
+
+        if (foregroundActivity is IncomingCallActivity) {
+            CallLog.hospitalization(
+                source = "SignalR",
+                call = hospitalization,
+                message = "new incoming decision call, showing in-app top alert"
+            )
+            IncomingCallRinger.startBrief(this, foregroundRingDurationMs)
+            InAppIncomingCallAlert.show(foregroundActivity, hospitalization)
+        } else {
+            CallLog.hospitalization(
+                source = "SignalR",
+                call = hospitalization,
+                message = "new incoming decision call, opening fullscreen alert"
+            )
+            triggerFullscreenAlert(hospitalization)
+        }
+    }
+
     private fun triggerFullscreenAlert(hospitalization: HospitalizationResponseDto) {
         IncomingCallRinger.start(this)
 
@@ -291,7 +322,7 @@ class SignalRService : Service() {
         try {
             startActivity(fullScreenIntent)
         } catch (e: Exception) {
-            android.util.Log.e("CALL_LOG", "[SignalR] FAILED to launch activity: ${e.message}", e)
+            android.util.Log.e("CALL_LOG", "[SignalR] FAILED to launch incoming call activity: ${e.message}", e)
         }
     }
 

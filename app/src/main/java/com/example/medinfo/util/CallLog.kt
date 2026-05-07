@@ -60,6 +60,7 @@ object CallLog {
             append(" status=${call.statusId}/${call.statusName}")
             append(" decision=${call.decisionId}/${call.decisionName}")
             append(" notificationSent=${call.isNotificationSent}")
+            append(" creationTime=${call.creationTime ?: "-"}")
             append(" notificationTime=${call.notificationTime ?: "-"}")
             append(" callTime=${call.call.callTime}")
             message?.let { append(" note=$it") }

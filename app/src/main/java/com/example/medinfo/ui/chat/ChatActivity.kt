@@ -9,8 +9,11 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.medinfo.R
+import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.databinding.ActivityChatBinding
@@ -34,6 +37,10 @@ class ChatActivity : AppCompatActivity() {
 
     private lateinit var hospitalizationId: String
     private var readOnly: Boolean = false
+
+    // ID уже отрисованных сообщений — для дедупа: если SignalR пушит сообщение,
+    // которое уже пришло через loadMessages (или прилетело дважды), игнорируем.
+    private val shownMessageIds = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -64,21 +71,43 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
-        loadMessages()
+        // При каждом возврате на экран — рефреш истории (на случай пропущенных
+        // в фоне сообщений), затем подписка на realtime события из SignalR.
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // Параллельный
+                launch {
+                    MessagesEventBus.incoming.collect { message ->
+                        if (message.hospitalizationId == hospitalizationId &&
+                            message.id !in shownMessageIds
+                        ) {
+                            appendMessage(message)
+                        }
+                    }
+                }
+
+                launch {
+                    fetchAndRenderMessages()
+                }
+            }
+        }
     }
 
     private fun loadMessages() {
-        showState("Загрузка сообщений...")
-
         lifecycleScope.launch {
-            try {
-                val messages = withContext(Dispatchers.IO) {
-                    hospitalizationRepository.getMessages(hospitalizationId).content.orEmpty()
-                }
-                renderMessages(messages)
-            } catch (e: Exception) {
-                showState(e.message ?: "Не удалось загрузить сообщения")
+            fetchAndRenderMessages()
+        }
+    }
+
+    private suspend fun fetchAndRenderMessages() {
+        showState("Загрузка сообщений...")
+        try {
+            val messages = withContext(Dispatchers.IO) {
+                hospitalizationRepository.getMessages(hospitalizationId).content.orEmpty()
             }
+            renderMessages(messages)
+        } catch (e: Exception) {
+            showState(e.message ?: "Не удалось загрузить сообщения")
         }
     }
 
@@ -113,16 +142,34 @@ class ChatActivity : AppCompatActivity() {
 
     private fun renderMessages(messages: List<MessageResponseDto>) {
         binding.messagesContainer.removeAllViews()
+        shownMessageIds.clear()
 
         if (messages.isEmpty()) {
             showState("Сообщений пока нет")
             return
         }
 
-        messages.sortedBy { it.receptionTime }.forEach { message ->
+        messages.forEach { message ->
             binding.messagesContainer.addView(createMessageBubble(message))
+            shownMessageIds.add(message.id)
         }
 
+        scrollToBottom()
+    }
+
+    private fun appendMessage(message: MessageResponseDto) {
+        // Если до этого был state-плейсхолдер ("Сообщений пока нет"), убираем его.
+        if (binding.stateText.parent === binding.messagesContainer) {
+            binding.messagesContainer.removeView(binding.stateText)
+            binding.stateText.visibility = View.GONE
+        }
+
+        binding.messagesContainer.addView(createMessageBubble(message))
+        shownMessageIds.add(message.id)
+        scrollToBottom()
+    }
+
+    private fun scrollToBottom() {
         binding.messagesScroll.post {
             binding.messagesScroll.fullScroll(View.FOCUS_DOWN)
         }
@@ -136,7 +183,7 @@ class ChatActivity : AppCompatActivity() {
             strokeWidth = 1.dp()
             strokeColor = resources.getColor(R.color.border_gray_1, null)
             setCardBackgroundColor(
-                resources.getColor(if (isOwn) R.color.blue_2 else R.color.background_2, null)
+                resources.getColor(if (isOwn) R.color.blue_3 else R.color.background_2, null)
             )
             layoutParams = LinearLayout.LayoutParams(
                 (resources.displayMetrics.widthPixels * 0.78f).toInt(),

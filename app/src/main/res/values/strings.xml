@@ -3,6 +3,7 @@
     <string name="app_name">MedInfo</string>
     
     <!-- Меню -->
+    <string name="menu_requires_decision">Требуют решения</string>
     <string name="menu_active">Активные</string>
     <string name="menu_archive">Архив</string>
     <string name="menu_settings">Настройки</string>
@@ -14,4 +15,12 @@
     <string name="login_enter">Войти</string>
     <string name="login_wrong">Неверный логин или пароль</string>
     <string name="filters_name">Фильтры</string>
+    <string name="in_app_call_alert_title">Новый вызов требует решения</string>
+    <string name="in_app_call_alert_action">Открыть</string>
+    <plurals name="calls_count">
+        <item quantity="one">%d вызов</item>
+        <item quantity="few">%d вызова</item>
+        <item quantity="many">%d вызовов</item>
+        <item quantity="other">%d вызова</item>
+    </plurals>
 </resources>

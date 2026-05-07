@@ -9,6 +9,7 @@
     <color name="menu_blue_2">#4682B4</color>
     <color name="blue_2">#D2DAE8</color>
     <color name="blue_3">#E9EDF3</color>
+    <color name="tab_selected_bg">#DEE3EE</color>
     <color name="gray_1">#42474C</color>
     <color name="border_gray_1">#C2C7CD</color>
     <color name="border_gray_2">#72787D</color>

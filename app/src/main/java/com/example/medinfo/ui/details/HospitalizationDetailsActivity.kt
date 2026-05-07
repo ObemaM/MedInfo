@@ -81,6 +81,7 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
         addField(container, "ID госпитализации", hospitalization.id)
         addField(container, "Статус госпитализации", "${hospitalization.statusName} (${hospitalization.statusId})")
         addField(container, "Решение", "${hospitalization.decisionName} (${hospitalization.decisionId})")
+        addField(container, "Время создания госпитализации", formatDateTime(hospitalization.creationTime))
         addField(container, "Уведомление отправлено", formatBoolean(hospitalization.isNotificationSent))
         addField(container, "Время подтверждения уведомления", formatDateTime(hospitalization.notificationTime))
         addField(container, "Время принятия решения", formatDateTime(hospitalization.decisionTime))

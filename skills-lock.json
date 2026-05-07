@@ -4,16 +4,19 @@
     "android-kotlin": {
       "source": "alinaqi/claude-bootstrap",
       "sourceType": "github",
+      "skillPath": "skills/android-kotlin/SKILL.md",
       "computedHash": "14a2b30a2cfd1e807f54d7de00c211a96db130a1cf0526a3449b5dce686b021a"
     },
     "android-retrofit": {
       "source": "new-silvermoon/awesome-android-agent-skills",
       "sourceType": "github",
+      "skillPath": ".github/skills/concurrency_and_networking/android-retrofit/SKILL.md",
       "computedHash": "bfe9955772366443721c8934dedad5a85cd4c8b33e3988034035bcce6fc4b19a"
     },
     "magento-xml-specialist": {
       "source": "maxnorm/magento2-agent-skills",
       "sourceType": "github",
+      "skillPath": "skills/magento-xml-specialist/SKILL.md",
       "computedHash": "0a3926d9db652b5ad672c4fa35abd77545a5c82ed45df2cabd2c79289e37efc8"
     }
   }
