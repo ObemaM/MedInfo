@@ -30,6 +30,7 @@ import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.ui.chat.ChatActivity
 import com.example.medinfo.util.CallLog
 import com.example.medinfo.util.DateFormatter
+import com.example.medinfo.util.DecisionTimerStage
 import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -278,17 +279,16 @@ class IncomingCallActivity : AppCompatActivity() {
         container.removeAllViews()
 
         // На экране решения показываем тот же список полей, что и в деталях, чтобы интерфейс был единым.
+        // Служебные id скрыты — врачу важны только осмысленные поля (статус, время, данные вызова).
         addSection(container, "Госпитализация")
-        addDataField(container, "ID госпитализации", hospitalization.id)
-        addDataField(container, "Статус госпитализации", "${hospitalization.statusName} (${hospitalization.statusId})")
-        addDataField(container, "Решение", "${hospitalization.decisionName} (${hospitalization.decisionId})")
+        addDataField(container, "Статус госпитализации", hospitalization.statusName)
+        addDataField(container, "Решение", hospitalization.decisionName)
         addDataField(container, "Время создания госпитализации", formatDateTime(hospitalization.creationTime))
         addDataField(container, "Уведомление отправлено", formatBoolean(hospitalization.isNotificationSent))
         addDataField(container, "Время подтверждения уведомления", formatDateTime(hospitalization.notificationTime))
         addDataField(container, "Время принятия решения", formatDateTime(hospitalization.decisionTime))
 
         addSection(container, "Вызов")
-        addDataField(container, "ID вызова", call.id)
         addDataField(container, "Номер вызова", "${call.dayNumber}/${call.yearNumber}")
         addDataField(container, "Статус вызова", call.status)
         addDataField(container, "Код ССМП бригады", call.brigadeSmpCode.toString())
@@ -385,23 +385,23 @@ class IncomingCallActivity : AppCompatActivity() {
                 binding.timerText.text =
                     "Осталось: ${String.format(Locale.ROOT, "%02d:%02d", minutes, secRemaining)}"
 
-                if (totalSeconds <= 10) {
-                    binding.timerText.setTextColor(resources.getColor(R.color.red_1, null))
-                    binding.timerIcon.setColorFilter(resources.getColor(R.color.red_1, null))
-                } else {
-                    binding.timerText.setTextColor(resources.getColor(R.color.gray_1, null))
-                    binding.timerIcon.setColorFilter(resources.getColor(R.color.main_1, null))
-                }
+                // Цвет считаем по доле от полного интервала из конфига, чтобы шкала всегда совпадала
+                // со списком "Требуют решения" независимо от длительности.
+                val colorRes = DecisionTimerStage.colorRes(millisUntilFinished)
+                val color = resources.getColor(colorRes, null)
+                binding.timerText.setTextColor(color)
+                binding.timerIcon.setColorFilter(color)
             }
 
             override fun onFinish() {
+                // Авто-IGNORED и удаление инициирует CallsManager: его таймер истекает чуть раньше
+                // визуального (visualSeconds = ceil(remainingMs / 1000)). Здесь только показываем
+                // финальное состояние; при пустой очереди observeCallsQueue закроет экран.
                 binding.timerText.text = "ВРЕМЯ ИСТЕКЛО"
+                val expiredColor = resources.getColor(R.color.red_1, null)
+                binding.timerText.setTextColor(expiredColor)
+                binding.timerIcon.setColorFilter(expiredColor)
                 countdownHospitalizationId = null
-                boundHospitalizationId = null
-                currentHospitalization?.id?.let { hospitalizationId ->
-                    CallsManager.removeCall(hospitalizationId)
-                }
-                currentHospitalization = null
             }
         }.start()
     }

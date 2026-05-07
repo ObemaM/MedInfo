@@ -17,3 +17,5 @@
 local.properties
 docs/
 artifacts/
+# Локальная справочная спецификация бэкенда: только для чтения, не коммитим.
+Specification/

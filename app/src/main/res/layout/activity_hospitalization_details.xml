@@ -129,6 +129,7 @@
                     android:padding="16dp">
 
                     <TextView
+                        android:id="@+id/chat_placeholder_title"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Чат по вызову"
@@ -137,6 +138,7 @@
                         android:textStyle="bold" />
 
                     <TextView
+                        android:id="@+id/chat_placeholder_subtitle"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="6dp"

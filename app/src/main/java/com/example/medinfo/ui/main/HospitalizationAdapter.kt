@@ -6,12 +6,12 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
-import com.example.medinfo.R
 import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.databinding.ItemHospitalizationBinding
 import com.example.medinfo.model.Hospitalization
 import com.example.medinfo.util.DateFormatter
+import com.example.medinfo.util.DecisionTimerStage
 import java.util.Locale
 
 class HospitalizationAdapter(
@@ -133,13 +133,7 @@ class HospitalizationAdapter(
                     "Осталось на решение: ${formatRemainingTime(remainingMillis)}"
                 }
 
-            val colorRes =
-                when {
-                    remainingMillis == null -> R.color.border_gray_2
-                    remainingMillis <= FIVE_MINUTES_MILLIS -> R.color.red_1
-                    remainingMillis <= FIFTEEN_MINUTES_MILLIS -> R.color.yellow_1
-                    else -> R.color.green_1
-                }
+            val colorRes = DecisionTimerStage.colorRes(remainingMillis)
             binding.decisionTimerText.backgroundTintList = ColorStateList.valueOf(
                 binding.root.context.getColor(colorRes)
             )
@@ -205,7 +199,5 @@ class HospitalizationAdapter(
 
     private companion object {
         const val TIMER_PAYLOAD = "TIMER_PAYLOAD"
-        const val FIVE_MINUTES_MILLIS = 5 * 60 * 1000L
-        const val FIFTEEN_MINUTES_MILLIS = 15 * 60 * 1000L
     }
 }

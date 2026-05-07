@@ -77,17 +77,16 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
         container.removeAllViews()
 
         // Выводим все непустые поля DTO, чтобы детали работали и для активных, и для архивных вызовов.
+        // Служебные id (госпитализации, вызова, статусов) намеренно скрыты — врачу они не нужны.
         addSection(container, "Госпитализация")
-        addField(container, "ID госпитализации", hospitalization.id)
-        addField(container, "Статус госпитализации", "${hospitalization.statusName} (${hospitalization.statusId})")
-        addField(container, "Решение", "${hospitalization.decisionName} (${hospitalization.decisionId})")
+        addField(container, "Статус госпитализации", hospitalization.statusName)
+        addField(container, "Решение", hospitalization.decisionName)
         addField(container, "Время создания госпитализации", formatDateTime(hospitalization.creationTime))
         addField(container, "Уведомление отправлено", formatBoolean(hospitalization.isNotificationSent))
         addField(container, "Время подтверждения уведомления", formatDateTime(hospitalization.notificationTime))
         addField(container, "Время принятия решения", formatDateTime(hospitalization.decisionTime))
 
         addSection(container, "Вызов")
-        addField(container, "ID вызова", call.id)
         addField(container, "Номер вызова", "${call.dayNumber}/${call.yearNumber}")
         addField(container, "Статус вызова", call.status)
         addField(container, "Код ССМП бригады", call.brigadeSmpCode.toString())
@@ -165,22 +164,29 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
     }
 
     private fun bindChatPlaceholder(hospitalization: HospitalizationResponseDto) {
-        // В архиве чат скрываем: переписку планируем только для активных вызовов.
+        // Чат доступен и для активных, и для архивных вызовов. В архиве — только просмотр истории.
         val isArchive = HospitalizationStatus.fromId(hospitalization.statusId)?.isArchive == true
-        binding.chatPlaceholderCard.visibility = if (isArchive) View.GONE else View.VISIBLE
+
+        binding.chatPlaceholderCard.visibility = View.VISIBLE
+        binding.chatPlaceholderTitle.text = if (isArchive) "История чата" else "Чат по вызову"
+        binding.chatPlaceholderSubtitle.text = if (isArchive) {
+            "Открыть переписку по этой госпитализации (только просмотр)."
+        } else {
+            "Открыть переписку по этой госпитализации."
+        }
         binding.chatPlaceholderCard.setOnClickListener {
-            openChat(hospitalization)
+            openChat(hospitalization, readOnly = isArchive)
         }
     }
 
-    private fun openChat(hospitalization: HospitalizationResponseDto) {
+    private fun openChat(hospitalization: HospitalizationResponseDto, readOnly: Boolean) {
         val intent = android.content.Intent(this, ChatActivity::class.java).apply {
             putExtra(ChatActivity.EXTRA_HOSPITALIZATION_ID, hospitalization.id)
             putExtra(
                 ChatActivity.EXTRA_CHAT_TITLE,
                 "Вызов №${hospitalization.call.dayNumber}/${hospitalization.call.yearNumber}"
             )
-            putExtra(ChatActivity.EXTRA_READ_ONLY, false)
+            putExtra(ChatActivity.EXTRA_READ_ONLY, readOnly)
         }
         startActivity(intent)
     }

@@ -42,6 +42,10 @@ class ChatActivity : AppCompatActivity() {
     // которое уже пришло через loadMessages (или прилетело дважды), игнорируем.
     private val shownMessageIds = mutableSetOf<String>()
 
+    // Чтобы диалог состояния пациента не открывался повторно для того же сообщения
+    // (например, после поворота экрана и повторной подписки на SignalR).
+    private val shownConditionMessageIds = mutableSetOf<String>()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -71,6 +75,17 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
+        // При открытии клавиатуры NestedScrollView сжимается — без этого последние
+        // сообщения уезжают за поле ввода. Возвращаем фокус на низ списка.
+        binding.messagesScroll.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
+            if (bottom != oldBottom) {
+                scrollToBottom()
+            }
+        }
+        binding.messageEditText.setOnFocusChangeListener { _, hasFocus ->
+            if (hasFocus) scrollToBottom()
+        }
+
         // При каждом возврате на экран — рефреш истории (на случай пропущенных
         // в фоне сообщений), затем подписка на realtime события из SignalR.
         lifecycleScope.launch {
@@ -82,6 +97,7 @@ class ChatActivity : AppCompatActivity() {
                             message.id !in shownMessageIds
                         ) {
                             appendMessage(message)
+                            maybeShowPatientConditionDialog(message)
                         }
                     }
                 }
@@ -91,6 +107,19 @@ class ChatActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    // Сообщения PATIENT_CONDITION открывают диалог состояния пациента поверх любого другого
+    // диалога. Защищаемся от повторного показа (id сообщения уже в shownConditionMessageIds).
+    private fun maybeShowPatientConditionDialog(message: MessageResponseDto) {
+        if (MessageType.fromId(message.type) != MessageType.PATIENT_CONDITION) return
+        val condition = message.patientCondition ?: return
+        if (!shownConditionMessageIds.add(message.id)) return
+        if (supportFragmentManager.isStateSaved) return
+
+        MessageDataDialogFragment
+            .newInstance(condition, message.receptionTime)
+            .show(supportFragmentManager, MessageDataDialogFragment.TAG)
     }
 
     private fun loadMessages() {
@@ -269,7 +298,6 @@ class ChatActivity : AppCompatActivity() {
 
         return buildList {
             add("Переданы данные состояния пациента")
-            add("ID состояния: ${condition.id}")
             condition.startDisease?.let { add("Начало заболевания: $it") }
             condition.vozr?.let { add("Возраст: $it") }
             condition.consciousness?.let { add("Сознание: $it") }
