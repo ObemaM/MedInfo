@@ -590,12 +590,12 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        CallsManager.upsertCall(details)
         shouldRefreshCallsOnResume = true
 
         // Из списка "Требуют решения" открываем выбранный вызов без повторного звука и вибрации.
         val intent = Intent(this, IncomingCallActivity::class.java).apply {
             putExtra(IncomingCallActivity.EXTRA_HOSPITALIZATION, details)
+            putExtra(IncomingCallActivity.EXTRA_HOSPITALIZATION_ID, details.id)
             putExtra(IncomingCallActivity.EXTRA_START_ALERTS, false)
         }
         startActivity(intent)

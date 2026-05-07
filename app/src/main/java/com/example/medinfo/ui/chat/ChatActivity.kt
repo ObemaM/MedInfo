@@ -267,18 +267,46 @@ class ChatActivity : AppCompatActivity() {
     private fun buildPatientConditionText(condition: PatientConditionResponseDto?): String {
         if (condition == null) return "Переданы данные состояния пациента"
 
-        // Пока показываем жизненно важные показатели как текст; позже это можно заменить карточкой состояния.
         return buildList {
             add("Переданы данные состояния пациента")
+            add("ID состояния: ${condition.id}")
+            condition.startDisease?.let { add("Начало заболевания: $it") }
+            condition.vozr?.let { add("Возраст: $it") }
             condition.consciousness?.let { add("Сознание: $it") }
             condition.bloodPressure?.let { add("АД: $it") }
             condition.heartRate?.let { add("Пульс: $it") }
             condition.respirationRate?.let { add("ЧДД: $it") }
             condition.temperature?.let { add("Температура: $it") }
             condition.spO2?.let { add("SpO2: $it") }
+            condition.vas?.let { add("ВАШ: $it") }
             condition.glucometry?.let { add("Глюкоза: $it") }
+            add("Беременность: ${condition.pregnant.toYesNo()}")
+            add("Судороги: ${condition.convulsions.toYesNo()}")
+            add("Стеноз: ${condition.stenosis.toYesNo()}")
+            add("ИФА: ${condition.ifaPresence.toYesNo()}")
+            condition.ifaTool?.takeIf { it.isNotEmpty() }?.let {
+                add("Средства ИФА: ${it.joinToString()}")
+            }
+            add("АЛВ: ${condition.alv.toYesNo()}")
+            add("Венозный доступ: ${condition.venousAccessPresence.toYesNo()}")
+            condition.venousAccessMethod?.takeIf { it.isNotEmpty() }?.let {
+                add("Метод венозного доступа: ${it.joinToString()}")
+            }
+            add("Кислородная поддержка: ${condition.oxygenSupport.toYesNo()}")
+            add("Кровотечение: ${condition.bleedingPresence.toYesNo()}")
+            condition.bleedingType?.let { add("Тип кровотечения: $it") }
+            add("Артериальный жгут: ${condition.arterialTourniquetPresence.toYesNo()}")
+            condition.arterialTourniquetApplicationTime?.let {
+                add("Время наложения жгута: ${DateFormatter.formatDateTime(it)}")
+            }
+            condition.mrs?.let { add("mRS: $it") }
+            condition.newsScore?.let { add("NEWS: $it") }
+            condition.pewsScore?.let { add("PEWS: $it") }
+            condition.algoverIndex?.let { add("Индекс Альговера: $it") }
         }.joinToString("\n")
     }
+
+    private fun Boolean.toYesNo(): String = if (this) "Да" else "Нет"
 
     private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 

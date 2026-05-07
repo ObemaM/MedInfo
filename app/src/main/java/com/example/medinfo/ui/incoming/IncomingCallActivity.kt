@@ -50,6 +50,7 @@ class IncomingCallActivity : AppCompatActivity() {
     private var countdownHospitalizationId: String? = null
     private var boundHospitalizationId: String? = null
     private var isFullDetailsExpanded: Boolean = false
+    private var keepCurrentHospitalizationWhenMissingFromQueue: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         CallLog.event("IncomingCallActivity", "onCreate START")
@@ -113,12 +114,41 @@ class IncomingCallActivity : AppCompatActivity() {
             requestedHospitalizationId = hospitalization.id
             currentHospitalization = hospitalization
             boundHospitalizationId = null
+            keepCurrentHospitalizationWhenMissingFromQueue = !shouldStartAlerts(intent)
 
-            CallsManager.upsertCall(hospitalization)
+            if (shouldStartAlerts(intent)) {
+                CallsManager.upsertCall(hospitalization)
+            }
             displayCallDetails(hospitalization)
 
             CallLog.hospitalization("IncomingCallActivity", hospitalization, "received EXTRA_HOSPITALIZATION")
             return
+        }
+
+        val hospitalizationId = intent?.getStringExtra(EXTRA_HOSPITALIZATION_ID)
+        if (!hospitalizationId.isNullOrBlank()) {
+            val queuedHospitalization = CallsManager.calls.value.firstOrNull {
+                it.id == hospitalizationId
+            }
+            if (queuedHospitalization != null) {
+                requestedHospitalizationId = queuedHospitalization.id
+                currentHospitalization = queuedHospitalization
+                boundHospitalizationId = null
+                keepCurrentHospitalizationWhenMissingFromQueue = !shouldStartAlerts(intent)
+                displayCallDetails(queuedHospitalization)
+
+                CallLog.hospitalization(
+                    "IncomingCallActivity",
+                    queuedHospitalization,
+                    "received EXTRA_HOSPITALIZATION_ID"
+                )
+                return
+            }
+
+            CallLog.event(
+                "IncomingCallActivity",
+                "missing queued hospitalization id=$hospitalizationId"
+            )
         }
 
         val legacyCall = intent?.getSerializableExtra("CALL_DATA") as? CallNotificationDto ?: return
@@ -175,6 +205,9 @@ class IncomingCallActivity : AppCompatActivity() {
             CallsManager.calls.collect { list ->
                 updateRemainingDecisionCount(list.size)
                 if (list.isEmpty()) {
+                    if (keepCurrentHospitalizationWhenMissingFromQueue && currentHospitalization != null) {
+                        return@collect
+                    }
                     stopAlerts()
                     finish()
                 } else {
@@ -183,6 +216,8 @@ class IncomingCallActivity : AppCompatActivity() {
 
                     if (currentUpdated != null) {
                         displayCallDetails(currentUpdated)
+                    } else if (keepCurrentHospitalizationWhenMissingFromQueue && currentHospitalization != null) {
+                        return@collect
                     } else {
                         displayCallDetails(list.first())
                     }
@@ -411,6 +446,7 @@ class IncomingCallActivity : AppCompatActivity() {
                 Toast.makeText(this@IncomingCallActivity, "Отправлено", Toast.LENGTH_SHORT).show()
                 CallsManager.removeCall(hospitalization.id)
                 currentHospitalization = null
+                finish()
             } catch (e: Exception) {
                 Toast.makeText(
                     this@IncomingCallActivity,
@@ -692,6 +728,7 @@ class IncomingCallActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_HOSPITALIZATION = "EXTRA_HOSPITALIZATION"
+        const val EXTRA_HOSPITALIZATION_ID = "EXTRA_HOSPITALIZATION_ID"
         const val EXTRA_START_ALERTS = "EXTRA_START_ALERTS"
     }
 }
