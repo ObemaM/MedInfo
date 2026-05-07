@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.R
 import com.example.medinfo.data.manager.CallsManager
+import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.databinding.ActivityIncomingCallBinding
@@ -27,10 +28,16 @@ import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
+import com.example.medinfo.model.api.MessageResponseDto
+import com.example.medinfo.model.api.MessageType
+import com.example.medinfo.model.api.PatientConditionResponseDto
 import com.example.medinfo.ui.chat.ChatActivity
 import com.example.medinfo.util.CallLog
 import com.example.medinfo.util.DateFormatter
 import com.example.medinfo.util.DecisionTimerStage
+import com.example.medinfo.util.PatientConditionFields
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import java.util.Locale
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
@@ -51,6 +58,8 @@ class IncomingCallActivity : AppCompatActivity() {
     private var countdownHospitalizationId: String? = null
     private var boundHospitalizationId: String? = null
     private var isFullDetailsExpanded: Boolean = false
+    private var isPatientConditionExpanded: Boolean = false
+    private var lastPatientCondition: PatientConditionResponseDto? = null
     private var keepCurrentHospitalizationWhenMissingFromQueue: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -75,6 +84,11 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.fullDetailsCard.setOnClickListener {
             setFullDetailsExpanded(!isFullDetailsExpanded)
         }
+        binding.patientConditionSection.patientConditionCard.setOnClickListener {
+            setPatientConditionExpanded(!isPatientConditionExpanded)
+        }
+
+        observeIncomingPatientCondition()
 
         binding.buttonStopAlerts.setOnClickListener {
             stopAlerts()
@@ -237,6 +251,10 @@ class IncomingCallActivity : AppCompatActivity() {
             bindSummary(hospitalization)
             bindDetails(hospitalization)
             setFullDetailsExpanded(false)
+            // Сбрасываем состояние "Состояние пациента" под новый вызов и подгружаем последнюю запись из чата.
+            lastPatientCondition = null
+            renderPatientCondition(null)
+            fetchLatestPatientCondition(hospitalization.id)
             boundHospitalizationId = hospitalization.id
         }
 
@@ -372,6 +390,65 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.fullDetailsArrow.rotation = if (expanded) 180f else 0f
         binding.fullDetailsArrow.contentDescription =
             if (expanded) "Свернуть полные данные вызова" else "Раскрыть полные данные вызова"
+    }
+
+    private fun setPatientConditionExpanded(expanded: Boolean) {
+        isPatientConditionExpanded = expanded
+        binding.patientConditionSection.patientConditionContainer.visibility =
+            if (expanded) android.view.View.VISIBLE else android.view.View.GONE
+        binding.patientConditionSection.patientConditionArrow.rotation = if (expanded) 180f else 0f
+        binding.patientConditionSection.patientConditionArrow.contentDescription =
+            if (expanded) "Свернуть состояние пациента" else "Раскрыть состояние пациента"
+    }
+
+    // Берём из истории сообщений последнее с PatientCondition. Если такого нет — карточка прячется.
+    private fun fetchLatestPatientCondition(hospitalizationId: String) {
+        lifecycleScope.launch {
+            val condition = try {
+                withContext(Dispatchers.IO) {
+                    hospitalizationRepository.getMessages(hospitalizationId).content
+                        ?.lastOrNull {
+                            MessageType.fromId(it.type) == MessageType.PATIENT_CONDITION &&
+                                it.patientCondition != null
+                        }
+                        ?.patientCondition
+                }
+            } catch (_: Exception) {
+                null
+            }
+
+            if (boundHospitalizationId == hospitalizationId) {
+                renderPatientCondition(condition)
+            }
+        }
+    }
+
+    // Подписываемся на realtime-сообщения и обновляем карточку, если прилетела новая запись о пациенте.
+    private fun observeIncomingPatientCondition() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                MessagesEventBus.incoming.collect { message: MessageResponseDto ->
+                    val expectedId = boundHospitalizationId ?: return@collect
+                    if (message.hospitalizationId != expectedId) return@collect
+                    if (MessageType.fromId(message.type) != MessageType.PATIENT_CONDITION) return@collect
+                    val condition = message.patientCondition ?: return@collect
+                    renderPatientCondition(condition)
+                }
+            }
+        }
+    }
+
+    private fun renderPatientCondition(condition: PatientConditionResponseDto?) {
+        lastPatientCondition = condition
+        val rendered = PatientConditionFields.render(binding.patientConditionSection.patientConditionContainer, condition)
+        if (!rendered) {
+            binding.patientConditionSection.patientConditionCard.visibility = android.view.View.GONE
+            setPatientConditionExpanded(false)
+        } else {
+            binding.patientConditionSection.patientConditionCard.visibility = android.view.View.VISIBLE
+            // По требованию — раскрываем сразу, как только появились данные.
+            setPatientConditionExpanded(true)
+        }
     }
 
     private fun startVisualCountdown(hospitalizationId: String, seconds: Int) {
