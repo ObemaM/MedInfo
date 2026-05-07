@@ -2,6 +2,8 @@ package com.example.medinfo.data.manager
 
 import android.os.SystemClock
 import com.example.medinfo.config.ConfigManager
+import com.example.medinfo.data.network.RetrofitClient
+import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
@@ -15,6 +17,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 // Синглтон, поэтому делаем методы через Synchronized
 object CallsManager {
@@ -27,6 +30,17 @@ object CallsManager {
     private val managerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val activeJobs = mutableMapOf<String, Job>()
     private val callAddedAtMs = mutableMapOf<String, Long>()
+
+    // Защита от повторной отправки авто-игнора, если активность тоже хочет завершить вызов.
+    private val ignoreSent = mutableSetOf<String>()
+
+    // Репозиторий поднимается лениво, потому что Retrofit инициализируется в Application.onCreate.
+    private val hospitalizationRepository by lazy {
+        HospitalizationRepository(RetrofitClient.apiServiceService)
+    }
+
+    // Период переоценки: на случай, если значение конфига изменилось после старта таймера.
+    private const val TIMER_RECHECK_INTERVAL_MS = 60_000L
 
     // Добавляет новую госпитализацию в очередь или обновляет уже существующую.
     @Synchronized
@@ -119,6 +133,7 @@ object CallsManager {
         activeJobs.values.forEach { it.cancel() }
         activeJobs.clear()
         callAddedAtMs.clear()
+        ignoreSent.clear()
         _calls.value = emptyList()
     }
 
@@ -127,26 +142,56 @@ object CallsManager {
         activeJobs[call.id]?.cancel()
 
         activeJobs[call.id] = managerScope.launch {
-            val remaining = getRemainingIgnoreMillis(call.id) ?: ConfigManager.maxCallDurationMs
+            val initialRemaining = getRemainingIgnoreMillis(call.id) ?: ConfigManager.maxCallDurationMs
             CallLog.queue(
                 source = "CallsManager",
                 action = "timer-started",
                 call = call,
                 queueSize = _calls.value.size,
-                remainingMs = remaining
+                remainingMs = initialRemaining
             )
-            delay(remaining)
+
+            // Дробим ожидание, чтобы реагировать на изменение maxCallDurationMs в конфиге без
+            // перезапуска приложения. На каждом шаге берём актуальное оставшееся время.
+            while (true) {
+                val remaining = getRemainingIgnoreMillis(call.id) ?: 0L
+                if (remaining <= 0L) break
+                delay(remaining.coerceAtMost(TIMER_RECHECK_INTERVAL_MS))
+            }
 
             val stillExists = _calls.value.any { it.id == call.id }
             if (stillExists) {
                 CallLog.queue(
                     source = "CallsManager",
-                    action = "timer-finished-auto-remove",
+                    action = "timer-finished-auto-ignore",
                     call = call,
                     queueSize = _calls.value.size
                 )
+                sendAutoIgnoreSafe(call.id)
                 removeCall(call.id)
             }
+        }
+    }
+
+    // Отправляет на сервер DecisionId = IGNORED для просроченной госпитализации. Безопасна к
+    // повторным вызовам и к сетевым ошибкам: локальный removeCall выполняется в любом случае.
+    private suspend fun sendAutoIgnoreSafe(hospitalizationId: String) {
+        synchronized(this) {
+            if (!ignoreSent.add(hospitalizationId)) return
+        }
+        try {
+            withContext(Dispatchers.IO) {
+                hospitalizationRepository.saveDecision(
+                    hospitalizationId = hospitalizationId,
+                    decisionId = HospitalizationDecision.IGNORED.id
+                )
+            }
+            CallLog.event("CallsManager", "auto-ignore sent hospitalizationId=$hospitalizationId")
+        } catch (e: Exception) {
+            CallLog.event(
+                "CallsManager",
+                "auto-ignore send FAILED hospitalizationId=$hospitalizationId error=${e.message}"
+            )
         }
     }
 
@@ -190,6 +235,7 @@ object CallsManager {
         activeJobs[hospitalizationId]?.cancel()
         activeJobs.remove(hospitalizationId)
         callAddedAtMs.remove(hospitalizationId)
+        ignoreSent.remove(hospitalizationId)
     }
 
     // Таймер нужен только для активных госпитализаций без решения.
