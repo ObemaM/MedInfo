@@ -9,18 +9,37 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.example.medinfo.R
+import com.example.medinfo.data.manager.MessagesEventBus
+import com.example.medinfo.data.network.RetrofitClient
+import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.databinding.ActivityHospitalizationDetailsBinding
 import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
+import com.example.medinfo.model.api.MessageType
+import com.example.medinfo.model.api.PatientConditionResponseDto
 import com.example.medinfo.ui.chat.ChatActivity
 import com.example.medinfo.util.DateFormatter
+import com.example.medinfo.util.PatientConditionFields
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HospitalizationDetailsActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityHospitalizationDetailsBinding
     private lateinit var hospitalization: HospitalizationResponseDto
+
+    private val hospitalizationRepository by lazy {
+        HospitalizationRepository(RetrofitClient.apiServiceService)
+    }
+
+    private var isFullDetailsExpanded: Boolean = false
+    private var isPatientConditionExpanded: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +60,80 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
         bindSummary(hospitalization)
         bindDetails(hospitalization)
         bindChatPlaceholder(hospitalization)
+
+        // Карточки "Состояние пациента" и "Полные данные вызова" сворачиваемые — единый стиль
+        // со страницей принятия решения.
+        binding.fullDetailsCard.setOnClickListener {
+            setFullDetailsExpanded(!isFullDetailsExpanded)
+        }
+        binding.patientConditionSection.patientConditionCard.setOnClickListener {
+            setPatientConditionExpanded(!isPatientConditionExpanded)
+        }
+        setFullDetailsExpanded(false)
+
+        renderPatientCondition(null)
+        fetchLatestPatientCondition(hospitalization.id)
+        observeIncomingPatientCondition(hospitalization.id)
+    }
+
+    private fun setFullDetailsExpanded(expanded: Boolean) {
+        isFullDetailsExpanded = expanded
+        binding.fieldsContainer.visibility = if (expanded) View.VISIBLE else View.GONE
+        binding.fullDetailsArrow.rotation = if (expanded) 180f else 0f
+        binding.fullDetailsArrow.contentDescription =
+            if (expanded) "Свернуть полные данные вызова" else "Раскрыть полные данные вызова"
+    }
+
+    private fun setPatientConditionExpanded(expanded: Boolean) {
+        isPatientConditionExpanded = expanded
+        binding.patientConditionSection.patientConditionContainer.visibility = if (expanded) View.VISIBLE else View.GONE
+        binding.patientConditionSection.patientConditionArrow.rotation = if (expanded) 180f else 0f
+        binding.patientConditionSection.patientConditionArrow.contentDescription =
+            if (expanded) "Свернуть состояние пациента" else "Раскрыть состояние пациента"
+    }
+
+    private fun fetchLatestPatientCondition(hospitalizationId: String) {
+        lifecycleScope.launch {
+            val condition = try {
+                withContext(Dispatchers.IO) {
+                    hospitalizationRepository.getMessages(hospitalizationId).content
+                        ?.lastOrNull {
+                            MessageType.fromId(it.type) == MessageType.PATIENT_CONDITION &&
+                                it.patientCondition != null
+                        }
+                        ?.patientCondition
+                }
+            } catch (_: Exception) {
+                null
+            }
+
+            renderPatientCondition(condition)
+        }
+    }
+
+    private fun observeIncomingPatientCondition(hospitalizationId: String) {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                MessagesEventBus.incoming.collect { message ->
+                    if (message.hospitalizationId != hospitalizationId) return@collect
+                    if (MessageType.fromId(message.type) != MessageType.PATIENT_CONDITION) return@collect
+                    val condition = message.patientCondition ?: return@collect
+                    renderPatientCondition(condition)
+                }
+            }
+        }
+    }
+
+    private fun renderPatientCondition(condition: PatientConditionResponseDto?) {
+        val rendered = PatientConditionFields.render(binding.patientConditionSection.patientConditionContainer, condition)
+        if (!rendered) {
+            binding.patientConditionSection.patientConditionCard.visibility = View.GONE
+            setPatientConditionExpanded(false)
+        } else {
+            binding.patientConditionSection.patientConditionCard.visibility = View.VISIBLE
+            // По требованию — раскрываем сразу, как только появились данные.
+            setPatientConditionExpanded(true)
+        }
     }
 
     private fun readHospitalizationExtra(): HospitalizationResponseDto? {

@@ -98,12 +98,68 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
 
+            <!--
+              Состояние пациента: раскрывается автоматически, когда в чате есть сообщение
+              PATIENT_CONDITION. Внешне совпадает с такой же карточкой в IncomingCallActivity.
+            -->
+            <include
+                android:id="@+id/patient_condition_section"
+                layout="@layout/view_patient_condition_card" />
+
+            <!-- Полные данные вызова: тоже раскрываются по тапу для единообразия со экраном решения. -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/full_details_card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
+                android:layout_marginTop="8dp"
+                android:clickable="true"
+                android:focusable="true"
+                android:foreground="?attr/selectableItemBackground"
+                app:cardBackgroundColor="@color/background_2"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp"
+                app:strokeColor="@color/border_gray_1"
+                app:strokeWidth="1dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="16dp"
+                    android:paddingVertical="14dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Полные данные вызова"
+                        android:textColor="@color/gray_1"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <ImageView
+                        android:id="@+id/full_details_arrow"
+                        android:layout_width="28dp"
+                        android:layout_height="28dp"
+                        android:contentDescription="Раскрыть полные данные вызова"
+                        android:src="@drawable/ic_expand_more_24"
+                        app:tint="@color/main_1" />
+
+                </LinearLayout>
+
+            </com.google.android.material.card.MaterialCardView>
+
             <LinearLayout
                 android:id="@+id/fields_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
                 android:layout_marginTop="8dp"
-                android:orientation="vertical" />
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible" />
 
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/chat_placeholder_card"
