@@ -2,9 +2,10 @@ package com.example.medinfo.util
 
 import android.graphics.Typeface
 import android.view.Gravity
-import android.view.ViewGroup
+import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import com.example.medinfo.R
 import com.example.medinfo.model.api.PatientConditionResponseDto
 
@@ -45,40 +46,59 @@ object PatientConditionFields {
         val context = container.context
 
         val fieldLayout = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundResource(R.drawable.data_field_background)
-            setPadding(14.dp(context), 8.dp(context), 14.dp(context), 8.dp(context))
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = 8.dp(context)
+                topMargin = 2.dp(context)
             }
+            gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(14.dp(context), 10.dp(context), 14.dp(context), 10.dp(context))
         }
 
         val labelView = TextView(context).apply {
             text = label
-            setTextColor(context.resources.getColor(R.color.field_label_color, null))
-            textSize = 13f
-            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(context, R.color.gray_1))
+            textSize = 15f
+            typeface = Typeface.DEFAULT
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.42f
+            ).apply {
+                rightMargin = 12.dp(context)
+            }
         }
 
         val valueView = TextView(context).apply {
             text = value
-            setTextColor(context.resources.getColor(R.color.gray_1, null))
-            textSize = 16f
-            gravity = Gravity.START
+            setTextColor(ContextCompat.getColor(context, R.color.black_1))
+            textSize = 15f
+            gravity = Gravity.END
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = 3.dp(context)
-            }
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.58f
+            )
         }
 
         fieldLayout.addView(labelView)
         fieldLayout.addView(valueView)
         container.addView(fieldLayout)
+
+        val divider = View(context).apply {
+            setBackgroundColor(ContextCompat.getColor(context, R.color.border_gray_1))
+            alpha = 0.65f
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1
+            ).apply {
+                leftMargin = 14.dp(context)
+                rightMargin = 14.dp(context)
+            }
+        }
+        container.addView(divider)
     }
 
     private fun formatBoolean(value: Boolean): String = if (value) "Да" else "Нет"

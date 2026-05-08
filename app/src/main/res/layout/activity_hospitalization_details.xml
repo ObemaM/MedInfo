@@ -11,9 +11,9 @@
         android:id="@+id/header_card"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="24dp"
         android:layout_marginTop="8dp"
-        android:layout_marginEnd="16dp"
+        android:layout_marginEnd="24dp"
         app:cardBackgroundColor="@color/background_2"
         app:cardCornerRadius="24dp"
         app:cardElevation="0dp"
@@ -53,35 +53,46 @@
                 android:textSize="20sp"
                 android:textStyle="bold"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toStartOf="@+id/info_icon"
+                app:layout_constraintEnd_toStartOf="@+id/chat_button"
                 app:layout_constraintStart_toEndOf="@+id/close_button"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <ImageView
-                android:id="@+id/info_icon"
+            <ImageButton
+                android:id="@+id/chat_button"
                 android:layout_width="55dp"
                 android:layout_height="52dp"
+                android:background="@drawable/circular_button_ripple"
+                android:contentDescription="Открыть чат"
                 android:padding="12dp"
-                android:src="@drawable/ic_info_32"
+                android:src="@drawable/ic_message_24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:tint="@color/gray_1" />
+                app:tint="@color/main_1" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>
 
+    <View
+        android:id="@+id/top_divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="10dp"
+        android:background="@color/border_gray_1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/header_card" />
+
     <androidx.core.widget.NestedScrollView
         android:id="@+id/details_scroll"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="10dp"
         android:overScrollMode="never"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/header_card">
+        app:layout_constraintTop_toBottomOf="@+id/top_divider">
 
         <LinearLayout
             android:id="@+id/details_container"
@@ -96,17 +107,14 @@
                 android:id="@+id/summary_block"
                 layout="@layout/item_hospitalization"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content" />
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
+                android:layout_marginVertical="6dp" />
 
-            <!--
-              Состояние пациента: раскрывается автоматически, когда в чате есть сообщение
-              PATIENT_CONDITION. Внешне совпадает с такой же карточкой в IncomingCallActivity.
-            -->
             <include
                 android:id="@+id/patient_condition_section"
                 layout="@layout/view_patient_condition_card" />
 
-            <!-- Полные данные вызова: тоже раскрываются по тапу для единообразия со экраном решения. -->
             <com.google.android.material.card.MaterialCardView
                 android:id="@+id/full_details_card"
                 android:layout_width="match_parent"
@@ -123,6 +131,7 @@
                 app:strokeWidth="1dp">
 
                 <LinearLayout
+                    android:id="@+id/full_details_header"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:gravity="center_vertical"
@@ -131,6 +140,7 @@
                     android:paddingVertical="14dp">
 
                     <TextView
+                        android:id="@+id/full_details_title"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
@@ -160,51 +170,6 @@
                 android:orientation="vertical"
                 android:visibility="gone"
                 tools:visibility="visible" />
-
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/chat_placeholder_card"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="8dp"
-                android:layout_marginTop="14dp"
-                android:clickable="true"
-                android:focusable="true"
-                android:foreground="?attr/selectableItemBackground"
-                android:visibility="gone"
-                app:cardBackgroundColor="@color/background_2"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="0dp"
-                app:strokeColor="@color/border_gray_1"
-                app:strokeWidth="1dp"
-                tools:visibility="visible">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:id="@+id/chat_placeholder_title"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="Чат по вызову"
-                        android:textColor="@color/gray_1"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
-
-                    <TextView
-                        android:id="@+id/chat_placeholder_subtitle"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:text="Открыть переписку по этой госпитализации."
-                        android:textColor="@color/border_gray_2"
-                        android:textSize="14sp" />
-
-                </LinearLayout>
-
-            </com.google.android.material.card.MaterialCardView>
 
         </LinearLayout>
 

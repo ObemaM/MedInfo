@@ -1,14 +1,16 @@
 package com.example.medinfo.ui.details
 
+import android.content.Intent
+import android.graphics.Typeface
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.View
-import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -56,13 +58,11 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
 
         hospitalization = extra
         binding.closeButton.setOnClickListener { finish() }
+        binding.chatButton.setOnClickListener { openChat(hospitalization) }
 
         bindSummary(hospitalization)
         bindDetails(hospitalization)
-        bindChatPlaceholder(hospitalization)
 
-        // Карточки "Состояние пациента" и "Полные данные вызова" сворачиваемые — единый стиль
-        // со страницей принятия решения.
         binding.fullDetailsCard.setOnClickListener {
             setFullDetailsExpanded(!isFullDetailsExpanded)
         }
@@ -131,7 +131,6 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
             setPatientConditionExpanded(false)
         } else {
             binding.patientConditionSection.patientConditionCard.visibility = View.VISIBLE
-            // По требованию — раскрываем сразу, как только появились данные.
             setPatientConditionExpanded(true)
         }
     }
@@ -159,6 +158,7 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
         summary.callAddressText.text = buildAddress(call).ifBlank { "Адрес не указан" }
         summary.timeData.text = "Дата: ${DateFormatter.formatDateTime(call.callTime)}"
         summary.urgencyData.text = call.urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
+        summary.decisionTimerText.visibility = View.GONE
         summary.root.setOnClickListener(null)
         summary.root.isClickable = false
     }
@@ -169,117 +169,100 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
 
         container.removeAllViews()
 
-        // Выводим все непустые поля DTO, чтобы детали работали и для активных, и для архивных вызовов.
-        // Служебные id (госпитализации, вызова, статусов) намеренно скрыты — врачу они не нужны.
         addSection(container, "Госпитализация")
-        addField(container, "Статус госпитализации", hospitalization.statusName)
-        addField(container, "Решение", hospitalization.decisionName)
-        addField(container, "Время создания госпитализации", formatDateTime(hospitalization.creationTime))
-        addField(container, "Уведомление отправлено", formatBoolean(hospitalization.isNotificationSent))
-        addField(container, "Время подтверждения уведомления", formatDateTime(hospitalization.notificationTime))
-        addField(container, "Время принятия решения", formatDateTime(hospitalization.decisionTime))
+        addDataField(container, "Статус госпитализации", hospitalization.statusName)
+        addDataField(container, "Решение", hospitalization.decisionName)
+        addDataField(container, "Время создания госпитализации", formatDateTime(hospitalization.creationTime))
+        addDataField(container, "Уведомление отправлено", formatBoolean(hospitalization.isNotificationSent))
+        addDataField(container, "Время подтверждения уведомления", formatDateTime(hospitalization.notificationTime))
+        addDataField(container, "Время принятия решения", formatDateTime(hospitalization.decisionTime))
 
         addSection(container, "Вызов")
-        addField(container, "Номер вызова", "${call.dayNumber}/${call.yearNumber}")
-        addField(container, "Статус вызова", call.status)
-        addField(container, "Код ССМП бригады", call.brigadeSmpCode.toString())
-        addField(container, "Место госпитализации", call.hospitalizationPlace)
-        addField(container, "Время вызова", formatDateTime(call.callTime))
-        addField(container, "Передан бригаде", formatDateTime(call.transferTime))
-        addField(container, "Выезд на вызов", formatDateTime(call.departureTime))
-        addField(container, "Прибытие бригады", formatDateTime(call.brigadeArrivalTime))
-        addField(container, "Начало госпитализации", formatDateTime(call.hospitalizationTime))
-        addField(container, "Прибытие в стационар", formatDateTime(call.arrivalHospitalTime))
-        addField(container, "Закрытие вызова", formatDateTime(call.closeCallTime))
-        addField(container, "Возвращение на станцию", formatDateTime(call.backTime))
-        addField(container, "Срочность", call.urgency?.toString())
+        addDataField(container, "Номер вызова", "${call.dayNumber}/${call.yearNumber}")
+        addDataField(container, "Статус вызова", call.status)
+        addDataField(container, "Код ССМП бригады", call.brigadeSmpCode.toString())
+        addDataField(container, "Место госпитализации", call.hospitalizationPlace)
+        addDataField(container, "Время вызова", formatDateTime(call.callTime))
+        addDataField(container, "Передан бригаде", formatDateTime(call.transferTime))
+        addDataField(container, "Выезд на вызов", formatDateTime(call.departureTime))
+        addDataField(container, "Прибытие бригады", formatDateTime(call.brigadeArrivalTime))
+        addDataField(container, "Начало госпитализации", formatDateTime(call.hospitalizationTime))
+        addDataField(container, "Прибытие в стационар", formatDateTime(call.arrivalHospitalTime))
+        addDataField(container, "Закрытие вызова", formatDateTime(call.closeCallTime))
+        addDataField(container, "Возвращение на станцию", formatDateTime(call.backTime))
+        addDataField(container, "Срочность", call.urgency?.toString())
 
         addSection(container, "Основная информация")
-        addField(container, "Повод", call.reason)
-        addField(container, "Дополнительная информация", call.additionalInfo)
-        addField(container, "Кто вызвал", call.whoCall)
-        addField(container, "Тип вызова", call.callType)
-        addField(container, "Профиль вызова", call.callProfile)
-        addField(container, "Комментарий к вызову", call.comment)
-        addField(container, "Результат вызова", call.callResult)
+        addDataField(container, "Повод", call.reason)
+        addDataField(container, "Дополнительная информация", call.additionalInfo)
+        addDataField(container, "Кто вызвал", call.whoCall)
+        addDataField(container, "Тип вызова", call.callType)
+        addDataField(container, "Профиль вызова", call.callProfile)
+        addDataField(container, "Комментарий к вызову", call.comment)
+        addDataField(container, "Результат вызова", call.callResult)
 
         addSection(container, "Диагноз")
-        addField(container, "Код МКБ", call.mkbCode)
-        addField(container, "Основной диагноз", call.mainDiagnosis)
-        addField(container, "Осложнение", call.secondDiagnosis)
-        addField(container, "Комментарий к диагнозу", call.diagnosisComment)
-        addField(container, "Вид травмы", call.diseaseType)
+        addDataField(container, "Код МКБ", call.mkbCode)
+        addDataField(container, "Основной диагноз", call.mainDiagnosis)
+        addDataField(container, "Осложнение", call.secondDiagnosis)
+        addDataField(container, "Комментарий к диагнозу", call.diagnosisComment)
+        addDataField(container, "Вид травмы", call.diseaseType)
 
         addSection(container, "Адрес")
-        addField(container, "Место", call.place)
-        addField(container, "Сектор", call.sector?.toString())
-        addField(container, "Район", call.district)
-        addField(container, "Населенный пункт", call.point)
-        addField(container, "Улица", call.street)
-        addField(container, "Дом", call.house)
-        addField(container, "Квартира", call.apartment)
-        addField(container, "Подъезд", call.entrance?.toString())
-        addField(container, "Код подъезда", call.entranceCode)
-        addField(container, "Этаж", call.floor?.toString())
-        addField(container, "Долгота", call.longitude?.toString())
-        addField(container, "Широта", call.latitude?.toString())
+        addDataField(container, "Место", call.place)
+        addDataField(container, "Сектор", call.sector?.toString())
+        addDataField(container, "Район", call.district)
+        addDataField(container, "Населенный пункт", call.point)
+        addDataField(container, "Улица", call.street)
+        addDataField(container, "Дом", call.house)
+        addDataField(container, "Квартира", call.apartment)
+        addDataField(container, "Подъезд", call.entrance?.toString())
+        addDataField(container, "Код подъезда", call.entranceCode)
+        addDataField(container, "Этаж", call.floor?.toString())
+        addDataField(container, "Долгота", call.longitude?.toString())
+        addDataField(container, "Широта", call.latitude?.toString())
 
         addSection(container, "Пациент")
-        addField(container, "ФИО", buildPatientName(call))
-        addField(container, "Фамилия", call.patientSurname)
-        addField(container, "Имя", call.patientName)
-        addField(container, "Отчество", call.patientPatronymic)
-        addField(container, "Пол", call.sex)
-        addField(container, "Возраст", call.age)
-        addField(container, "Дата рождения", call.birthDay)
-        addField(container, "Алкогольное опьянение", formatBoolean(call.alcohol))
-        addField(container, "СНИЛС", call.snils)
-        addField(container, "Тип документа", call.documentType)
-        addField(container, "Номер документа", call.documentNumber)
-        addField(container, "СМО", call.smo)
-        addField(container, "Страховой полис", call.insuranceNumber)
+        addDataField(container, "ФИО", buildPatientName(call))
+        addDataField(container, "Фамилия", call.patientSurname)
+        addDataField(container, "Имя", call.patientName)
+        addDataField(container, "Отчество", call.patientPatronymic)
+        addDataField(container, "Пол", call.sex)
+        addDataField(container, "Возраст", call.age)
+        addDataField(container, "Дата рождения", call.birthDay)
+        addDataField(container, "Алкогольное опьянение", formatBoolean(call.alcohol))
+        addDataField(container, "СНИЛС", call.snils)
+        addDataField(container, "Тип документа", call.documentType)
+        addDataField(container, "Номер документа", call.documentNumber)
+        addDataField(container, "СМО", call.smo)
+        addDataField(container, "Страховой полис", call.insuranceNumber)
 
         addSection(container, "Бригада")
-        addField(container, "Номер бригады", call.brigadeNumber?.toString())
-        addField(container, "Профиль бригады", call.brigadeProfile)
-        addField(container, "Рация", call.radio)
-        addField(container, "Номер машины", call.carNumber)
-        addField(container, "Километраж", call.mileage)
-        addField(container, "Код территориальной ССМП", call.territorialSmpCode?.toString())
-        addField(container, "Номер подстанции", call.substationSmp?.toString())
-        addField(container, "Подстанция по управлению", call.substationNumberControl?.toString())
-        addField(container, "Подстанция базирования", call.substationNumberBase?.toString())
-        addField(container, "Номер старшего", call.seniorPersonalNumber)
-        addField(container, "ФИО старшего", call.seniorFullName)
-        addField(container, "Первый помощник", call.member1)
-        addField(container, "Второй помощник", call.member2)
-        addField(container, "Водитель", call.driver)
+        addDataField(container, "Номер бригады", call.brigadeNumber?.toString())
+        addDataField(container, "Профиль бригады", call.brigadeProfile)
+        addDataField(container, "Рация", call.radio)
+        addDataField(container, "Номер машины", call.carNumber)
+        addDataField(container, "Километраж", call.mileage)
+        addDataField(container, "Код территориальной ССМП", call.territorialSmpCode?.toString())
+        addDataField(container, "Номер подстанции", call.substationSmp?.toString())
+        addDataField(container, "Подстанция по управлению", call.substationNumberControl?.toString())
+        addDataField(container, "Подстанция базирования", call.substationNumberBase?.toString())
+        addDataField(container, "Номер старшего", call.seniorPersonalNumber)
+        addDataField(container, "ФИО старшего", call.seniorFullName)
+        addDataField(container, "Первый помощник", call.member1)
+        addDataField(container, "Второй помощник", call.member2)
+        addDataField(container, "Водитель", call.driver)
     }
 
-    private fun bindChatPlaceholder(hospitalization: HospitalizationResponseDto) {
-        // Чат доступен и для активных, и для архивных вызовов. В архиве — только просмотр истории.
+    private fun openChat(hospitalization: HospitalizationResponseDto) {
         val isArchive = HospitalizationStatus.fromId(hospitalization.statusId)?.isArchive == true
-
-        binding.chatPlaceholderCard.visibility = View.VISIBLE
-        binding.chatPlaceholderTitle.text = if (isArchive) "История чата" else "Чат по вызову"
-        binding.chatPlaceholderSubtitle.text = if (isArchive) {
-            "Открыть переписку по этой госпитализации (только просмотр)."
-        } else {
-            "Открыть переписку по этой госпитализации."
-        }
-        binding.chatPlaceholderCard.setOnClickListener {
-            openChat(hospitalization, readOnly = isArchive)
-        }
-    }
-
-    private fun openChat(hospitalization: HospitalizationResponseDto, readOnly: Boolean) {
-        val intent = android.content.Intent(this, ChatActivity::class.java).apply {
+        val intent = Intent(this, ChatActivity::class.java).apply {
             putExtra(ChatActivity.EXTRA_HOSPITALIZATION_ID, hospitalization.id)
             putExtra(
                 ChatActivity.EXTRA_CHAT_TITLE,
                 "Вызов №${hospitalization.call.dayNumber}/${hospitalization.call.yearNumber}"
             )
-            putExtra(ChatActivity.EXTRA_READ_ONLY, readOnly)
+            putExtra(ChatActivity.EXTRA_READ_ONLY, isArchive)
         }
         startActivity(intent)
     }
@@ -287,61 +270,83 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
     private fun addSection(container: LinearLayout, title: String) {
         val sectionView = TextView(this).apply {
             text = title
-            setTextColor(resources.getColor(R.color.gray_1, null))
-            textSize = 18f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@HospitalizationDetailsActivity, R.color.main_1))
+            textSize = 15f
+            typeface = Typeface.DEFAULT_BOLD
+            letterSpacing = 0.02f
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(ContextCompat.getColor(this@HospitalizationDetailsActivity, R.color.blue_3))
+                setStroke(1.dp(), ContextCompat.getColor(this@HospitalizationDetailsActivity, R.color.border_gray_1))
+                cornerRadius = 12.dp().toFloat()
+            }
+            setPadding(14.dp(), 10.dp(), 14.dp(), 10.dp())
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = if (container.childCount == 0) 8.dp() else 20.dp()
-                leftMargin = 8.dp()
-                rightMargin = 8.dp()
+                topMargin = if (container.childCount == 0) 0 else 18.dp()
             }
         }
         container.addView(sectionView)
     }
 
-    private fun addField(container: LinearLayout, label: String, value: String?) {
+    private fun addDataField(container: LinearLayout, label: String, value: String?) {
         if (value.isNullOrBlank()) return
 
         val fieldLayout = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setBackgroundResource(R.drawable.data_field_background)
-            setPadding(14.dp(), 8.dp(), 14.dp(), 8.dp())
             layoutParams = LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
-                topMargin = 8.dp()
-                leftMargin = 8.dp()
-                rightMargin = 8.dp()
+                topMargin = 2.dp()
             }
+            gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.HORIZONTAL
+            setPadding(14.dp(), 10.dp(), 14.dp(), 10.dp())
         }
 
         val labelView = TextView(this).apply {
             text = label
-            setTextColor(resources.getColor(R.color.field_label_color, null))
-            textSize = 13f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(ContextCompat.getColor(this@HospitalizationDetailsActivity, R.color.gray_1))
+            textSize = 15f
+            typeface = Typeface.DEFAULT
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.42f
+            ).apply {
+                rightMargin = 12.dp()
+            }
         }
 
         val valueView = TextView(this).apply {
             text = value
-            setTextColor(resources.getColor(R.color.gray_1, null))
-            textSize = 16f
-            gravity = Gravity.START
+            setTextColor(ContextCompat.getColor(this@HospitalizationDetailsActivity, R.color.black_1))
+            textSize = 15f
+            gravity = Gravity.END
             layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = 3.dp()
-            }
+                0,
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                0.58f
+            )
         }
 
         fieldLayout.addView(labelView)
         fieldLayout.addView(valueView)
         container.addView(fieldLayout)
+
+        val divider = View(this).apply {
+            setBackgroundColor(ContextCompat.getColor(this@HospitalizationDetailsActivity, R.color.border_gray_1))
+            alpha = 0.65f
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                1
+            ).apply {
+                leftMargin = 14.dp()
+                rightMargin = 14.dp()
+            }
+        }
+        container.addView(divider)
     }
 
     private fun buildPatientName(call: CallResponseDto): String {

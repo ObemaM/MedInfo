@@ -61,6 +61,9 @@ class IncomingCallActivity : AppCompatActivity() {
     private var isPatientConditionExpanded: Boolean = false
     private var lastPatientCondition: PatientConditionResponseDto? = null
     private var keepCurrentHospitalizationWhenMissingFromQueue: Boolean = false
+    // Для тестового вызова (легаси CALL_DATA) рисуем плашку "Состояние пациента" из mock-данных,
+    // чтобы её можно было визуально отдебажить без реального сообщения в чате.
+    private var debugFakeCondition: PatientConditionResponseDto? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         CallLog.event("IncomingCallActivity", "onCreate START")
@@ -168,6 +171,7 @@ class IncomingCallActivity : AppCompatActivity() {
 
         val legacyCall = intent?.getSerializableExtra("CALL_DATA") as? CallNotificationDto ?: return
         val converted = legacyCall.toHospitalizationResponseDto()
+        debugFakeCondition = legacyCall.toFakePatientCondition(converted.id)
         CallLog.hospitalization("IncomingCallActivity", converted, "received legacy CALL_DATA")
         CallsManager.upsertCall(converted)
     }
@@ -403,6 +407,11 @@ class IncomingCallActivity : AppCompatActivity() {
 
     // Берём из истории сообщений последнее с PatientCondition. Если такого нет — карточка прячется.
     private fun fetchLatestPatientCondition(hospitalizationId: String) {
+        // В тестовом вызове сразу показываем фейковое состояние, чтобы плашку было видно для дебага.
+        debugFakeCondition?.let { fake ->
+            renderPatientCondition(fake)
+            return
+        }
         lifecycleScope.launch {
             val condition = try {
                 withContext(Dispatchers.IO) {
@@ -421,6 +430,40 @@ class IncomingCallActivity : AppCompatActivity() {
                 renderPatientCondition(condition)
             }
         }
+    }
+
+    private fun CallNotificationDto.toFakePatientCondition(id: String): PatientConditionResponseDto {
+        return PatientConditionResponseDto(
+            id = id,
+            startDisease = startDisease,
+            vozr = vozr,
+            consciousness = consciousness,
+            bloodPressure = bloodPressure,
+            heartRate = heartRate,
+            respirationRate = respirationRate,
+            temperature = temperature,
+            spO2 = spO2,
+            vas = vas,
+            glucometry = glucometry?.toDouble(),
+            pregnant = pregnant ?: false,
+            convulsions = convulsions ?: false,
+            stenosis = stenosis ?: false,
+            ifaPresence = ifa?.presence ?: false,
+            ifaTool = ifa?.tool,
+            alv = ifa?.alv ?: false,
+            venousAccessPresence = venousAccess?.presence ?: false,
+            venousAccessMethod = venousAccess?.method,
+            oxygenSupport = oxygenSupport ?: false,
+            bleedingPresence = bleeding?.presence ?: false,
+            bleedingType = bleeding?.type,
+            arterialTourniquetPresence = bleeding?.arterialTourniquet?.presence ?: false,
+            arterialTourniquetApplicationTime = bleeding?.arterialTourniquet?.applicationTime,
+            mrs = mrs,
+            newsScore = null,
+            pewsScore = null,
+            algoverIndex = null,
+            lams = lams
+        )
     }
 
     // Подписываемся на realtime-сообщения и обновляем карточку, если прилетела новая запись о пациенте.
@@ -462,9 +505,14 @@ class IncomingCallActivity : AppCompatActivity() {
                 binding.timerText.text =
                     "Осталось: ${String.format(Locale.ROOT, "%02d:%02d", minutes, secRemaining)}"
 
-                // Цвет считаем по доле от полного интервала из конфига, чтобы шкала всегда совпадала
-                // со списком "Требуют решения" независимо от длительности.
-                val colorRes = DecisionTimerStage.colorRes(millisUntilFinished)
+                // На экране вызова используем только два состояния: красный в финальной зоне,
+                // иначе — стандартный цвет текста проекта. В списке "Требуют решения" остаётся
+                // полная трёхцветная шкала.
+                val colorRes = if (DecisionTimerStage.colorRes(millisUntilFinished) == R.color.red_1) {
+                    R.color.red_1
+                } else {
+                    R.color.gray_1
+                }
                 val color = resources.getColor(colorRes, null)
                 binding.timerText.setTextColor(color)
                 binding.timerIcon.setColorFilter(color)
