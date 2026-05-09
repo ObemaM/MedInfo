@@ -31,6 +31,7 @@ import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.model.api.PatientConditionResponseDto
+import com.example.medinfo.notifications.TestMessageSimulator
 import com.example.medinfo.ui.chat.ChatActivity
 import com.example.medinfo.util.CallLog
 import com.example.medinfo.util.DateFormatter
@@ -96,6 +97,17 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.buttonStopAlerts.setOnClickListener {
             stopAlerts()
             binding.buttonStopAlerts.visibility = android.view.View.GONE
+        }
+
+        // DEBUG: кнопка видна только в тестовом вызове (debugFakeCondition выставляется в
+        // handleIncomingIntent при получении легаси CALL_DATA из simulateIncomingCall).
+        // Эмитит фейковое сообщение в чат: если ChatActivity открыт — оно появится сразу,
+        // если закрыт — прилетит системное уведомление, тап по которому откроет чат.
+        binding.debugSimulateMessageButton.visibility =
+            if (debugFakeCondition != null) android.view.View.VISIBLE else android.view.View.GONE
+        binding.debugSimulateMessageButton.setOnClickListener {
+            val id = currentHospitalization?.id ?: return@setOnClickListener
+            TestMessageSimulator.simulateBrigadeMessage(this, id)
         }
 
         if (shouldStartAlerts(intent)) {
@@ -181,7 +193,6 @@ class IncomingCallActivity : AppCompatActivity() {
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getSerializableExtra(EXTRA_HOSPITALIZATION, HospitalizationResponseDto::class.java)
         } else {
-            @Suppress("DEPRECATION")
             intent.getSerializableExtra(EXTRA_HOSPITALIZATION) as? HospitalizationResponseDto
         }
     }

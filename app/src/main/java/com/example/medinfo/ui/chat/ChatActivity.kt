@@ -21,6 +21,8 @@ import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.model.api.PatientConditionResponseDto
+import com.example.medinfo.notifications.ChatMessageNotifier
+import com.example.medinfo.notifications.TestMessageSimulator
 import com.example.medinfo.util.DateFormatter
 import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +38,10 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private lateinit var hospitalizationId: String
+
+    val chatId: String?
+        get() = if (::hospitalizationId.isInitialized) hospitalizationId else null
+
     private var readOnly: Boolean = false
 
     // ID уже отрисованных сообщений — для дедупа: если SignalR пушит сообщение,
@@ -66,6 +72,10 @@ class ChatActivity : AppCompatActivity() {
         binding.closeButton.setOnClickListener { finish() }
         binding.inputContainer.visibility = if (readOnly) View.GONE else View.VISIBLE
         binding.sendButton.setOnClickListener { sendMessage() }
+        // DEBUG: эмулирует входящее сообщение от бригады (для проверки realtime + уведомлений)
+        binding.debugSimulateButton.setOnClickListener {
+            TestMessageSimulator.simulateBrigadeMessage(this, hospitalizationId)
+        }
         binding.messageEditText.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 sendMessage()
@@ -107,6 +117,15 @@ class ChatActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        // Если экран открылся успешно — гасим висящее в шторке уведомление по этому чату.
+        // Через chatId, а не напрямую по hospitalizationId — на случай, если onCreate упал
+        // в finish() до присваивания поля и lateinit ещё не инициализирован.
+        chatId?.let { ChatMessageNotifier.cancelFor(this, it) }
     }
 
     // Сообщения PATIENT_CONDITION открывают диалог состояния пациента поверх любого другого

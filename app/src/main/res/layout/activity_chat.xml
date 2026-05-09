@@ -120,6 +120,21 @@
             android:orientation="horizontal"
             android:padding="8dp">
 
+            <!-- DEBUG: имитирует входящее сообщение от бригады. Удалить перед прод-релизом. -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/debug_simulate_button"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:layout_marginEnd="8dp"
+                android:minWidth="52dp"
+                android:text="Тест"
+                android:textColor="@color/red_1"
+                android:textSize="12sp"
+                app:cornerRadius="12dp"
+                app:strokeColor="@color/red_1"
+                tools:ignore="HardcodedText" />
+
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/message_edit_text"
                 android:layout_width="0dp"

@@ -15,6 +15,8 @@ import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
+import com.example.medinfo.model.Hospitalization
+import com.example.medinfo.notifications.ChatMessageNotifier
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
@@ -201,6 +203,13 @@ class SignalRService : Service() {
         // подпишется и отрисует сообщение, если оно для его hospitalizationId.
         items.forEach { MessagesEventBus.emit(it) }
 
+        // Системные уведомления для сообщений в "неоткрытых" чатах. Внутри notifier
+        // сам решает, нужно ли его показывать (проверка origin/foreground/permission).
+        items.forEach { message ->
+            val chatTitle = buildChatTitle(message.hospitalizationId)
+            ChatMessageNotifier.notifyIfNeeded(this, message, chatTitle)
+        }
+
         items
             .filter { MessageOrigin.fromId(it.origin) == MessageOrigin.TABLET }
             // Сообщение от бригады считается моментом, когда врачу реально нужно начать принимать решение.
@@ -226,6 +235,17 @@ class SignalRService : Service() {
                     )
                 }
             }
+        }
+    }
+
+    // Для правильного названия чата
+    private fun buildChatTitle(hospitalizationId: String): String {
+        val hospitalization = CallsManager.calls.value.firstOrNull { it.id == hospitalizationId }
+        return if (hospitalization != null) {
+            val call = hospitalization.call
+            "Вызов №${call.dayNumber}/${call.yearNumber}"
+        } else {
+            "Сообщение по вызову"
         }
     }
 
@@ -339,7 +359,21 @@ class SignalRService : Service() {
                 lockscreenVisibility = Notification.VISIBILITY_SECRET
             }
 
+            // Канал для входящих сообщений чата. IMPORTANCE_HIGH — чтобы уведомление
+            // всплывало сверху (heads-up), со звуком и вибрацией. Пользователь может
+            // потом сам приглушить его в системных настройках — это нормально.
+            val chatMessagesChannel = NotificationChannel(
+                ChatMessageNotifier.CHANNEL_ID,
+                "Сообщения чата",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = "Новые сообщения от бригады по вызовам"
+                setShowBadge(true)
+                lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+            }
+
             manager.createNotificationChannel(serviceChannel)
+            manager.createNotificationChannel(chatMessagesChannel)
         }
     }
 
