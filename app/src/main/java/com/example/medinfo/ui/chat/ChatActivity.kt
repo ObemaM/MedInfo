@@ -13,6 +13,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.medinfo.R
+import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
@@ -72,7 +73,10 @@ class ChatActivity : AppCompatActivity() {
         binding.closeButton.setOnClickListener { finish() }
         binding.inputContainer.visibility = if (readOnly) View.GONE else View.VISIBLE
         binding.sendButton.setOnClickListener { sendMessage() }
-        // DEBUG: эмулирует входящее сообщение от бригады (для проверки realtime + уведомлений)
+        // DEBUG: эмулирует входящее сообщение от бригады; в боевом режиме скрыта
+        // тем же флагом, что и тестовый звонок на главном экране.
+        binding.debugSimulateButton.visibility =
+            if (ConfigManager.testCallEnabled) View.VISIBLE else View.GONE
         binding.debugSimulateButton.setOnClickListener {
             TestMessageSimulator.simulateBrigadeMessage(this, hospitalizationId)
         }
@@ -130,14 +134,30 @@ class ChatActivity : AppCompatActivity() {
 
     // Сообщения PATIENT_CONDITION открывают диалог состояния пациента поверх любого другого
     // диалога. Защищаемся от повторного показа (id сообщения уже в shownConditionMessageIds).
+    // Если бригада прислала несколько сообщений подряд — не складываем диалоги стопкой,
+    // а закрываем предыдущий и показываем самый свежий.
     private fun maybeShowPatientConditionDialog(message: MessageResponseDto) {
         if (MessageType.fromId(message.type) != MessageType.PATIENT_CONDITION) return
         val condition = message.patientCondition ?: return
         if (!shownConditionMessageIds.add(message.id)) return
         if (supportFragmentManager.isStateSaved) return
 
+        showPatientConditionDialog(condition, message.receptionTime)
+    }
+
+    // Открыть диалог по тапу на кнопку в пузыре чата (или из maybeShowPatientConditionDialog).
+    // Любую уже открытую копию закрываем — на экране остаётся ровно одна, всегда самая последняя.
+    private fun showPatientConditionDialog(
+        condition: PatientConditionResponseDto,
+        receptionTime: String?
+    ) {
+        if (supportFragmentManager.isStateSaved) return
+
+        (supportFragmentManager.findFragmentByTag(MessageDataDialogFragment.TAG)
+            as? MessageDataDialogFragment)?.dismissAllowingStateLoss()
+
         MessageDataDialogFragment
-            .newInstance(condition, message.receptionTime)
+            .newInstance(condition, receptionTime)
             .show(supportFragmentManager, MessageDataDialogFragment.TAG)
     }
 
@@ -225,6 +245,10 @@ class ChatActivity : AppCompatActivity() {
 
     private fun createMessageBubble(message: MessageResponseDto): View {
         val isOwn = MessageOrigin.fromId(message.origin) == MessageOrigin.INFORMATOR_APP
+        val isPatientCondition =
+            MessageType.fromId(message.type) == MessageType.PATIENT_CONDITION &&
+                message.patientCondition != null
+
         val card = MaterialCardView(this).apply {
             radius = 12.dp().toFloat()
             cardElevation = 0f
@@ -233,8 +257,13 @@ class ChatActivity : AppCompatActivity() {
             setCardBackgroundColor(
                 resources.getColor(if (isOwn) R.color.blue_3 else R.color.background_2, null)
             )
+            // Ширину пузыря считаем в dp, чтобы на маленьких экранах оставались разумные поля
+            // (на 320dp было слишком тесно при 0.78 * widthPixels).
+            val maxBubbleWidthDp = 320
+            val targetWidthPx = (resources.displayMetrics.widthPixels * 0.82f).toInt()
+                .coerceAtMost(maxBubbleWidthDp.dp())
             layoutParams = LinearLayout.LayoutParams(
-                (resources.displayMetrics.widthPixels * 0.78f).toInt(),
+                targetWidthPx,
                 LinearLayout.LayoutParams.WRAP_CONTENT
             ).apply {
                 gravity = if (isOwn) Gravity.END else Gravity.START
@@ -255,7 +284,13 @@ class ChatActivity : AppCompatActivity() {
         }
 
         val body = TextView(this).apply {
-            text = buildMessageBody(message)
+            // Для PATIENT_CONDITION в пузыре оставляем только короткую подпись — полный набор
+            // полей живёт в диалоге состояния пациента, чтобы не растягивать чат на 25 строк.
+            text = if (isPatientCondition) {
+                "Получены данные о состоянии пациента"
+            } else {
+                buildMessageBody(message)
+            }
             setTextColor(resources.getColor(R.color.black_1, null))
             textSize = 16f
             layoutParams = LinearLayout.LayoutParams(
@@ -281,9 +316,45 @@ class ChatActivity : AppCompatActivity() {
 
         container.addView(author)
         container.addView(body)
+        if (isPatientCondition) {
+            container.addView(buildShowConditionButton(message))
+        }
         container.addView(time)
         card.addView(container)
         return card
+    }
+
+    // Вторичная кнопка под телом сообщения PATIENT_CONDITION: повторно открывает диалог
+    // состояния пациента с теми же данными. Нужна, если врач закрыл авто-открывшийся диалог
+    // или вернулся в чат позже и хочет посмотреть подробности.
+    private fun buildShowConditionButton(message: MessageResponseDto): View {
+        return com.google.android.material.button.MaterialButton(
+            this,
+            null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle
+        ).apply {
+            text = "Показать данные"
+            textSize = 13f
+            isAllCaps = false
+            setTextColor(resources.getColor(R.color.main_1, null))
+            strokeColor = android.content.res.ColorStateList.valueOf(
+                resources.getColor(R.color.main_1, null)
+            )
+            cornerRadius = 10.dp()
+            insetTop = 0
+            insetBottom = 0
+            minHeight = 40.dp()
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = 8.dp()
+            }
+            setOnClickListener {
+                val condition = message.patientCondition ?: return@setOnClickListener
+                showPatientConditionDialog(condition, message.receptionTime)
+            }
+        }
     }
 
     private fun showState(text: String) {
@@ -312,48 +383,15 @@ class ChatActivity : AppCompatActivity() {
         }
     }
 
+    // Подробный набор полей живёт в диалоге MessageDataDialogFragment. В пузыре чата
+    // показываем только короткую подпись, чтобы лента не превращалась в простыню.
     private fun buildPatientConditionText(condition: PatientConditionResponseDto?): String {
-        if (condition == null) return "Переданы данные состояния пациента"
-
-        return buildList {
-            add("Переданы данные состояния пациента")
-            condition.startDisease?.let { add("Начало заболевания: $it") }
-            condition.vozr?.let { add("Возраст: $it") }
-            condition.consciousness?.let { add("Сознание: $it") }
-            condition.bloodPressure?.let { add("АД: $it") }
-            condition.heartRate?.let { add("Пульс: $it") }
-            condition.respirationRate?.let { add("ЧДД: $it") }
-            condition.temperature?.let { add("Температура: $it") }
-            condition.spO2?.let { add("SpO2: $it") }
-            condition.vas?.let { add("ВАШ: $it") }
-            condition.glucometry?.let { add("Глюкоза: $it") }
-            add("Беременность: ${condition.pregnant.toYesNo()}")
-            add("Судороги: ${condition.convulsions.toYesNo()}")
-            add("Стеноз: ${condition.stenosis.toYesNo()}")
-            add("ИФА: ${condition.ifaPresence.toYesNo()}")
-            condition.ifaTool?.takeIf { it.isNotEmpty() }?.let {
-                add("Средства ИФА: ${it.joinToString()}")
-            }
-            add("АЛВ: ${condition.alv.toYesNo()}")
-            add("Венозный доступ: ${condition.venousAccessPresence.toYesNo()}")
-            condition.venousAccessMethod?.takeIf { it.isNotEmpty() }?.let {
-                add("Метод венозного доступа: ${it.joinToString()}")
-            }
-            add("Кислородная поддержка: ${condition.oxygenSupport.toYesNo()}")
-            add("Кровотечение: ${condition.bleedingPresence.toYesNo()}")
-            condition.bleedingType?.let { add("Тип кровотечения: $it") }
-            add("Артериальный жгут: ${condition.arterialTourniquetPresence.toYesNo()}")
-            condition.arterialTourniquetApplicationTime?.let {
-                add("Время наложения жгута: ${DateFormatter.formatDateTime(it)}")
-            }
-            condition.mrs?.let { add("mRS: $it") }
-            condition.newsScore?.let { add("NEWS: $it") }
-            condition.pewsScore?.let { add("PEWS: $it") }
-            condition.algoverIndex?.let { add("Индекс Альговера: $it") }
-        }.joinToString("\n")
+        return if (condition == null) {
+            "Переданы данные состояния пациента"
+        } else {
+            "Получены данные о состоянии пациента"
+        }
     }
-
-    private fun Boolean.toYesNo(): String = if (this) "Да" else "Нет"
 
     private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()
 

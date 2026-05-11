@@ -5,7 +5,7 @@
 -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="340dp"
+    android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="center"
     app:cardBackgroundColor="@color/background_2"
@@ -76,11 +76,14 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/reception_time_text" />
 
+        <!--
+          Высоту скрола не фиксируем — даём ему wrap_content и полагаемся на ограничение
+          высоты окна диалога, чтобы на маленьких экранах не вылезало за рамки.
+        -->
         <ScrollView
             android:id="@+id/scroll_view"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:maxHeight="600dp"
             android:overScrollMode="never"
             android:paddingTop="0dp"
             android:paddingBottom="0dp"
