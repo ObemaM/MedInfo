@@ -19,12 +19,12 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.R
+import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.databinding.ActivityIncomingCallBinding
-import com.example.medinfo.model.CallNotificationDto
 import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
@@ -40,7 +40,6 @@ import com.example.medinfo.util.PatientConditionFields
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import java.util.Locale
-import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -62,9 +61,6 @@ class IncomingCallActivity : AppCompatActivity() {
     private var isPatientConditionExpanded: Boolean = false
     private var lastPatientCondition: PatientConditionResponseDto? = null
     private var keepCurrentHospitalizationWhenMissingFromQueue: Boolean = false
-    // Для тестового вызова (легаси CALL_DATA) рисуем плашку "Состояние пациента" из mock-данных,
-    // чтобы её можно было визуально отдебажить без реального сообщения в чате.
-    private var debugFakeCondition: PatientConditionResponseDto? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         CallLog.event("IncomingCallActivity", "onCreate START")
@@ -99,12 +95,11 @@ class IncomingCallActivity : AppCompatActivity() {
             binding.buttonStopAlerts.visibility = android.view.View.GONE
         }
 
-        // DEBUG: кнопка видна только в тестовом вызове (debugFakeCondition выставляется в
-        // handleIncomingIntent при получении легаси CALL_DATA из simulateIncomingCall).
+        // DEBUG: кнопка видна только когда в конфиге включён testCallEnabled.
         // Эмитит фейковое сообщение в чат: если ChatActivity открыт — оно появится сразу,
         // если закрыт — прилетит системное уведомление, тап по которому откроет чат.
         binding.debugSimulateMessageButton.visibility =
-            if (debugFakeCondition != null) android.view.View.VISIBLE else android.view.View.GONE
+            if (ConfigManager.testCallEnabled) android.view.View.VISIBLE else android.view.View.GONE
         binding.debugSimulateMessageButton.setOnClickListener {
             val id = currentHospitalization?.id ?: return@setOnClickListener
             TestMessageSimulator.simulateBrigadeMessage(this, id)
@@ -180,12 +175,6 @@ class IncomingCallActivity : AppCompatActivity() {
                 "missing queued hospitalization id=$hospitalizationId"
             )
         }
-
-        val legacyCall = intent?.getSerializableExtra("CALL_DATA") as? CallNotificationDto ?: return
-        val converted = legacyCall.toHospitalizationResponseDto()
-        debugFakeCondition = legacyCall.toFakePatientCondition(converted.id)
-        CallLog.hospitalization("IncomingCallActivity", converted, "received legacy CALL_DATA")
-        CallsManager.upsertCall(converted)
     }
 
     private fun readHospitalizationExtra(intent: Intent?): HospitalizationResponseDto? {
@@ -418,11 +407,6 @@ class IncomingCallActivity : AppCompatActivity() {
 
     // Берём из истории сообщений последнее с PatientCondition. Если такого нет — карточка прячется.
     private fun fetchLatestPatientCondition(hospitalizationId: String) {
-        // В тестовом вызове сразу показываем фейковое состояние, чтобы плашку было видно для дебага.
-        debugFakeCondition?.let { fake ->
-            renderPatientCondition(fake)
-            return
-        }
         lifecycleScope.launch {
             val condition = try {
                 withContext(Dispatchers.IO) {
@@ -441,40 +425,6 @@ class IncomingCallActivity : AppCompatActivity() {
                 renderPatientCondition(condition)
             }
         }
-    }
-
-    private fun CallNotificationDto.toFakePatientCondition(id: String): PatientConditionResponseDto {
-        return PatientConditionResponseDto(
-            id = id,
-            startDisease = startDisease,
-            vozr = vozr,
-            consciousness = consciousness,
-            bloodPressure = bloodPressure,
-            heartRate = heartRate,
-            respirationRate = respirationRate,
-            temperature = temperature,
-            spO2 = spO2,
-            vas = vas,
-            glucometry = glucometry?.toDouble(),
-            pregnant = pregnant ?: false,
-            convulsions = convulsions ?: false,
-            stenosis = stenosis ?: false,
-            ifaPresence = ifa?.presence ?: false,
-            ifaTool = ifa?.tool,
-            alv = ifa?.alv ?: false,
-            venousAccessPresence = venousAccess?.presence ?: false,
-            venousAccessMethod = venousAccess?.method,
-            oxygenSupport = oxygenSupport ?: false,
-            bleedingPresence = bleeding?.presence ?: false,
-            bleedingType = bleeding?.type,
-            arterialTourniquetPresence = bleeding?.arterialTourniquet?.presence ?: false,
-            arterialTourniquetApplicationTime = bleeding?.arterialTourniquet?.applicationTime,
-            mrs = mrs,
-            newsScore = null,
-            pewsScore = null,
-            algoverIndex = null,
-            lams = lams
-        )
     }
 
     // Подписываемся на realtime-сообщения и обновляем карточку, если прилетела новая запись о пациенте.
@@ -767,97 +717,6 @@ class IncomingCallActivity : AppCompatActivity() {
         countdownTimer?.cancel()
         countdownHospitalizationId = null
         boundHospitalizationId = null
-    }
-
-    // Преобразование нужно только для старых тестовых сценариев.
-    private fun CallNotificationDto.toHospitalizationResponseDto(): HospitalizationResponseDto {
-        val (dayNumber, yearNumber) = parseLegacyCallNumber(callNumber)
-
-        return HospitalizationResponseDto(
-            id = callNumber ?: UUID.randomUUID().toString(),
-            isNotificationSent = true,
-            decisionId = HospitalizationDecision.NONE.id,
-            decisionName = "Нет решения",
-            statusId = 1,
-            statusName = status ?: "Бригада в пути",
-            creationTime = callTime,
-            notificationTime = null,
-            decisionTime = null,
-            call = CallResponseDto(
-                id = UUID.randomUUID().toString(),
-                brigadeSmpCode = ssmp ?: 0,
-                dayNumber = dayNumber,
-                yearNumber = yearNumber,
-                status = status ?: "",
-                hospitalizationPlace = null,
-                callTime = callTime ?: "",
-                transferTime = null,
-                departureTime = null,
-                brigadeArrivalTime = null,
-                hospitalizationTime = null,
-                arrivalHospitalTime = null,
-                closeCallTime = null,
-                backTime = null,
-                reason = reason,
-                additionalInfo = additionalInfo,
-                whoCall = null,
-                callType = null,
-                callProfile = null,
-                comment = null,
-                urgency = urgency,
-                callResult = null,
-                mkbCode = null,
-                mainDiagnosis = null,
-                secondDiagnosis = null,
-                diagnosisComment = null,
-                diseaseType = null,
-                place = null,
-                sector = null,
-                district = district,
-                point = point,
-                street = street,
-                house = house,
-                apartment = apartment,
-                entrance = enterance,
-                entranceCode = null,
-                floor = null,
-                longitude = longitude,
-                latitude = latitude,
-                patientName = fullName,
-                patientSurname = null,
-                patientPatronymic = null,
-                sex = sex,
-                age = age,
-                birthDay = null,
-                alcohol = false,
-                snils = null,
-                documentType = null,
-                documentNumber = null,
-                smo = null,
-                insuranceNumber = null,
-                brigadeNumber = brigadeNumber,
-                brigadeProfile = brigadeProfile,
-                radio = null,
-                carNumber = null,
-                mileage = null,
-                territorialSmpCode = null,
-                substationSmp = null,
-                substationNumberControl = null,
-                substationNumberBase = null,
-                seniorPersonalNumber = null,
-                seniorFullName = null,
-                member1 = null,
-                member2 = null,
-                driver = null
-            )
-        )
-    }
-
-    private fun parseLegacyCallNumber(callNumber: String?): Pair<Int, Int> {
-        val parts = callNumber?.split("/") ?: return 0 to 0
-        val dayNumber = parts.getOrNull(0)?.toIntOrNull() ?: 0
-        val yearNumber = parts.getOrNull(1)?.toIntOrNull() ?: 0
-        return dayNumber to yearNumber
     }
 
     private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()

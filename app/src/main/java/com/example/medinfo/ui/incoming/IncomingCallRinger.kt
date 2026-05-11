@@ -45,11 +45,6 @@ object IncomingCallRinger {
         }
     }
 
-    @Deprecated("Use start(context) and manual stop() instead")
-    fun start(context: Context, durationMs: Long) {
-        startBrief(context, durationMs)
-    }
-
     // Запускает звон в "brief"-режиме. Без auto-stop: останавливается через stopBrief()
     // при свайпе/тапе in-app алерта. Если continuous уже играет — не трогаем.
     @Suppress("UNUSED_PARAMETER")

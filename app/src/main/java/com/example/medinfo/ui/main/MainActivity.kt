@@ -16,15 +16,12 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.medinfo.R
+import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.model.Hospitalization
-import com.example.medinfo.model.CallNotificationDto
-import com.example.medinfo.model.BleedingInfo
-import com.example.medinfo.model.ArterialTourniquetInfo
-import com.example.medinfo.model.VenousAccessInfo
-import com.example.medinfo.model.IfaInfo
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.signalr.SignalRService
 import com.example.medinfo.receiver.FakeCallAlarmReceiver
+import com.example.medinfo.util.TestCallFactory
 import com.example.medinfo.ui.login.LoginActivity
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -126,7 +123,15 @@ class MainActivity : AppCompatActivity() {
             viewModel.fetchCalls()
         }
 
+        // Если пользователь зашёл в настройки и переключил флаг, тут же отражаем это на UI.
+        applyTestCallVisibility()
+
         startDecisionTimerUpdatesIfNeeded()
+    }
+
+    private fun applyTestCallVisibility() {
+        val show = ConfigManager.testCallEnabled
+        binding.callButton.isVisible = show
     }
 
     override fun onPause() {
@@ -221,20 +226,30 @@ class MainActivity : AppCompatActivity() {
     // Функция для работы с кнопками
     private fun setupViews() {
 
-        // Кнопка звонка
+        // Кнопка тестового звонка видна только при включённом флаге testCallEnabled в конфиге.
+        // В боевой сборке (по умолчанию) она скрыта, чтобы случайный тап не запустил mock.
+        applyTestCallVisibility()
+
         binding.callButton.setOnClickListener {
             android.util.Log.i("CALL_LOG", "[MainActivity] TEST BUTTON PRESSED at ${System.currentTimeMillis()}")
             simulateIncomingCall()
-            Toast.makeText(this, "Тестовый звонок", Toast.LENGTH_SHORT).show()
         }
 
-        // Long press on call button to schedule 35-min Doze test
+        // Long press on call button to schedule Doze-test fake call.
         binding.callButton.setOnLongClickListener {
+            if (!ConfigManager.testCallEnabled) {
+                Toast.makeText(
+                    this,
+                    "Тестовый вызов выключен. Включите его в настройках.",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnLongClickListener true
+            }
             AlertDialog.Builder(this)
                 .setTitle("Тест Doze режима")
-                .setMessage("Запланировать тестовый вызов через 35 минут для проверки работы в Doze режиме?")
+                .setMessage("Запланировать тестовый вызов через ${ConfigManager.fakeCallDelayMinutes} минут для проверки работы в Doze режиме?")
                 .setPositiveButton("Запланировать") { _, _ ->
-                    FakeCallAlarmReceiver.scheduleFakeCall(this, 35)
+                    FakeCallAlarmReceiver.scheduleFakeCall(this)
                 }
                 .setNegativeButton("Отмена", null)
                 .show()
@@ -635,94 +650,31 @@ class MainActivity : AppCompatActivity() {
      }
 
     private fun simulateIncomingCall() {
+        if (!ConfigManager.testCallEnabled) {
+            Toast.makeText(
+                this,
+                "Тестовый вызов выключен. Включите его в настройках.",
+                Toast.LENGTH_SHORT
+            ).show()
+            return
+        }
+
         android.util.Log.i("CALL_LOG", "[MainActivity] simulateIncomingCall() called")
-        // Имитируем данные от сервера
         try {
-            val mockCall = CallNotificationDto(
-                fullName = "Иванов Иван Иванович",
-                age = "45",
-                sex = "Муж",
-                reason = "Боль в груди",
-                additionalInfo = "Аллергия на пенициллин",
-                district = "Центральный",
-                point = "Москва",
-                street = "Ленина",
-                house = "12",
-                apartment = "45",
-                enterance = 3,
-                longitude = 55.7558,
-                latitude = 37.6176,
-                brigadeNumber = 404,
-                brigadeProfile = "Кардиологическая",
-                callNumber = "6/2026",
-                callTime = "2026-02-19T14:30:00",
-                urgency = 1,
-                status = "транспортировка",
-                bloodPressure = "120/80",
+            val mockHospitalization = TestCallFactory.buildMockHospitalization()
 
-                // Медицинские показатели
-                consciousness = "Ясное",
-                convulsions = false,
-                glucometry = 5,
-                heartRate = 72,
-                oxygenSupport = true,
-                pregnant = false,
-                respirationRate = 16,
-                spO2 = 98,
-                startDisease = 2,
-                stenosis = false,
-                temperature = 36.6,
-                lams = 0,
-                mrs = 0,
-                vas = 3,
-
-                // Кровотечение
-                bleeding = BleedingInfo(
-                    presence = false,
-                    type = null,
-                    arterialTourniquet = ArterialTourniquetInfo(
-                        presence = false,
-                        applicationTime = null
-                    )
-                ),
-
-                // Венозный доступ
-                venousAccess = VenousAccessInfo(
-                    presence = true,
-                    method = listOf("Периферическая вена")
-                ),
-
-                // Протезирование ДП
-                ifa = IfaInfo(
-                    presence = false,
-                    tool = null,
-                    alv = false
-                ),
-
-                // Системные поля
-                messageId = 0,
-                messageValue = null,
-
-                // Идентификация
-                dprm = "2026-02-19",
-                ngod = 2026,
-                numv = 6,
-                ssmp = 10,
-                team = 404,
-                vozr = "45"
-            )
-
-            // Запускаем экран точно так же, как это делает SignalRService
+            // Запускаем экран точно так же, как это делает SignalRService после миграции на новый DTO.
             val intent = Intent(this, IncomingCallActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                putExtra("CALL_DATA", mockCall)
+                putExtra(IncomingCallActivity.EXTRA_HOSPITALIZATION, mockHospitalization)
             }
 
-            android.util.Log.i("CALL_LOG", "[MainActivity] LAUNCHING TEST CALL SCREEN Call#: ${mockCall.callNumber}")
+            android.util.Log.i(
+                "CALL_LOG",
+                "[MainActivity] LAUNCHING TEST CALL SCREEN Call#: ${mockHospitalization.call.dayNumber}/${mockHospitalization.call.yearNumber}"
+            )
             startActivity(intent)
-            android.util.Log.i("CALL_LOG", "[MainActivity] Test call screen launched successfully")
-        }
-        catch (e: Exception) {
+        } catch (e: Exception) {
             android.util.Log.e("CALL_LOG", "[MainActivity] FAILED to launch test call: ${e.message}", e)
             Toast.makeText(this, "Ошибка теста: ${e.message}", Toast.LENGTH_LONG).show()
         }

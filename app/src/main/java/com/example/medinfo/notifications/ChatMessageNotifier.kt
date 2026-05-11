@@ -1,6 +1,7 @@
 package com.example.medinfo.notifications
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.app.TaskStackBuilder
 import android.content.Context
@@ -29,6 +30,9 @@ object ChatMessageNotifier {
     private const val NOTIFICATION_ID_BASE = 2000
 
     // Главная точка входа. Вызывается из SignalRService на каждое входящее сообщение.
+    // Lint не умеет проследить cross-function permission check (он сидит в shouldShow ->
+    // hasPostNotificationsPermission), поэтому подавляем на уровне функции.
+    @SuppressLint("MissingPermission")
     fun notifyIfNeeded(
         context: Context,
         message: MessageResponseDto,

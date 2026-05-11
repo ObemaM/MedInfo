@@ -19,6 +19,10 @@ object ConfigManager {
         val sessionPrefsName: String,
         val jwtTokenKey: String,
         val testModeDisableSignalR: Boolean,
+        // Глобальный тумблер тестового вызова: когда выключен, кнопка имитации звонка
+        // на главном экране и Doze-таймер FakeCallAlarmReceiver не работают.
+        // По умолчанию выключен — чтобы в боевой сборке нельзя было случайно дёрнуть.
+        val testCallEnabled: Boolean,
         val fakeCallDelayMinutes: Int,
         val notificationIdService: Int,
         val notificationChannelIdService: String
@@ -34,6 +38,7 @@ object ConfigManager {
                     sessionPrefsName = "app_session",
                     jwtTokenKey = "jwt_token",
                     testModeDisableSignalR = false,
+                    testCallEnabled = false,
                     fakeCallDelayMinutes = 35,
                     notificationIdService = 101,
                     notificationChannelIdService = "MedInfo_SignalR_Service"
@@ -119,6 +124,7 @@ object ConfigManager {
                 "testing",
                 JSONObject().apply {
                     put("disableSignalR", normalizedConfig.testModeDisableSignalR)
+                    put("testCallEnabled", normalizedConfig.testCallEnabled)
                     put("fakeCallDelayMinutes", normalizedConfig.fakeCallDelayMinutes)
                 }
             )
@@ -147,6 +153,7 @@ object ConfigManager {
     val sessionPrefsName: String get() = config.sessionPrefsName
     val jwtTokenKey: String get() = config.jwtTokenKey
     val testModeDisableSignalR: Boolean get() = config.testModeDisableSignalR
+    val testCallEnabled: Boolean get() = config.testCallEnabled
     val fakeCallDelayMinutes: Int get() = config.fakeCallDelayMinutes
     val notificationIdService: Int get() = config.notificationIdService
     val notificationChannelIdService: String get() = config.notificationChannelIdService
@@ -183,6 +190,7 @@ object ConfigManager {
             sessionPrefsName = storage?.optString("sessionPrefsName")?.takeIf { it.isNotBlank() } ?: defaults.sessionPrefsName,
             jwtTokenKey = storage?.optString("jwtTokenKey")?.takeIf { it.isNotBlank() } ?: defaults.jwtTokenKey,
             testModeDisableSignalR = testing?.optBoolean("disableSignalR", defaults.testModeDisableSignalR) ?: defaults.testModeDisableSignalR,
+            testCallEnabled = testing?.optBoolean("testCallEnabled", defaults.testCallEnabled) ?: defaults.testCallEnabled,
             fakeCallDelayMinutes = testing?.optInt("fakeCallDelayMinutes", defaults.fakeCallDelayMinutes) ?: defaults.fakeCallDelayMinutes,
             notificationIdService = notifications?.optInt("serviceNotificationId", defaults.notificationIdService) ?: defaults.notificationIdService,
             notificationChannelIdService = notifications?.optString("serviceChannelId")?.takeIf { it.isNotBlank() } ?: defaults.notificationChannelIdService
