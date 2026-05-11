@@ -4,6 +4,8 @@ import android.app.Dialog
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
+import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -43,6 +45,22 @@ class MessageDataDialogFragment : DialogFragment() {
             .setView(binding.root)
             .create()
         dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+
+        // На маленьких экранах фиксированная 340dp-карточка обрезается. Растягиваем окно
+        // диалога до экрана с боковыми отступами, но клампим разумным максимумом, чтобы на
+        // широких планшетах диалог не растягивался во всю ширину.
+        dialog.setOnShowListener {
+            val window = dialog.window ?: return@setOnShowListener
+            val display = resources.displayMetrics
+            val horizontalMarginPx = 32.dp() // 16dp с каждой стороны
+            val maxWidthPx = 360.dp()
+            val targetWidth = (display.widthPixels - horizontalMarginPx).coerceAtMost(maxWidthPx)
+            window.setLayout(targetWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
+            // Позиционируем по центру — на случай, если родительская активность задала иное.
+            window.setGravity(Gravity.CENTER)
+            // Клавиатура иногда сдвигает диалог; явно говорим окну адаптироваться.
+            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        }
         return dialog
     }
 

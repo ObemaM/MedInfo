@@ -58,6 +58,7 @@ class ConfigActivity : AppCompatActivity() {
         binding.maxCallDurationEditText.setText((config.maxCallDurationMs / MILLIS_IN_MINUTE).toString())
         binding.fakeCallDelayEditText.setText(config.fakeCallDelayMinutes.toString())
         binding.disableSignalrSwitch.isChecked = config.testModeDisableSignalR
+        binding.testCallEnabledSwitch.isChecked = config.testCallEnabled
         updateSignalRPreview(config.serverBaseUrl)
         clearErrors()
     }
@@ -108,6 +109,7 @@ class ConfigActivity : AppCompatActivity() {
             httpReadTimeoutSeconds = readTimeout,
             maxCallDurationMs = maxCallDurationMinutes * MILLIS_IN_MINUTE,
             testModeDisableSignalR = binding.disableSignalrSwitch.isChecked,
+            testCallEnabled = binding.testCallEnabledSwitch.isChecked,
             fakeCallDelayMinutes = fakeCallDelayMinutes
         )
 
