@@ -138,10 +138,17 @@ class LoginActivity: AppCompatActivity() {
         // Continue with login setup
         IncomingCallPermissionHelper.ensurePermissions(this)
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        // Все runtime-разрешения одним запросом; PermissionManager заблокирует вход при отказе.
+        val runtimePermissions = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                add(android.Manifest.permission.POST_NOTIFICATIONS)
+            }
+            add(android.Manifest.permission.CALL_PHONE)
+        }
+        if (runtimePermissions.isNotEmpty()) {
             androidx.core.app.ActivityCompat.requestPermissions(
                 this,
-                arrayOf(android.Manifest.permission.POST_NOTIFICATIONS),
+                runtimePermissions.toTypedArray(),
                 101
             )
         }

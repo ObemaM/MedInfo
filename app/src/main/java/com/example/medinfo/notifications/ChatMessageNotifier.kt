@@ -19,19 +19,15 @@ import com.example.medinfo.ui.chat.ChatActivity
 import com.example.medinfo.ui.main.MainActivity
 import com.example.medinfo.util.AppVisibilityTracker
 
-// Показывает системные уведомления для входящих сообщений чата.
-// Срабатывает только если соответствующий чат сейчас не открыт у пользователя.
+// Системные уведомления для входящих сообщений чата (если чат не открыт у пользователя).
 object ChatMessageNotifier {
 
     const val CHANNEL_ID = "MedInfo_Chat_Messages"
 
-    // Базовый id, к которому прибавляем хэш hospitalizationId — чтобы у каждого чата
-    // было своё уведомление и они не затирали друг друга.
+    // База + хэш hospitalizationId — у каждого чата своё уведомление, не затирают друг друга.
     private const val NOTIFICATION_ID_BASE = 2000
 
-    // Главная точка входа. Вызывается из SignalRService на каждое входящее сообщение.
-    // Lint не умеет проследить cross-function permission check (он сидит в shouldShow ->
-    // hasPostNotificationsPermission), поэтому подавляем на уровне функции.
+    // Lint не видит permission check в shouldShow → hasPostNotificationsPermission.
     @SuppressLint("MissingPermission")
     fun notifyIfNeeded(
         context: Context,
@@ -86,9 +82,7 @@ object ChatMessageNotifier {
         }
     }
 
-    // PendingIntent, который открывает ChatActivity конкретного вызова.
-    // TaskStackBuilder подкладывает MainActivity снизу — чтобы кнопка "Назад"
-    // из чата вела в главный экран приложения, а не закрывала всё.
+    // Открывает ChatActivity; MainActivity подкладывается снизу для корректной кнопки "Назад".
     private fun buildContentPendingIntent(
         context: Context,
         hospitalizationId: String,
@@ -100,8 +94,7 @@ object ChatMessageNotifier {
             putExtra(ChatActivity.EXTRA_READ_ONLY, false)
         }
 
-        // Уникальный requestCode на каждый чат — иначе Android переиспользует один и тот же
-        // PendingIntent и все уведомления будут открывать первый чат, по которому он создавался.
+        // Уникальный requestCode на чат — иначе PendingIntent будет один на всех.
         val requestCode = hospitalizationId.hashCode()
 
         // FLAG_IMMUTABLE обязателен с Android 12 (API 31).
@@ -139,8 +132,7 @@ object ChatMessageNotifier {
         ) == PackageManager.PERMISSION_GRANTED
     }
 
-    // Удобный метод убрать старое уведомление по чату (например, когда пользователь
-    // открыл чат и сообщения уже прочитаны).
+    // Снять висящее уведомление по чату (например, когда юзер его открыл).
     fun cancelFor(context: Context, hospitalizationId: String) {
         NotificationManagerCompat.from(context).cancel(notificationIdFor(hospitalizationId))
     }

@@ -1,5 +1,8 @@
 package com.example.medinfo.ui.chat
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Typeface
 import android.os.Bundle
 import android.view.Gravity
@@ -9,6 +12,10 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
+import com.example.medinfo.util.PermissionManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
@@ -53,6 +60,9 @@ class ChatActivity : AppCompatActivity() {
     // (например, после поворота экрана и повторной подписки на SignalR).
     private val shownConditionMessageIds = mutableSetOf<String>()
 
+    // Для звонка бригаде
+    private var currentBrigadePhone: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -71,14 +81,19 @@ class ChatActivity : AppCompatActivity() {
 
         binding.titleText.text = intent.getStringExtra(EXTRA_CHAT_TITLE)?.let { "Чат: $it" } ?: "Чат"
         binding.closeButton.setOnClickListener { finish() }
+        binding.callButton.setOnClickListener { callToTablet() }
         binding.inputContainer.visibility = if (readOnly) View.GONE else View.VISIBLE
         binding.sendButton.setOnClickListener { sendMessage() }
-        // DEBUG: эмулирует входящее сообщение от бригады; в боевом режиме скрыта
-        // тем же флагом, что и тестовый звонок на главном экране.
-        binding.debugSimulateButton.visibility =
-            if (ConfigManager.testCallEnabled) View.VISIBLE else View.GONE
+
+        // T — текстовое сообщение, PC — PATIENT_CONDITION с phoneNumber. Видны только в test-режиме.
+        val debugVisibility = if (ConfigManager.testCallEnabled) View.VISIBLE else View.GONE
+        binding.debugSimulateButton.visibility = debugVisibility
+        binding.debugSimulateConditionButton.visibility = debugVisibility
         binding.debugSimulateButton.setOnClickListener {
             TestMessageSimulator.simulateBrigadeMessage(this, hospitalizationId)
+        }
+        binding.debugSimulateConditionButton.setOnClickListener {
+            TestMessageSimulator.simulatePatientCondition(this, hospitalizationId)
         }
         binding.messageEditText.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_SEND) {
@@ -89,8 +104,7 @@ class ChatActivity : AppCompatActivity() {
             }
         }
 
-        // При открытии клавиатуры NestedScrollView сжимается — без этого последние
-        // сообщения уезжают за поле ввода. Возвращаем фокус на низ списка.
+        // При открытии клавиатуры скролл сжимается — возвращаем фокус на низ списка.
         binding.messagesScroll.addOnLayoutChangeListener { _, _, _, _, bottom, _, _, _, oldBottom ->
             if (bottom != oldBottom) {
                 scrollToBottom()
@@ -100,8 +114,7 @@ class ChatActivity : AppCompatActivity() {
             if (hasFocus) scrollToBottom()
         }
 
-        // При каждом возврате на экран — рефреш истории (на случай пропущенных
-        // в фоне сообщений), затем подписка на realtime события из SignalR.
+        // На каждый возврат: рефреш истории + подписка на realtime из SignalR.
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 // Параллельный
@@ -112,6 +125,9 @@ class ChatActivity : AppCompatActivity() {
                         ) {
                             appendMessage(message)
                             maybeShowPatientConditionDialog(message)
+
+                            // Обновление номера
+                            applyBrigadePhone(message.phoneNumber)
                         }
                     }
                 }
@@ -126,16 +142,11 @@ class ChatActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
 
-        // Если экран открылся успешно — гасим висящее в шторке уведомление по этому чату.
-        // Через chatId, а не напрямую по hospitalizationId — на случай, если onCreate упал
-        // в finish() до присваивания поля и lateinit ещё не инициализирован.
+        // Гасим висящее в шторке уведомление (через chatId — безопасно к неинициализированному lateinit).
         chatId?.let { ChatMessageNotifier.cancelFor(this, it) }
     }
 
-    // Сообщения PATIENT_CONDITION открывают диалог состояния пациента поверх любого другого
-    // диалога. Защищаемся от повторного показа (id сообщения уже в shownConditionMessageIds).
-    // Если бригада прислала несколько сообщений подряд — не складываем диалоги стопкой,
-    // а закрываем предыдущий и показываем самый свежий.
+    // PATIENT_CONDITION → диалог. Дедуп через shownConditionMessageIds; новый закрывает старый.
     private fun maybeShowPatientConditionDialog(message: MessageResponseDto) {
         if (MessageType.fromId(message.type) != MessageType.PATIENT_CONDITION) return
         val condition = message.patientCondition ?: return
@@ -145,8 +156,7 @@ class ChatActivity : AppCompatActivity() {
         showPatientConditionDialog(condition, message.receptionTime)
     }
 
-    // Открыть диалог по тапу на кнопку в пузыре чата (или из maybeShowPatientConditionDialog).
-    // Любую уже открытую копию закрываем — на экране остаётся ровно одна, всегда самая последняя.
+    // Открыть диалог; любую открытую копию сначала закрываем (одна на экране).
     private fun showPatientConditionDialog(
         condition: PatientConditionResponseDto,
         receptionTime: String?
@@ -174,9 +184,26 @@ class ChatActivity : AppCompatActivity() {
                 hospitalizationRepository.getMessages(hospitalizationId).content.orEmpty()
             }
             renderMessages(messages)
+
+            // В истории чата ищем самое последнее сообщение, у которого был телефон, и берём его
+            val phone = messages.lastOrNull { !it.phoneNumber.isNullOrBlank() }?.phoneNumber
+            applyBrigadePhone(phone)
         } catch (e: Exception) {
             showState(e.message ?: "Не удалось загрузить сообщения")
         }
+    }
+
+    // Обновляет номер бригады. "Доступность" проверяется в callToTablet() (null → toast).
+    private fun applyBrigadePhone(phone: String?) {
+        if (phone.isNullOrBlank()) return
+        currentBrigadePhone = phone
+    }
+
+    private fun sanitizePhone(raw: String): String {
+        // Оставляем только цифры и опциональный ведущий +.
+        val trimmed = raw.trim()
+        val plus = if (trimmed.startsWith("+")) "+" else ""
+        return plus + trimmed.filter { it.isDigit() }
     }
 
     private fun sendMessage() {
@@ -223,6 +250,40 @@ class ChatActivity : AppCompatActivity() {
         }
 
         scrollToBottom()
+    }
+
+    private fun callToTablet() {
+        val phone = currentBrigadePhone
+        if (phone.isNullOrBlank()) {
+            Toast.makeText(this, "Номер бригады ещё не получен", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Страховка: даже если PermissionManager пропустил, проверяем CALL_PHONE здесь.
+        if (ContextCompat.checkSelfPermission(
+                this,
+                android.Manifest.permission.CALL_PHONE
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Toast.makeText(this, "Нет разрешения на совершение звонков", Toast.LENGTH_SHORT).show()
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(android.Manifest.permission.CALL_PHONE),
+                PermissionManager.REQUEST_CODE_CALL_PHONE
+            )
+            return
+        }
+
+        val sanitized = sanitizePhone(phone)
+        val intent = Intent(Intent.ACTION_CALL, "tel:$sanitized".toUri())
+        try {
+            startActivity(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(this, "На устройстве нет приложения для звонков", Toast.LENGTH_SHORT).show()
+        } catch (e: SecurityException) {
+            // На случай, если разрешение было отозвано во время работы приложения.
+            Toast.makeText(this, "Нет разрешения на совершение звонков", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun appendMessage(message: MessageResponseDto) {

@@ -1,17 +1,22 @@
 package com.example.medinfo.util
 
+import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import kotlin.system.exitProcess
 
 object PermissionManager {
+
+    const val REQUEST_CODE_CALL_PHONE = 102
 
     data class PermissionStatus(
         val allGranted: Boolean,
@@ -82,6 +87,31 @@ object PermissionManager {
                     }
                 )
             }
+        }
+
+        // CALL_PHONE — runtime-разрешение для ACTION_CALL из ChatActivity.
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.CALL_PHONE)
+            != PackageManager.PERMISSION_GRANTED
+        ) {
+            missing.add(
+                MissingPermission(
+                    name = "Совершение звонков",
+                    description = "Для прямого вызова бригады из чата приложению необходимо " +
+                            "разрешение \"Телефон\"."
+                ) {
+                    // Системный диалог + настройки приложения (страховка на DON'T_ASK_AGAIN).
+                    val activity = context as Activity
+                    androidx.core.app.ActivityCompat.requestPermissions(
+                        activity,
+                        arrayOf(Manifest.permission.CALL_PHONE),
+                        REQUEST_CODE_CALL_PHONE
+                    )
+                    val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+                        data = Uri.parse("package:${context.packageName}")
+                    }
+                    activity.startActivity(intent)
+                }
+            )
         }
 
         return PermissionStatus(

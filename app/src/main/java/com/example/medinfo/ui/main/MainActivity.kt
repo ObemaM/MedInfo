@@ -256,9 +256,15 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        // Кнопка профиля
+        // Кнопка выхода — прямой logout через диалог подтверждения, без промежуточного попап-меню.
+        binding.logoutButton.setOnClickListener {
+            ConfirmLogoutDialogFragment()
+                .show(supportFragmentManager, ConfirmLogoutDialogFragment.TAG)
+        }
+
+        // Кнопка профиля — сразу диалог с данными пользователя (попап больше не нужен).
         binding.profileButton.setOnClickListener {
-            showProfilePopupWindow(it)
+            showUserDataDialog()
         }
 
         // Кнопка фильтров
@@ -519,7 +525,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // Обработка кнопок при нажатии на профиль
+    // TODO: legacy — попап-меню профиля заменено прямой кнопкой выхода в шапке.
+    //  Метод и layout popup_menu_custom.xml оставлены на случай, если потребуется
+    //  вернуть пункт "Данные пользователя". Можно безопасно удалить позже.
+    @Suppress("unused")
     private fun showProfilePopupWindow(anchor: View) {
         val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
         val popupBinding = PopupMenuCustomBinding.inflate(inflater)

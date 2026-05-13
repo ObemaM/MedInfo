@@ -162,9 +162,7 @@
                         android:textSize="16sp"
                         android:textStyle="bold" />
 
-                    <!-- DEBUG: имитирует входящее сообщение в чат от бригады. Видна только
-                         для тестового вызова (включается из IncomingCallActivity).
-                         Удалить вместе с этим блоком перед прод-релизом. -->
+                    <!-- DEBUG: имитирует текстовое сообщение от бригады. -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/debug_simulate_message_button"
                         style="@style/Widget.Material3.Button.OutlinedButton"
@@ -172,6 +170,22 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="10dp"
                         android:text="Тест: получить сообщение в чат"
+                        android:textColor="@color/red_1"
+                        android:textSize="14sp"
+                        android:visibility="gone"
+                        app:cornerRadius="8dp"
+                        app:strokeColor="@color/red_1"
+                        tools:ignore="HardcodedText"
+                        tools:visibility="visible" />
+
+                    <!-- DEBUG: PATIENT_CONDITION с данными пациента и телефоном. -->
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/debug_simulate_condition_button"
+                        style="@style/Widget.Material3.Button.OutlinedButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="6dp"
+                        android:text="Тест: данные пациента + телефон"
                         android:textColor="@color/red_1"
                         android:textSize="14sp"
                         android:visibility="gone"

@@ -22,7 +22,8 @@ data class MessageResponseDto(
     val isNotificationSent: Boolean,
     val receptionTime: String,
     val patientCondition: PatientConditionResponseDto?,
-    val text: String?
+    val text: String?,
+    val phoneNumber: String?
 ) : Serializable
 
 data class PatientConditionResponseDto(
@@ -54,7 +55,5 @@ data class PatientConditionResponseDto(
     val newsScore: Int?,
     val pewsScore: Int?,
     val algoverIndex: Double?,
-    // В спецификации v1.1.2 поле LAMS у сообщения не описано, но клиент готов отобразить его,
-    // если бэкенд начнёт его присылать (значение приходит вместе с условием пациента в чате).
     val lams: Int? = null
 ) : Serializable

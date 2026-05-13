@@ -43,6 +43,9 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
     private var isFullDetailsExpanded: Boolean = false
     private var isPatientConditionExpanded: Boolean = false
 
+    // Последний номер телефона бригады из PATIENT_CONDITION-сообщений. Показывается в секции "Бригада".
+    private var lastBrigadePhone: String? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
@@ -94,20 +97,26 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
 
     private fun fetchLatestPatientCondition(hospitalizationId: String) {
         lifecycleScope.launch {
-            val condition = try {
+            val messages = try {
                 withContext(Dispatchers.IO) {
-                    hospitalizationRepository.getMessages(hospitalizationId).content
-                        ?.lastOrNull {
-                            MessageType.fromId(it.type) == MessageType.PATIENT_CONDITION &&
-                                it.patientCondition != null
-                        }
-                        ?.patientCondition
+                    hospitalizationRepository.getMessages(hospitalizationId).content.orEmpty()
                 }
             } catch (_: Exception) {
-                null
+                emptyList()
             }
 
+            val condition = messages
+                .lastOrNull {
+                    MessageType.fromId(it.type) == MessageType.PATIENT_CONDITION &&
+                        it.patientCondition != null
+                }
+                ?.patientCondition
+
+            // Телефон может быть в другом сообщении, не там, где свежие condition — берём отдельно.
+            val phone = messages.lastOrNull { !it.phoneNumber.isNullOrBlank() }?.phoneNumber
+
             renderPatientCondition(condition)
+            applyBrigadePhone(phone)
         }
     }
 
@@ -116,6 +125,10 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 MessagesEventBus.incoming.collect { message ->
                     if (message.hospitalizationId != hospitalizationId) return@collect
+
+                    // Телефон обновляем на любом сообщении, в котором он есть.
+                    applyBrigadePhone(message.phoneNumber)
+
                     if (MessageType.fromId(message.type) != MessageType.PATIENT_CONDITION) return@collect
                     val condition = message.patientCondition ?: return@collect
                     renderPatientCondition(condition)
@@ -124,8 +137,19 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
         }
     }
 
+    // Сохраняет телефон и перерисовывает "Полные данные вызова" (секция "Бригада").
+    private fun applyBrigadePhone(phone: String?) {
+        if (phone.isNullOrBlank()) return
+        if (phone == lastBrigadePhone) return
+        lastBrigadePhone = phone
+        bindDetails(hospitalization)
+    }
+
     private fun renderPatientCondition(condition: PatientConditionResponseDto?) {
-        val rendered = PatientConditionFields.render(binding.patientConditionSection.patientConditionContainer, condition)
+        val rendered = PatientConditionFields.render(
+            binding.patientConditionSection.patientConditionContainer,
+            condition
+        )
         if (!rendered) {
             binding.patientConditionSection.patientConditionCard.visibility = View.GONE
             setPatientConditionExpanded(false)
@@ -238,6 +262,8 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
         addDataField(container, "Страховой полис", call.insuranceNumber)
 
         addSection(container, "Бригада")
+        // Телефон приходит из PATIENT_CONDITION-сообщений, а не из CallDto.
+        addDataField(container, "Телефон бригады", lastBrigadePhone)
         addDataField(container, "Номер бригады", call.brigadeNumber?.toString())
         addDataField(container, "Профиль бригады", call.brigadeProfile)
         addDataField(container, "Рация", call.radio)

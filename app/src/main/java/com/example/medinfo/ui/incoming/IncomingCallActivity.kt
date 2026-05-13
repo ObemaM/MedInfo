@@ -60,6 +60,8 @@ class IncomingCallActivity : AppCompatActivity() {
     private var isFullDetailsExpanded: Boolean = false
     private var isPatientConditionExpanded: Boolean = false
     private var lastPatientCondition: PatientConditionResponseDto? = null
+    // Последний номер телефона бригады из PATIENT_CONDITION-сообщений. Показывается в секции "Бригада".
+    private var lastBrigadePhone: String? = null
     private var keepCurrentHospitalizationWhenMissingFromQueue: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -98,11 +100,18 @@ class IncomingCallActivity : AppCompatActivity() {
         // DEBUG: кнопка видна только когда в конфиге включён testCallEnabled.
         // Эмитит фейковое сообщение в чат: если ChatActivity открыт — оно появится сразу,
         // если закрыт — прилетит системное уведомление, тап по которому откроет чат.
-        binding.debugSimulateMessageButton.visibility =
+        val debugVisibility =
             if (ConfigManager.testCallEnabled) android.view.View.VISIBLE else android.view.View.GONE
+        binding.debugSimulateMessageButton.visibility = debugVisibility
+        binding.debugSimulateConditionButton.visibility = debugVisibility
+
         binding.debugSimulateMessageButton.setOnClickListener {
             val id = currentHospitalization?.id ?: return@setOnClickListener
             TestMessageSimulator.simulateBrigadeMessage(this, id)
+        }
+        binding.debugSimulateConditionButton.setOnClickListener {
+            val id = currentHospitalization?.id ?: return@setOnClickListener
+            TestMessageSimulator.simulatePatientCondition(this, id)
         }
 
         if (shouldStartAlerts(intent)) {
@@ -252,6 +261,7 @@ class IncomingCallActivity : AppCompatActivity() {
 
         if (boundHospitalizationId != hospitalization.id) {
             // Данные карточки биндим хотя бы один раз; отдельно следим только за тем, чтобы не перезапускать таймер.
+            lastBrigadePhone = null
             bindSummary(hospitalization)
             bindDetails(hospitalization)
             setFullDetailsExpanded(false)
@@ -371,6 +381,8 @@ class IncomingCallActivity : AppCompatActivity() {
         addDataField(container, "Страховой полис", call.insuranceNumber)
 
         addSection(container, "Бригада")
+        // Телефон из PATIENT_CONDITION-сообщений, не из CallDto.
+        addDataField(container, "Телефон бригады", lastBrigadePhone)
         addDataField(container, "Номер бригады", call.brigadeNumber?.toString())
         addDataField(container, "Профиль бригады", call.brigadeProfile)
         addDataField(container, "Рация", call.radio)
@@ -408,21 +420,27 @@ class IncomingCallActivity : AppCompatActivity() {
     // Берём из истории сообщений последнее с PatientCondition. Если такого нет — карточка прячется.
     private fun fetchLatestPatientCondition(hospitalizationId: String) {
         lifecycleScope.launch {
-            val condition = try {
+            val messages = try {
                 withContext(Dispatchers.IO) {
-                    hospitalizationRepository.getMessages(hospitalizationId).content
-                        ?.lastOrNull {
-                            MessageType.fromId(it.type) == MessageType.PATIENT_CONDITION &&
-                                it.patientCondition != null
-                        }
-                        ?.patientCondition
+                    hospitalizationRepository.getMessages(hospitalizationId).content.orEmpty()
                 }
             } catch (_: Exception) {
-                null
+                emptyList()
             }
+
+            val condition = messages
+                .lastOrNull {
+                    MessageType.fromId(it.type) == MessageType.PATIENT_CONDITION &&
+                        it.patientCondition != null
+                }
+                ?.patientCondition
+
+            // Телефон может быть в другом сообщении, не там, где свежие condition — берём отдельно.
+            val phone = messages.lastOrNull { !it.phoneNumber.isNullOrBlank() }?.phoneNumber
 
             if (boundHospitalizationId == hospitalizationId) {
                 renderPatientCondition(condition)
+                applyBrigadePhone(phone)
             }
         }
     }
@@ -434,6 +452,10 @@ class IncomingCallActivity : AppCompatActivity() {
                 MessagesEventBus.incoming.collect { message: MessageResponseDto ->
                     val expectedId = boundHospitalizationId ?: return@collect
                     if (message.hospitalizationId != expectedId) return@collect
+
+                    // Телефон обновляется на любом сообщении: пустые значения игнорируются внутри.
+                    applyBrigadePhone(message.phoneNumber)
+
                     if (MessageType.fromId(message.type) != MessageType.PATIENT_CONDITION) return@collect
                     val condition = message.patientCondition ?: return@collect
                     renderPatientCondition(condition)
@@ -442,9 +464,23 @@ class IncomingCallActivity : AppCompatActivity() {
         }
     }
 
+    // Запоминаем новый телефон и переотрисовываем секцию "Полные данные вызова",
+    // чтобы поле "Телефон бригады" обновилось. null/пустое игнорируем по той же причине,
+    // что и в ChatActivity: текстовые сообщения без phoneNumber не должны стирать актуальный номер.
+    // Запоминает новый телефон и перерисовывает секцию "Бригада". null/пустое игнорируем.
+    private fun applyBrigadePhone(phone: String?) {
+        if (phone.isNullOrBlank()) return
+        if (phone == lastBrigadePhone) return
+        lastBrigadePhone = phone
+        currentHospitalization?.let { bindDetails(it) }
+    }
+
     private fun renderPatientCondition(condition: PatientConditionResponseDto?) {
         lastPatientCondition = condition
-        val rendered = PatientConditionFields.render(binding.patientConditionSection.patientConditionContainer, condition)
+        val rendered = PatientConditionFields.render(
+            binding.patientConditionSection.patientConditionContainer,
+            condition
+        )
         if (!rendered) {
             binding.patientConditionSection.patientConditionCard.visibility = android.view.View.GONE
             setPatientConditionExpanded(false)
