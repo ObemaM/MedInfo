@@ -28,10 +28,10 @@ import com.example.medinfo.databinding.ActivityChatBinding
 import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
-import com.example.medinfo.model.api.PatientConditionResponseDto
 import com.example.medinfo.notifications.ChatMessageNotifier
 import com.example.medinfo.notifications.TestMessageSimulator
 import com.example.medinfo.util.DateFormatter
+import com.example.medinfo.util.PatientConditionFields
 import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -55,10 +55,6 @@ class ChatActivity : AppCompatActivity() {
     // ID уже отрисованных сообщений — для дедупа: если SignalR пушит сообщение,
     // которое уже пришло через loadMessages (или прилетело дважды), игнорируем.
     private val shownMessageIds = mutableSetOf<String>()
-
-    // Чтобы диалог состояния пациента не открывался повторно для того же сообщения
-    // (например, после поворота экрана и повторной подписки на SignalR).
-    private val shownConditionMessageIds = mutableSetOf<String>()
 
     // Для звонка бригаде
     private var currentBrigadePhone: String? = null
@@ -86,6 +82,7 @@ class ChatActivity : AppCompatActivity() {
         binding.sendButton.setOnClickListener { sendMessage() }
 
         // T — текстовое сообщение, PC — PATIENT_CONDITION с phoneNumber. Видны только в test-режиме.
+        // В чате PC отображается обычным текстовым сообщением; карточка на экране решения обновляется отдельно.
         val debugVisibility = if (ConfigManager.testCallEnabled) View.VISIBLE else View.GONE
         binding.debugSimulateButton.visibility = debugVisibility
         binding.debugSimulateConditionButton.visibility = debugVisibility
@@ -124,7 +121,6 @@ class ChatActivity : AppCompatActivity() {
                             message.id !in shownMessageIds
                         ) {
                             appendMessage(message)
-                            maybeShowPatientConditionDialog(message)
 
                             // Обновление номера
                             applyBrigadePhone(message.phoneNumber)
@@ -144,31 +140,6 @@ class ChatActivity : AppCompatActivity() {
 
         // Гасим висящее в шторке уведомление (через chatId — безопасно к неинициализированному lateinit).
         chatId?.let { ChatMessageNotifier.cancelFor(this, it) }
-    }
-
-    // PATIENT_CONDITION → диалог. Дедуп через shownConditionMessageIds; новый закрывает старый.
-    private fun maybeShowPatientConditionDialog(message: MessageResponseDto) {
-        if (MessageType.fromId(message.type) != MessageType.PATIENT_CONDITION) return
-        val condition = message.patientCondition ?: return
-        if (!shownConditionMessageIds.add(message.id)) return
-        if (supportFragmentManager.isStateSaved) return
-
-        showPatientConditionDialog(condition, message.receptionTime)
-    }
-
-    // Открыть диалог; любую открытую копию сначала закрываем (одна на экране).
-    private fun showPatientConditionDialog(
-        condition: PatientConditionResponseDto,
-        receptionTime: String?
-    ) {
-        if (supportFragmentManager.isStateSaved) return
-
-        (supportFragmentManager.findFragmentByTag(MessageDataDialogFragment.TAG)
-            as? MessageDataDialogFragment)?.dismissAllowingStateLoss()
-
-        MessageDataDialogFragment
-            .newInstance(condition, receptionTime)
-            .show(supportFragmentManager, MessageDataDialogFragment.TAG)
     }
 
     private fun loadMessages() {
@@ -345,13 +316,9 @@ class ChatActivity : AppCompatActivity() {
         }
 
         val body = TextView(this).apply {
-            // Для PATIENT_CONDITION в пузыре оставляем только короткую подпись — полный набор
-            // полей живёт в диалоге состояния пациента, чтобы не растягивать чат на 25 строк.
-            text = if (isPatientCondition) {
-                "Получены данные о состоянии пациента"
-            } else {
-                buildMessageBody(message)
-            }
+            // PATIENT_CONDITION остаётся обычным сообщением в чате: без диалогов и плашек,
+            // но с теми же значимыми полями, которые показываем на экране принятия решения.
+            text = if (isPatientCondition) buildPatientConditionText(message) else buildMessageBody(message)
             setTextColor(resources.getColor(R.color.black_1, null))
             textSize = 16f
             layoutParams = LinearLayout.LayoutParams(
@@ -377,45 +344,9 @@ class ChatActivity : AppCompatActivity() {
 
         container.addView(author)
         container.addView(body)
-        if (isPatientCondition) {
-            container.addView(buildShowConditionButton(message))
-        }
         container.addView(time)
         card.addView(container)
         return card
-    }
-
-    // Вторичная кнопка под телом сообщения PATIENT_CONDITION: повторно открывает диалог
-    // состояния пациента с теми же данными. Нужна, если врач закрыл авто-открывшийся диалог
-    // или вернулся в чат позже и хочет посмотреть подробности.
-    private fun buildShowConditionButton(message: MessageResponseDto): View {
-        return com.google.android.material.button.MaterialButton(
-            this,
-            null,
-            com.google.android.material.R.attr.materialButtonOutlinedStyle
-        ).apply {
-            text = "Показать данные"
-            textSize = 13f
-            isAllCaps = false
-            setTextColor(resources.getColor(R.color.main_1, null))
-            strokeColor = android.content.res.ColorStateList.valueOf(
-                resources.getColor(R.color.main_1, null)
-            )
-            cornerRadius = 10.dp()
-            insetTop = 0
-            insetBottom = 0
-            minHeight = 40.dp()
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = 8.dp()
-            }
-            setOnClickListener {
-                val condition = message.patientCondition ?: return@setOnClickListener
-                showPatientConditionDialog(condition, message.receptionTime)
-            }
-        }
     }
 
     private fun showState(text: String) {
@@ -438,19 +369,24 @@ class ChatActivity : AppCompatActivity() {
         if (!text.isNullOrBlank()) return text
 
         return when (MessageType.fromId(message.type)) {
-            MessageType.PATIENT_CONDITION -> buildPatientConditionText(message.patientCondition)
+            MessageType.PATIENT_CONDITION -> buildPatientConditionText(message)
             MessageType.TEXT -> "Сообщение без текста"
             null -> "Сообщение без текста"
         }
     }
 
-    // Подробный набор полей живёт в диалоге MessageDataDialogFragment. В пузыре чата
-    // показываем только короткую подпись, чтобы лента не превращалась в простыню.
-    private fun buildPatientConditionText(condition: PatientConditionResponseDto?): String {
-        return if (condition == null) {
-            "Переданы данные состояния пациента"
-        } else {
-            "Получены данные о состоянии пациента"
+    private fun buildPatientConditionText(message: MessageResponseDto): String {
+        return buildString {
+            append("Получены данные о состоянии пациента")
+            if (!message.phoneNumber.isNullOrBlank()) {
+                append("\nТелефон бригады: ${message.phoneNumber}")
+            }
+
+            val conditionText = PatientConditionFields.formatForChat(message.patientCondition)
+            if (conditionText.isNotBlank()) {
+                append("\n")
+                append(conditionText)
+            }
         }
     }
 

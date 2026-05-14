@@ -282,7 +282,9 @@ class SignalRService : Service() {
 
         hubConnection = null
         IncomingCallRinger.stop()
-        CallsManager.clearAll()
+        if (stopSelf) {
+            CallsManager.clearAll()
+        }
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(notificationIdService)

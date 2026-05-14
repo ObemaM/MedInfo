@@ -152,7 +152,7 @@
                 app:strokeColor="@color/red_1"
                 tools:ignore="HardcodedText" />
 
-            <!-- DEBUG: PATIENT_CONDITION с phoneNumber — активирует звонок, открывает диалог. -->
+            <!-- DEBUG: PATIENT_CONDITION с phoneNumber — обновляет карточку состояния на экране принятия решения. -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/debug_simulate_condition_button"
                 style="@style/Widget.Material3.Button.OutlinedButton"

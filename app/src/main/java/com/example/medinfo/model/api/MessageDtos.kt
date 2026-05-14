@@ -55,5 +55,5 @@ data class PatientConditionResponseDto(
     val newsScore: Int?,
     val pewsScore: Int?,
     val algoverIndex: Double?,
-    val lams: Int? = null
+    val LAMS: Int? = null
 ) : Serializable

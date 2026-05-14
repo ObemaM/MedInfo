@@ -9,8 +9,8 @@ import androidx.core.content.ContextCompat
 import com.example.medinfo.R
 import com.example.medinfo.model.api.PatientConditionResponseDto
 
-// Единый рендер 11 клинически значимых полей состояния пациента — используется и во встроенной
-// панели на экранах вызова, и в диалоге чата, чтобы UI везде был одинаковый.
+// Единый рендер 11 клинически значимых полей состояния пациента.
+// Используется и во встроенной панели на экранах вызова, и в текстовом сообщении чата.
 object PatientConditionFields {
 
     // Возвращает true, если хотя бы одно поле было отрисовано (есть смысл показывать секцию).
@@ -18,9 +18,34 @@ object PatientConditionFields {
         container.removeAllViews()
         if (condition == null) return false
 
-        val entries: List<Pair<String, String?>> = listOf(
+        var rendered = 0
+        entries(condition).forEach { (label, value) ->
+            if (!value.isNullOrBlank()) {
+                addField(container, label, value)
+                rendered += 1
+            }
+        }
+        return rendered > 0
+    }
+
+    fun formatForChat(condition: PatientConditionResponseDto?): String {
+        if (condition == null) return ""
+
+        val lines = entries(condition)
+            .filter { (_, value) -> !value.isNullOrBlank() }
+            .map { (label, value) -> "$label: $value" }
+
+        return if (lines.isEmpty()) {
+            "Нет заполненных клинических полей"
+        } else {
+            lines.joinToString(separator = "\n")
+        }
+    }
+
+    private fun entries(condition: PatientConditionResponseDto): List<Pair<String, String?>> {
+        return listOf(
             "Сознание (ШКГ)" to condition.consciousness,
-            "LAMS" to condition.lams?.toString(),
+            "LAMS" to condition.LAMS?.toString(),
             "АД" to condition.bloodPressure,
             "ЧД" to condition.respirationRate?.toString(),
             "ЧСС" to condition.heartRate?.toString(),
@@ -31,15 +56,6 @@ object PatientConditionFields {
             "Судороги" to formatBoolean(condition.convulsions),
             "Беременность" to formatBoolean(condition.pregnant)
         )
-
-        var rendered = 0
-        entries.forEach { (label, value) ->
-            if (!value.isNullOrBlank()) {
-                addField(container, label, value)
-                rendered += 1
-            }
-        }
-        return rendered > 0
     }
 
     private fun addField(container: LinearLayout, label: String, value: String) {

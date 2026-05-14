@@ -39,7 +39,7 @@ object TestMessageSimulator {
         ChatMessageNotifier.notifyIfNeeded(context, message, title)
     }
 
-    // PATIENT_CONDITION с витальными и phoneNumber — для отладки карточки состояния и звонка.
+    // PATIENT_CONDITION с витальными и phoneNumber — для отладки карточки состояния на экране решения и звонка.
     fun simulatePatientCondition(
         context: Context,
         hospitalizationId: String,
@@ -95,7 +95,7 @@ object TestMessageSimulator {
             newsScore = 3,
             pewsScore = null,
             algoverIndex = 0.7,
-            lams = 2
+            LAMS = 2
         )
     }
 
