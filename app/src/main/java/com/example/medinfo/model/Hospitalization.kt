@@ -48,8 +48,10 @@ data class Hospitalization(
     var isNotificationSent: Boolean = true,
     var isArchived: Boolean = false,
     val decisionId: Int? = null,
+    val decisionName: String? = null,
     var formattedCallTime: String? = null,
     var searchCache: String? = null,
     var decisionRemainingMillis: Long? = null,
+    val hasPatientConditionForDecision: Boolean = false,
     val details: HospitalizationResponseDto? = null
 ) : Serializable

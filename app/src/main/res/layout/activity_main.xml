@@ -28,23 +28,23 @@
             android:layout_height="wrap_content"
             android:padding="6dp">
 
-            <!-- Выход — всегда слева, как основное действие шапки. -->
+            <!-- Профиль — слева. Тап открывает диалог с данными пользователя напрямую. -->
             <ImageButton
-                android:id="@+id/logout_button"
+                android:id="@+id/profile_button"
                 android:layout_width="55dp"
                 android:layout_height="52dp"
                 android:layout_marginStart="2dp"
                 android:background="@drawable/circular_button_ripple"
-                android:contentDescription="Выход"
+                android:contentDescription="Профиль"
                 android:padding="10dp"
                 android:scaleType="fitCenter"
-                android:src="@drawable/ic_exit_24"
+                android:src="@drawable/ic_person_24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/gray_1" />
 
-            <!-- Тестовый звонок: справа от кнопки выхода. Виден только при testCallEnabled. -->
+            <!-- Тестовый звонок: справа от кнопки профиля. Виден только при testCallEnabled. -->
             <ImageButton
                 android:id="@+id/call_button"
                 android:layout_width="55dp"
@@ -57,7 +57,7 @@
                 android:src="@drawable/ic_call_24"
                 android:visibility="gone"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintStart_toEndOf="@+id/logout_button"
+                app:layout_constraintStart_toEndOf="@+id/profile_button"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/gray_1"
                 tools:visibility="visible" />
@@ -77,17 +77,17 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
 
-            <!-- Профиль — справа. Тап открывает диалог с данными пользователя напрямую. -->
+            <!-- Выход — справа. -->
             <ImageButton
-                android:id="@+id/profile_button"
+                android:id="@+id/logout_button"
                 android:layout_width="55dp"
                 android:layout_height="52dp"
                 android:layout_marginEnd="2dp"
                 android:background="@drawable/circular_button_ripple"
-                android:contentDescription="Профиль"
+                android:contentDescription="Выход"
                 android:padding="10dp"
                 android:scaleType="fitCenter"
-                android:src="@drawable/ic_person_24"
+                android:src="@drawable/ic_exit_24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintTop_toTopOf="parent"

@@ -15,13 +15,13 @@ import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
-import com.example.medinfo.model.Hospitalization
 import com.example.medinfo.notifications.ChatMessageNotifier
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
 import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
+import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.model.api.ReceptionNotificationType
 import com.example.medinfo.ui.incoming.InAppIncomingCallAlert
 import com.example.medinfo.ui.incoming.IncomingCallActivity
@@ -49,6 +49,9 @@ class SignalRService : Service() {
     private val notificationIdService = ConfigManager.notificationIdService
 
     private val foregroundRingDurationMs = 5000L
+    private val decisionStateLock = Any()
+    private val pendingDecisionCalls = mutableMapOf<String, HospitalizationResponseDto>()
+    private val patientConditionReadyIds = mutableSetOf<String>()
 
     // Проверяем, что у приложения еще есть активная сессия.
     private fun isSessionActive(): Boolean {
@@ -171,22 +174,17 @@ class SignalRService : Service() {
             )
 
             if (hospitalization.requiresIncomingDecision()) {
-                val isNew = CallsManager.upsertCall(hospitalization)
-                if (isNew) {
-                    alertIncomingDecisionCall(hospitalization)
-                } else {
-                    CallLog.hospitalization(
-                        source = "SignalR",
-                        call = hospitalization,
-                        message = "updated existing decision call"
-                    )
-                }
+                handleIncomingDecisionCandidate(hospitalization)
             } else {
                 CallLog.hospitalization(
                     source = "SignalR",
                     call = hospitalization,
                     message = "not requiring decision, removing from local queue"
                 )
+                synchronized(decisionStateLock) {
+                    pendingDecisionCalls.remove(hospitalization.id)
+                    patientConditionReadyIds.remove(hospitalization.id)
+                }
                 CallsManager.removeCall(hospitalization.id)
                 if (CallsManager.calls.value.isEmpty()) {
                     IncomingCallRinger.stop()
@@ -213,9 +211,15 @@ class SignalRService : Service() {
         items
             .filter { MessageOrigin.fromId(it.origin) == MessageOrigin.TABLET }
             // Сообщение от бригады считается моментом, когда врачу реально нужно начать принимать решение.
-            .forEach {
-                CallLog.message("SignalR", it, "tablet message starts/keeps decision timer")
-                CallsManager.markDecisionTimerStarted(it.hospitalizationId)
+            .forEach { message ->
+                if (ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION) {
+                    if (message.isPatientConditionFromTablet()) {
+                        handlePatientConditionDecisionTrigger(message)
+                    }
+                } else {
+                    CallLog.message("SignalR", message, "tablet message starts/keeps decision timer")
+                    CallsManager.markDecisionTimerStarted(message.hospitalizationId)
+                }
             }
 
         val idsToConfirm = items
@@ -239,6 +243,67 @@ class SignalRService : Service() {
     }
 
     // Для правильного названия чата
+    private fun handleIncomingDecisionCandidate(hospitalization: HospitalizationResponseDto) {
+        if (ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.HOSPITALIZATION) {
+            promoteToDecisionCall(hospitalization)
+            return
+        }
+
+        val shouldPromote = synchronized(decisionStateLock) {
+            pendingDecisionCalls[hospitalization.id] = hospitalization
+            patientConditionReadyIds.contains(hospitalization.id)
+        }
+
+        if (shouldPromote) {
+            promoteToDecisionCall(hospitalization)
+        } else {
+            CallLog.hospitalization(
+                source = "SignalR",
+                call = hospitalization,
+                message = "waiting for PATIENT_CONDITION before decision call"
+            )
+        }
+    }
+
+    private fun handlePatientConditionDecisionTrigger(message: MessageResponseDto) {
+        val hospitalization = synchronized(decisionStateLock) {
+            patientConditionReadyIds.add(message.hospitalizationId)
+            pendingDecisionCalls[message.hospitalizationId]
+        }
+
+        CallsManager.markDecisionTimerStarted(message.hospitalizationId)
+
+        if (hospitalization != null && hospitalization.requiresIncomingDecision()) {
+            promoteToDecisionCall(hospitalization)
+        } else {
+            CallLog.message("SignalR", message, "PATIENT_CONDITION received before hospitalization candidate")
+        }
+    }
+
+    private fun promoteToDecisionCall(hospitalization: HospitalizationResponseDto) {
+        val isNew = CallsManager.upsertCall(hospitalization)
+
+        synchronized(decisionStateLock) {
+            pendingDecisionCalls.remove(hospitalization.id)
+        }
+
+        if (isNew) {
+            alertIncomingDecisionCall(hospitalization)
+        } else {
+            CallLog.hospitalization(
+                source = "SignalR",
+                call = hospitalization,
+                message = "updated existing decision call"
+            )
+        }
+    }
+
+    private fun MessageResponseDto.isPatientConditionFromTablet(): Boolean {
+        return MessageOrigin.fromId(origin) == MessageOrigin.TABLET &&
+            MessageType.fromId(type) == MessageType.PATIENT_CONDITION &&
+            patientCondition != null
+    }
+
     private fun buildChatTitle(hospitalizationId: String): String {
         val hospitalization = CallsManager.calls.value.firstOrNull { it.id == hospitalizationId }
         return if (hospitalization != null) {
@@ -283,6 +348,10 @@ class SignalRService : Service() {
         hubConnection = null
         IncomingCallRinger.stop()
         CallsManager.clearAll()
+        synchronized(decisionStateLock) {
+            pendingDecisionCalls.clear()
+            patientConditionReadyIds.clear()
+        }
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(notificationIdService)

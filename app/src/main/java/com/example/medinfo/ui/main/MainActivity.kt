@@ -59,7 +59,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var viewModel: MainViewModel
     private var searchJob: Job? = null
     private var decisionTimerJob: Job? = null
-    private var currentTabFilter = MainViewModel.TabFilter.REQUIRES_DECISION
+    private var currentTabFilter = MainViewModel.TabFilter.ACTIVE
+
     private var currentDecisionCount = 0
     private var tabMenuPopupWindow: PopupWindow? = null
     private var shouldRefreshCallsOnResume = false
@@ -108,15 +109,17 @@ class MainActivity : AppCompatActivity() {
         setupViews()
         setupLogoutConfirmationListener()
         observeViewModel()
-        viewModel.fetchCalls()
+
+        lifecycleScope.launch {
+            val startTab = viewModel.resolveStartTab()
+            selectTabFilter(startTab)
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        // Re-check permissions when returning from settings
-        PermissionManager.enforcePermissions(this) {
-            // Permissions granted, continue normal operation
-        }
+
+        PermissionManager.enforcePermissions(this) {}
 
         if (shouldRefreshCallsOnResume && ::viewModel.isInitialized) {
             shouldRefreshCallsOnResume = false
@@ -227,7 +230,6 @@ class MainActivity : AppCompatActivity() {
     private fun setupViews() {
 
         // Кнопка тестового звонка видна только при включённом флаге testCallEnabled в конфиге.
-        // В боевой сборке (по умолчанию) она скрыта, чтобы случайный тап не запустил mock.
         applyTestCallVisibility()
 
         binding.callButton.setOnClickListener {
@@ -235,7 +237,7 @@ class MainActivity : AppCompatActivity() {
             simulateIncomingCall()
         }
 
-        // Long press on call button to schedule Doze-test fake call.
+        // Тест doze мода
         binding.callButton.setOnLongClickListener {
             if (!ConfigManager.testCallEnabled) {
                 Toast.makeText(
@@ -292,7 +294,6 @@ class MainActivity : AppCompatActivity() {
                                 CallFilters::class.java
                         )
                     } else {
-                        @Suppress("DEPRECATION")
                         bundle.getSerializable(CallFiltersDialogFragment.KEY_FILTERS) as? CallFilters
                     }
 

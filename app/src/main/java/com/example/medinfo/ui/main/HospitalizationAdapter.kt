@@ -10,6 +10,8 @@ import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.databinding.ItemHospitalizationBinding
 import com.example.medinfo.model.Hospitalization
+import com.example.medinfo.model.api.HospitalizationDecision
+import com.example.medinfo.model.api.HospitalizationStatus
 import com.example.medinfo.util.DateFormatter
 import com.example.medinfo.util.DecisionTimerStage
 import java.util.Locale
@@ -62,6 +64,7 @@ class HospitalizationAdapter(
     inner class ViewHolder(private val binding: ItemHospitalizationBinding) :
         RecyclerView.ViewHolder(binding.root) {
         fun bind(call: Hospitalization) {
+            bindCardBackground(call)
 
             // Номер звонка
             val callNumber: String =
@@ -73,7 +76,7 @@ class HospitalizationAdapter(
 
             // Номер и статус
             binding.callNumberText.text = "Вызов №${callNumber}"
-            binding.statusText.text = call.status
+            bindStatusBadges(call)
 
             // Пациент
             binding.patientDetailsText.text = buildString {
@@ -112,6 +115,61 @@ class HospitalizationAdapter(
             // Обработчик клика
             binding.root.setOnClickListener {
                 onCallClicked(call)
+            }
+        }
+
+        private fun bindCardBackground(call: Hospitalization) {
+            val colorRes = when (HospitalizationDecision.fromId(call.decisionId)) {
+                HospitalizationDecision.ACCEPTED -> com.example.medinfo.R.color.decision_accepted_bg
+                HospitalizationDecision.REJECTED -> com.example.medinfo.R.color.decision_rejected_bg
+                HospitalizationDecision.IGNORED -> com.example.medinfo.R.color.decision_ignored_bg
+                HospitalizationDecision.NONE,
+                null -> com.example.medinfo.R.color.blue_3
+            }
+
+            binding.root.backgroundTintList = ColorStateList.valueOf(
+                binding.root.context.getColor(colorRes)
+            )
+        }
+
+        private fun bindStatusBadges(call: Hospitalization) {
+            val decision = HospitalizationDecision.fromId(call.decisionId)
+            val isArchive = call.details
+                ?.let { HospitalizationStatus.fromId(it.statusId)?.isArchive == true }
+                ?: call.isArchived
+
+            if (isArchive) {
+                binding.statusText.text = getDecisionTitle(call, decision)
+                binding.archiveStatusLabel.visibility = View.VISIBLE
+                binding.decisionText.visibility = View.VISIBLE
+                binding.decisionText.text = call.status.orEmpty()
+                return
+            }
+
+            binding.archiveStatusLabel.visibility = View.GONE
+            binding.decisionText.visibility = View.GONE
+            binding.statusText.text =
+                if (decision == HospitalizationDecision.REJECTED ||
+                    decision == HospitalizationDecision.IGNORED
+                ) {
+                    getDecisionTitle(call, decision)
+                } else {
+                    call.status.orEmpty()
+                }
+        }
+
+        private fun getDecisionTitle(
+            call: Hospitalization,
+            decision: HospitalizationDecision?
+        ): String {
+            call.decisionName?.takeIf { it.isNotBlank() }?.let { return it }
+
+            return when (decision) {
+                HospitalizationDecision.ACCEPTED -> "Принята"
+                HospitalizationDecision.REJECTED -> "Отклонена"
+                HospitalizationDecision.IGNORED -> "Проигнорирована"
+                HospitalizationDecision.NONE,
+                null -> "Нет решения"
             }
         }
 

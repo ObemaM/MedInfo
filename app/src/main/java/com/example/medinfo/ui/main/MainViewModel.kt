@@ -14,11 +14,15 @@ import com.example.medinfo.model.api.GetHospitalizationsFiltersRequestDto
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
+import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.ui.incoming.IncomingCallRinger
 import com.example.medinfo.util.CallLog
 import com.example.medinfo.util.DateFormatter
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -59,7 +63,87 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val loadedCalls = mutableListOf<Hospitalization>()
 
     // Отслеживание выбранной вкладки
-    private var currentTabFilter = TabFilter.REQUIRES_DECISION
+    private var currentTabFilter = TabFilter.ACTIVE
+
+    suspend fun resolveStartTab(): TabFilter {
+        return try {
+            val response = withContext(Dispatchers.IO) {
+                hospitalizationRepository.getHospitalizations(
+                    pageNumber = FIRST_PAGE,
+                    pageSize =
+                        if (isPatientConditionDecisionMode()) {
+                            DEFAULT_PAGE_SIZE
+                        } else {
+                            1
+                        },
+                    getCount = true,
+                    filters = GetHospitalizationsFiltersRequestDto(
+                        statuses = activeStatusIds(),
+                        decisions = listOf(HospitalizationDecision.NONE.id)
+                    )
+                )
+            }
+
+            // Для проверки есть ли вызовы, которые требуют решения
+            val hasRequiresDecision =
+                if (isPatientConditionDecisionMode()) {
+                    // Параллельно дергаем getMessages для каждого вызова, чтобы не ждать
+                    // последовательные ответы. Дальше достаточно any { it }.
+                    val candidates = response.content?.hospitalizations.orEmpty()
+                    val readiness = coroutineScope {
+                        candidates.map { async { hasPatientCondition(it.id) } }.awaitAll()
+                    }
+                    readiness.any { it }
+                } else {
+                    (response.content?.count ?: 0) > 0
+                }
+
+            if (hasRequiresDecision) {
+                TabFilter.REQUIRES_DECISION
+            } else {
+                TabFilter.ACTIVE
+            }
+        } catch (e: Exception) {
+            _toastMessage.emit("Не удалось проверить вызовы, требующие решения")
+            TabFilter.ACTIVE
+        }
+    }
+
+    private fun activeStatusIds(): List<Int> {
+        return listOf(
+            HospitalizationStatus.CREW_EN_ROUTE.id,
+            HospitalizationStatus.CREW_ON_SITE.id
+        )
+    }
+
+    private fun isPatientConditionDecisionMode(): Boolean {
+        return ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION
+    }
+
+    private suspend fun shouldShowInRequiresDecisionByPatientCondition(
+        hospitalization: HospitalizationResponseDto
+    ): Boolean {
+        if (currentTabFilter != TabFilter.REQUIRES_DECISION) return true
+        if (!isPatientConditionDecisionMode()) return true
+        return hasPatientCondition(hospitalization.id)
+    }
+
+    private suspend fun hasPatientCondition(hospitalizationId: String): Boolean {
+        return try {
+            val response = withContext(Dispatchers.IO) {
+                hospitalizationRepository.getMessages(hospitalizationId)
+            }
+
+            response.content.orEmpty().any { message ->
+                MessageType.fromId(message.type) == MessageType.PATIENT_CONDITION &&
+                    message.patientCondition != null
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+
 
     // Отслеживание поисковой строки
     private var currentSearchQuery = ""
@@ -116,16 +200,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 val content = response.content
                 val hospitalizations = content?.hospitalizations.orEmpty()
+                // Запросы getMessages для каждого вызова летят параллельно через async/awaitAll —
+                // иначе на N вызовах был бы N последовательных HTTP-запросов (N+1 проблема).
+                val hospitalizationsWithDecisionReadiness = coroutineScope {
+                    hospitalizations.map { hospitalization ->
+                        async {
+                            hospitalization to shouldShowInRequiresDecisionByPatientCondition(hospitalization)
+                        }
+                    }.awaitAll()
+                }
                 CallLog.event(
                     source = "MainViewModel",
                     message = "loaded hospitalizations tab=$currentTabFilter page=$page count=${hospitalizations.size} total=${content?.count ?: "unknown"}"
                 )
 
                 if (currentTabFilter == TabFilter.REQUIRES_DECISION) {
-                    CallsManager.syncDecisionCallsFromServer(hospitalizations)
+                    CallsManager.syncDecisionCallsFromServer(
+                        hospitalizationsWithDecisionReadiness
+                            .filter { it.second }
+                            .map { it.first }
+                    )
                 }
 
-                val newCalls = hospitalizations.map { it.toUiHospitalization() }
+                val newCalls = hospitalizationsWithDecisionReadiness.map { (hospitalization, hasPatientCondition) ->
+                    hospitalization.toUiHospitalization(hasPatientCondition)
+                }
 
                 if (resetBeforeLoad){
                     loadedCalls.clear()
@@ -214,18 +313,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             TabFilter.REQUIRES_DECISION ->
                 GetHospitalizationsFiltersRequestDto(
                     // Для надежности берем активные вызовы и ниже дополнительно фильтруем decisionId = 0 на клиенте.
-                    statuses = listOf(
-                        HospitalizationStatus.CREW_EN_ROUTE.id,
-                        HospitalizationStatus.CREW_ON_SITE.id
-                    )
+                    statuses = activeStatusIds(),
+                    decisions = listOf(HospitalizationDecision.NONE.id)
                 )
 
             TabFilter.ACTIVE ->
                 GetHospitalizationsFiltersRequestDto(
-                    statuses = listOf(
-                        HospitalizationStatus.CREW_EN_ROUTE.id,
-                        HospitalizationStatus.CREW_ON_SITE.id
-                    )
+                    statuses = activeStatusIds()
                 )
 
             TabFilter.ARCHIVE ->
@@ -279,7 +373,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return when (currentTabFilter) {
             TabFilter.REQUIRES_DECISION ->
                 call.decisionId == HospitalizationDecision.NONE.id &&
-                    details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true } != false
+                    details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true } != false &&
+                    (!isPatientConditionDecisionMode() || call.hasPatientConditionForDecision)
 
             TabFilter.ACTIVE ->
                 details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true }
@@ -445,7 +540,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Временный mapper: новый DTO приводим к старой UI-модели, чтобы не переписывать весь экран сразу
-    private fun HospitalizationResponseDto.toUiHospitalization(): Hospitalization {
+    private fun HospitalizationResponseDto.toUiHospitalization(
+        hasPatientConditionForDecision: Boolean = false
+    ): Hospitalization {
         val responseCall = call
 
         return Hospitalization(
@@ -483,7 +580,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             isNotificationSent = isNotificationSent,
             isArchived = HospitalizationStatus.fromId(statusId)?.isArchive == true,
             decisionId = decisionId,
+            decisionName = decisionName,
             decisionRemainingMillis = calculateDecisionRemainingMillis(this),
+            hasPatientConditionForDecision = hasPatientConditionForDecision,
             details = this
         )
     }

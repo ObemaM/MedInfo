@@ -59,6 +59,8 @@ class ConfigActivity : AppCompatActivity() {
         binding.fakeCallDelayEditText.setText(config.fakeCallDelayMinutes.toString())
         binding.disableSignalrSwitch.isChecked = config.testModeDisableSignalR
         binding.testCallEnabledSwitch.isChecked = config.testCallEnabled
+        binding.patientConditionTriggerSwitch.isChecked =
+            config.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION
         updateSignalRPreview(config.serverBaseUrl)
         clearErrors()
     }
@@ -110,7 +112,13 @@ class ConfigActivity : AppCompatActivity() {
             maxCallDurationMs = maxCallDurationMinutes * MILLIS_IN_MINUTE,
             testModeDisableSignalR = binding.disableSignalrSwitch.isChecked,
             testCallEnabled = binding.testCallEnabledSwitch.isChecked,
-            fakeCallDelayMinutes = fakeCallDelayMinutes
+            fakeCallDelayMinutes = fakeCallDelayMinutes,
+            decisionTriggerMode =
+                if (binding.patientConditionTriggerSwitch.isChecked) {
+                    ConfigManager.DecisionTriggerMode.PATIENT_CONDITION
+                } else {
+                    ConfigManager.DecisionTriggerMode.HOSPITALIZATION
+                }
         )
 
         try {

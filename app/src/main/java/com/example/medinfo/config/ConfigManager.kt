@@ -8,6 +8,11 @@ object ConfigManager {
 
     private const val CONFIG_FILE_NAME = "config.json"
 
+    enum class DecisionTriggerMode {
+        HOSPITALIZATION,
+        PATIENT_CONDITION
+    }
+
     private var config: AppConfig = AppConfig.defaults()
 
     data class AppConfig(
@@ -25,7 +30,8 @@ object ConfigManager {
         val testCallEnabled: Boolean,
         val fakeCallDelayMinutes: Int,
         val notificationIdService: Int,
-        val notificationChannelIdService: String
+        val notificationChannelIdService: String,
+        val decisionTriggerMode: DecisionTriggerMode
     ) {
         companion object {
             fun defaults(): AppConfig {
@@ -41,7 +47,8 @@ object ConfigManager {
                     testCallEnabled = false,
                     fakeCallDelayMinutes = 35,
                     notificationIdService = 101,
-                    notificationChannelIdService = "MedInfo_SignalR_Service"
+                    notificationChannelIdService = "MedInfo_SignalR_Service",
+                    decisionTriggerMode = DecisionTriggerMode.HOSPITALIZATION
                 )
             }
         }
@@ -135,6 +142,12 @@ object ConfigManager {
                     put("serviceChannelId", normalizedConfig.notificationChannelIdService)
                 }
             )
+            put(
+                "decisionFlow",
+                JSONObject().apply {
+                    put("triggerMode", normalizedConfig.decisionTriggerMode.name)
+                }
+            )
         }
 
         val internalFile = getInternalConfigFile(context)
@@ -157,6 +170,7 @@ object ConfigManager {
     val fakeCallDelayMinutes: Int get() = config.fakeCallDelayMinutes
     val notificationIdService: Int get() = config.notificationIdService
     val notificationChannelIdService: String get() = config.notificationChannelIdService
+    val decisionTriggerMode: DecisionTriggerMode get() = config.decisionTriggerMode
 
     private fun loadFromFile(file: File) {
         config = try {
@@ -176,6 +190,7 @@ object ConfigManager {
         val storage = root.optJSONObject("storage")
         val testing = root.optJSONObject("testing")
         val notifications = root.optJSONObject("notifications")
+        val decisionFlow = root.optJSONObject("decisionFlow")
 
         val defaults = AppConfig.defaults()
 
@@ -193,7 +208,19 @@ object ConfigManager {
             testCallEnabled = testing?.optBoolean("testCallEnabled", defaults.testCallEnabled) ?: defaults.testCallEnabled,
             fakeCallDelayMinutes = testing?.optInt("fakeCallDelayMinutes", defaults.fakeCallDelayMinutes) ?: defaults.fakeCallDelayMinutes,
             notificationIdService = notifications?.optInt("serviceNotificationId", defaults.notificationIdService) ?: defaults.notificationIdService,
-            notificationChannelIdService = notifications?.optString("serviceChannelId")?.takeIf { it.isNotBlank() } ?: defaults.notificationChannelIdService
+            notificationChannelIdService = notifications?.optString("serviceChannelId")?.takeIf { it.isNotBlank() } ?: defaults.notificationChannelIdService,
+            decisionTriggerMode = parseDecisionTriggerMode(
+                decisionFlow?.optString("triggerMode"),
+                defaults.decisionTriggerMode
+            )
         )
+    }
+
+    private fun parseDecisionTriggerMode(
+        rawValue: String?,
+        fallback: DecisionTriggerMode
+    ): DecisionTriggerMode {
+        val normalized = rawValue?.trim()?.uppercase() ?: return fallback
+        return DecisionTriggerMode.entries.firstOrNull { it.name == normalized } ?: fallback
     }
 }
