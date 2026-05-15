@@ -95,7 +95,7 @@ object TestMessageSimulator {
             newsScore = 3,
             pewsScore = null,
             algoverIndex = 0.7,
-            LAMS = 2
+            lams = 2
         )
     }
 
