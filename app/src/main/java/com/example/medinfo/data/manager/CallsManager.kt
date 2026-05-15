@@ -1,5 +1,6 @@
 package com.example.medinfo.data.manager
 
+import android.content.Context
 import android.os.SystemClock
 import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.network.RetrofitClient
@@ -30,6 +31,8 @@ object CallsManager {
     private val managerScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private val activeJobs = mutableMapOf<String, Job>()
     private val callAddedAtMs = mutableMapOf<String, Long>()
+    private val callStartedAtWallMs = mutableMapOf<String, Long>()
+    private var appContext: Context? = null
 
     // Защита от повторной отправки авто-игнора, если активность тоже хочет завершить вызов.
     private val ignoreSent = mutableSetOf<String>()
@@ -41,6 +44,13 @@ object CallsManager {
 
     // Период переоценки: на случай, если значение конфига изменилось после старта таймера.
     private const val TIMER_RECHECK_INTERVAL_MS = 60_000L
+    private const val TIMER_PREFS_NAME = "decision_timer_starts"
+    private const val MISSING_TIMER_START = Long.MIN_VALUE
+
+    @Synchronized
+    fun initialize(context: Context) {
+        appContext = context.applicationContext
+    }
 
     // Добавляет новую госпитализацию в очередь или обновляет уже существующую.
     @Synchronized
@@ -99,7 +109,9 @@ object CallsManager {
         hospitalizationId: String,
         totalMillis: Long = ConfigManager.maxCallDurationMs
     ): Long? {
-        val addedAt = callAddedAtMs[hospitalizationId] ?: return null
+        val addedAt = callAddedAtMs[hospitalizationId]
+            ?: restoreTimerStartElapsed(hospitalizationId)
+            ?: return null
         val elapsed = SystemClock.elapsedRealtime() - addedAt
         return (totalMillis - elapsed).coerceAtLeast(0L)
     }
@@ -107,7 +119,17 @@ object CallsManager {
     // Фиксирует локальный старт таймера решения, если серверного времени пока недостаточно.
     @Synchronized
     fun markDecisionTimerStarted(hospitalizationId: String) {
-        callAddedAtMs.putIfAbsent(hospitalizationId, SystemClock.elapsedRealtime())
+        if (callAddedAtMs.containsKey(hospitalizationId) ||
+            restoreTimerStartElapsed(hospitalizationId) != null
+        ) {
+            CallLog.event("CallsManager", "mark decision timer keep existing hospitalizationId=$hospitalizationId")
+            return
+        }
+
+        saveTimerStart(
+            hospitalizationId = hospitalizationId,
+            startedAtWallMillis = System.currentTimeMillis()
+        )
         CallLog.event("CallsManager", "mark decision timer started hospitalizationId=$hospitalizationId")
     }
 
@@ -133,7 +155,9 @@ object CallsManager {
         activeJobs.values.forEach { it.cancel() }
         activeJobs.clear()
         callAddedAtMs.clear()
+        callStartedAtWallMs.clear()
         ignoreSent.clear()
+        timerPrefs()?.edit()?.clear()?.apply()
         _calls.value = emptyList()
     }
 
@@ -196,21 +220,23 @@ object CallsManager {
     }
 
     private fun ensureIgnoreTimer(call: HospitalizationResponseDto) {
-        val timerStartElapsed = calculateTimerStartElapsed(call)
-        val existingStartElapsed = callAddedAtMs[call.id]
+        val timerStartWall = calculateTimerStartWall(call)
+        val existingStartWall = getKnownTimerStartWall(call.id)
 
-        // Если сервер прислал более раннее время старта, исправляем локальный таймер, а не даем новые 45 минут.
-        if (existingStartElapsed == null || timerStartElapsed < existingStartElapsed) {
-            callAddedAtMs[call.id] = timerStartElapsed
+        // Если сервер или сохраненный локальный якорь раньше текущего, не даем вызову новые 45 минут.
+        if (existingStartWall == null || timerStartWall < existingStartWall) {
+            saveTimerStart(call.id, timerStartWall)
             activeJobs[call.id]?.cancel()
             activeJobs.remove(call.id)
             CallLog.queue(
                 source = "CallsManager",
-                action = if (existingStartElapsed == null) "timer-anchor-created" else "timer-anchor-corrected-from-server",
+                action = if (existingStartWall == null) "timer-anchor-created" else "timer-anchor-corrected-from-server",
                 call = call,
                 queueSize = _calls.value.size,
                 remainingMs = getRemainingIgnoreMillis(call.id)
             )
+        } else {
+            restoreTimerStartElapsed(call.id)
         }
 
         if (!activeJobs.containsKey(call.id)) {
@@ -218,16 +244,16 @@ object CallsManager {
         }
     }
 
-    private fun calculateTimerStartElapsed(call: HospitalizationResponseDto): Long {
-        // Если сервер не прислал время уведомления, считаем стартом момент получения на этом клиенте.
-        // Время создания вызова не подходит: бригада могла отправить данные заметно позже.
-        val startedAtWallMillis = DateFormatter.parseCallTimeMillis(call.notificationTime)
-            ?: return SystemClock.elapsedRealtime()
+    private fun calculateTimerStartWall(call: HospitalizationResponseDto): Long {
+        val nowWall = System.currentTimeMillis()
+        val serverStartWall = DateFormatter.parseCallTimeMillis(call.notificationTime)
+            ?.coerceAtMost(nowWall)
+        val savedStartWall = getKnownTimerStartWall(call.id)
+            ?.coerceAtMost(nowWall)
 
-        val elapsedFromServerStart =
-            (System.currentTimeMillis() - startedAtWallMillis).coerceAtLeast(0L)
-
-        return SystemClock.elapsedRealtime() - elapsedFromServerStart
+        // Если сервер не прислал время уведомления, берём ранее сохраненный локальный старт,
+        // а если его ещё нет — момент первого получения на этом клиенте.
+        return listOfNotNull(serverStartWall, savedStartWall).minOrNull() ?: nowWall
     }
 
     // Останавливает и удаляет таймер для конкретной госпитализации.
@@ -235,8 +261,48 @@ object CallsManager {
         activeJobs[hospitalizationId]?.cancel()
         activeJobs.remove(hospitalizationId)
         callAddedAtMs.remove(hospitalizationId)
+        callStartedAtWallMs.remove(hospitalizationId)
+        timerPrefs()?.edit()?.remove(hospitalizationId)?.apply()
         ignoreSent.remove(hospitalizationId)
     }
+
+    private fun saveTimerStart(
+        hospitalizationId: String,
+        startedAtWallMillis: Long
+    ) {
+        val normalizedWall = startedAtWallMillis.coerceAtMost(System.currentTimeMillis())
+        callStartedAtWallMs[hospitalizationId] = normalizedWall
+        callAddedAtMs[hospitalizationId] = wallStartToElapsedStart(normalizedWall)
+        timerPrefs()?.edit()?.putLong(hospitalizationId, normalizedWall)?.apply()
+    }
+
+    private fun restoreTimerStartElapsed(hospitalizationId: String): Long? {
+        val startedAtWall = getKnownTimerStartWall(hospitalizationId) ?: return null
+        val normalizedWall = startedAtWall.coerceAtMost(System.currentTimeMillis())
+        callStartedAtWallMs[hospitalizationId] = normalizedWall
+        val elapsedStart = wallStartToElapsedStart(normalizedWall)
+        callAddedAtMs[hospitalizationId] = elapsedStart
+        return elapsedStart
+    }
+
+    private fun getKnownTimerStartWall(hospitalizationId: String): Long? {
+        callStartedAtWallMs[hospitalizationId]?.let { return it }
+
+        val saved = timerPrefs()?.getLong(hospitalizationId, MISSING_TIMER_START)
+            ?: return null
+        if (saved == MISSING_TIMER_START) return null
+
+        callStartedAtWallMs[hospitalizationId] = saved
+        return saved
+    }
+
+    private fun wallStartToElapsedStart(startedAtWallMillis: Long): Long {
+        val elapsedFromStart = (System.currentTimeMillis() - startedAtWallMillis).coerceAtLeast(0L)
+        return SystemClock.elapsedRealtime() - elapsedFromStart
+    }
+
+    private fun timerPrefs() =
+        appContext?.getSharedPreferences(TIMER_PREFS_NAME, Context.MODE_PRIVATE)
 
     // Таймер нужен только для активных госпитализаций без решения.
     private fun shouldStartIgnoreTimer(call: HospitalizationResponseDto): Boolean {

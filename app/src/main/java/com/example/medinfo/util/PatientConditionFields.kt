@@ -25,7 +25,7 @@ object PatientConditionFields {
 
         val entries: List<Pair<String, String?>> = listOf(
             "Сознание (ШКГ)" to condition.consciousness,
-            "LAMS" to condition.lams?.toString(),
+            "LAMS" to condition.LAMS?.toString(),
             "АД" to condition.bloodPressure,
             "ЧД" to condition.respirationRate?.toString(),
             "ЧСС" to condition.heartRate?.toString(),

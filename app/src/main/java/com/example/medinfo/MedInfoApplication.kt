@@ -3,6 +3,7 @@ package com.example.medinfo
 
 import android.app.Application
 import com.example.medinfo.config.ConfigManager
+import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.util.AppVisibilityTracker
 
@@ -18,6 +19,7 @@ class MedInfoApplication : Application() {
             e.printStackTrace()
         }
 
+        CallsManager.initialize(this)
         RetrofitClient.init(this) // Инициализирует Retrofit с контекстом приложения
     }
 }

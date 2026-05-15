@@ -347,10 +347,14 @@ class SignalRService : Service() {
 
         hubConnection = null
         IncomingCallRinger.stop()
-        CallsManager.clearAll()
-        synchronized(decisionStateLock) {
-            pendingDecisionCalls.clear()
-            patientConditionReadyIds.clear()
+        // Очищаем очередь только при намеренной остановке сервиса: при обычном onDestroy
+        // (stopSelf=false) сервис может перезапуститься, и терять вызовы не нужно.
+        if (stopSelf) {
+            CallsManager.clearAll()
+            synchronized(decisionStateLock) {
+                pendingDecisionCalls.clear()
+                patientConditionReadyIds.clear()
+            }
         }
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

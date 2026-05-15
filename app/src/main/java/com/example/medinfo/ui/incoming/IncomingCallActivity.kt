@@ -28,6 +28,7 @@ import com.example.medinfo.databinding.ActivityIncomingCallBinding
 import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
+import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.model.api.PatientConditionResponseDto
@@ -62,6 +63,7 @@ class IncomingCallActivity : AppCompatActivity() {
     private var lastPatientCondition: PatientConditionResponseDto? = null
     // Последний номер телефона бригады из PATIENT_CONDITION-сообщений. Показывается в секции "Бригада".
     private var lastBrigadePhone: String? = null
+    private val unreadChatMessageIds = mutableSetOf<String>()
     private var keepCurrentHospitalizationWhenMissingFromQueue: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -83,6 +85,7 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.buttonReject.setOnClickListener { showConfirmRejectDialog() }
         binding.closeButton.setOnClickListener { finish() }
         binding.chatButton.setOnClickListener { openChatScreen() }
+        updateChatUnreadBadge()
         binding.fullDetailsCard.setOnClickListener {
             setFullDetailsExpanded(!isFullDetailsExpanded)
         }
@@ -261,6 +264,8 @@ class IncomingCallActivity : AppCompatActivity() {
 
         if (boundHospitalizationId != hospitalization.id) {
             // Данные карточки биндим хотя бы один раз; отдельно следим только за тем, чтобы не перезапускать таймер.
+            unreadChatMessageIds.clear()
+            updateChatUnreadBadge()
             lastBrigadePhone = null
             bindSummary(hospitalization)
             bindDetails(hospitalization)
@@ -274,7 +279,8 @@ class IncomingCallActivity : AppCompatActivity() {
 
         // Таймер берём из CallsManager, чтобы экран решения и список "Требуют решения" шли синхронно.
         val remainingMs = CallsManager.getRemainingIgnoreMillis(hospitalization.id)
-        val secondsToShow = if (remainingMs != null) ((remainingMs + 999L) / 1000L).toInt() else 2400
+        val fallbackSeconds = ((ConfigManager.maxCallDurationMs + 999L) / 1000L).toInt()
+        val secondsToShow = if (remainingMs != null) ((remainingMs + 999L) / 1000L).toInt() else fallbackSeconds
         if (countdownHospitalizationId != hospitalization.id) {
             startVisualCountdown(hospitalization.id, secondsToShow)
         }
@@ -428,7 +434,7 @@ class IncomingCallActivity : AppCompatActivity() {
                 emptyList()
             }
 
-            val condition = messages
+            val serverCondition = messages
                 .lastOrNull {
                     MessageType.fromId(it.type) == MessageType.PATIENT_CONDITION &&
                         it.patientCondition != null
@@ -436,7 +442,12 @@ class IncomingCallActivity : AppCompatActivity() {
                 ?.patientCondition
 
             // Телефон может быть в другом сообщении, не там, где свежие condition — берём отдельно.
-            val phone = messages.lastOrNull { !it.phoneNumber.isNullOrBlank() }?.phoneNumber
+            val serverPhone = messages.lastOrNull { !it.phoneNumber.isNullOrBlank() }?.phoneNumber
+            val cachedConditionMessage = MessagesEventBus.latestPatientConditionMessage(hospitalizationId)
+            val condition = cachedConditionMessage?.patientCondition ?: serverCondition
+            val phone = cachedConditionMessage?.phoneNumber
+                ?: MessagesEventBus.latestPhoneNumber(hospitalizationId)
+                ?: serverPhone
 
             if (boundHospitalizationId == hospitalizationId) {
                 renderPatientCondition(condition)
@@ -449,9 +460,12 @@ class IncomingCallActivity : AppCompatActivity() {
     private fun observeIncomingPatientCondition() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
+                syncCachedPatientCondition()
                 MessagesEventBus.incoming.collect { message: MessageResponseDto ->
                     val expectedId = boundHospitalizationId ?: return@collect
                     if (message.hospitalizationId != expectedId) return@collect
+
+                    markChatMessageUnread(message)
 
                     // Телефон обновляется на любом сообщении: пустые значения игнорируются внутри.
                     applyBrigadePhone(message.phoneNumber)
@@ -462,6 +476,38 @@ class IncomingCallActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun markChatMessageUnread(message: MessageResponseDto) {
+        if (MessageOrigin.fromId(message.origin) != MessageOrigin.TABLET) return
+        if (unreadChatMessageIds.add(message.id)) {
+            updateChatUnreadBadge()
+        }
+    }
+
+    private fun clearChatUnreadMessages() {
+        if (unreadChatMessageIds.isEmpty()) return
+        unreadChatMessageIds.clear()
+        updateChatUnreadBadge()
+    }
+
+    private fun updateChatUnreadBadge() {
+        val unreadCount = unreadChatMessageIds.size
+        binding.chatUnreadBadge.visibility =
+            if (unreadCount > 0) android.view.View.VISIBLE else android.view.View.GONE
+        if (unreadCount > 0) {
+            binding.chatUnreadBadge.text = unreadCount.coerceAtMost(9).toString()
+        }
+    }
+
+    private fun syncCachedPatientCondition() {
+        val hospitalizationId = boundHospitalizationId ?: return
+        val conditionMessage = MessagesEventBus.latestPatientConditionMessage(hospitalizationId)
+        val phone = conditionMessage?.phoneNumber
+            ?: MessagesEventBus.latestPhoneNumber(hospitalizationId)
+
+        applyBrigadePhone(phone)
+        conditionMessage?.patientCondition?.let { renderPatientCondition(it) }
     }
 
     // Запоминаем новый телефон и переотрисовываем секцию "Полные данные вызова",
@@ -534,6 +580,8 @@ class IncomingCallActivity : AppCompatActivity() {
             Toast.makeText(this, "Нет данных для открытия чата", Toast.LENGTH_SHORT).show()
             return
         }
+
+        clearChatUnreadMessages()
 
         // Чат сразу привязываем к госпитализации, чтобы потом без переделок подключить историю сообщений.
         val intent = Intent(this, ChatActivity::class.java).apply {
