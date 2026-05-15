@@ -46,6 +46,7 @@ import com.example.medinfo.databinding.DialogUserDataBinding
 import com.example.medinfo.databinding.PopupMenuCustomBinding
 import com.example.medinfo.databinding.PopupTabMenuBinding
 import com.example.medinfo.ui.details.HospitalizationDetailsActivity
+import com.example.medinfo.util.DialogSizing
 import com.example.medinfo.util.PermissionManager
 import kotlinx.coroutines.flow.collectLatest
 import androidx.recyclerview.widget.RecyclerView
@@ -569,6 +570,8 @@ class MainActivity : AppCompatActivity() {
 
         dialogBinding.buttonOk.setOnClickListener { dialog.dismiss() }
 
+        // Адаптивная ширина, центрирование и ограничение высоты — задаём до show().
+        DialogSizing.apply(dialog.window, dialogBinding.root, dialogBinding.scrollView)
         dialog.show()
     }
 

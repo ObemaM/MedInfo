@@ -14,15 +14,11 @@ import com.example.medinfo.model.api.GetHospitalizationsFiltersRequestDto
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
-import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.ui.incoming.IncomingCallRinger
 import com.example.medinfo.util.CallLog
 import com.example.medinfo.util.DateFormatter
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -65,40 +61,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Отслеживание выбранной вкладки
     private var currentTabFilter = TabFilter.ACTIVE
 
+    // Решает, какую вкладку открыть при старте: REQUIRES_DECISION если есть такие вызовы,
+    // иначе ACTIVE. Фильтрация по PATIENT_CONDITION (если включён режим) делается на сервере,
+    // поэтому достаточно проверить count в ответе.
     suspend fun resolveStartTab(): TabFilter {
         return try {
             val response = withContext(Dispatchers.IO) {
                 hospitalizationRepository.getHospitalizations(
                     pageNumber = FIRST_PAGE,
-                    pageSize =
-                        if (isPatientConditionDecisionMode()) {
-                            DEFAULT_PAGE_SIZE
-                        } else {
-                            1
-                        },
+                    pageSize = 1,
                     getCount = true,
-                    filters = GetHospitalizationsFiltersRequestDto(
-                        statuses = activeStatusIds(),
-                        decisions = listOf(HospitalizationDecision.NONE.id)
-                    )
+                    filters = createServerFilters(TabFilter.REQUIRES_DECISION)
                 )
             }
 
-            // Для проверки есть ли вызовы, которые требуют решения
-            val hasRequiresDecision =
-                if (isPatientConditionDecisionMode()) {
-                    // Параллельно дергаем getMessages для каждого вызова, чтобы не ждать
-                    // последовательные ответы. Дальше достаточно any { it }.
-                    val candidates = response.content?.hospitalizations.orEmpty()
-                    val readiness = coroutineScope {
-                        candidates.map { async { hasPatientCondition(it.id) } }.awaitAll()
-                    }
-                    readiness.any { it }
-                } else {
-                    (response.content?.count ?: 0) > 0
-                }
-
-            if (hasRequiresDecision) {
+            if ((response.content?.count ?: 0) > 0) {
                 TabFilter.REQUIRES_DECISION
             } else {
                 TabFilter.ACTIVE
@@ -119,30 +96,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun isPatientConditionDecisionMode(): Boolean {
         return ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION
     }
-
-    private suspend fun shouldShowInRequiresDecisionByPatientCondition(
-        hospitalization: HospitalizationResponseDto
-    ): Boolean {
-        if (currentTabFilter != TabFilter.REQUIRES_DECISION) return true
-        if (!isPatientConditionDecisionMode()) return true
-        return hasPatientCondition(hospitalization.id)
-    }
-
-    private suspend fun hasPatientCondition(hospitalizationId: String): Boolean {
-        return try {
-            val response = withContext(Dispatchers.IO) {
-                hospitalizationRepository.getMessages(hospitalizationId)
-            }
-
-            response.content.orEmpty().any { message ->
-                MessageType.fromId(message.type) == MessageType.PATIENT_CONDITION &&
-                    message.patientCondition != null
-            }
-        } catch (_: Exception) {
-            false
-        }
-    }
-
 
 
     // Отслеживание поисковой строки
@@ -199,32 +152,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 val content = response.content
+                // Фильтрация по PATIENT_CONDITION делается на сервере через filters.hasPatientCondition,
+                // поэтому список приходит уже готовым — никаких доп. запросов getMessages.
                 val hospitalizations = content?.hospitalizations.orEmpty()
-                // Запросы getMessages для каждого вызова летят параллельно через async/awaitAll —
-                // иначе на N вызовах был бы N последовательных HTTP-запросов (N+1 проблема).
-                val hospitalizationsWithDecisionReadiness = coroutineScope {
-                    hospitalizations.map { hospitalization ->
-                        async {
-                            hospitalization to shouldShowInRequiresDecisionByPatientCondition(hospitalization)
-                        }
-                    }.awaitAll()
-                }
                 CallLog.event(
                     source = "MainViewModel",
                     message = "loaded hospitalizations tab=$currentTabFilter page=$page count=${hospitalizations.size} total=${content?.count ?: "unknown"}"
                 )
 
                 if (currentTabFilter == TabFilter.REQUIRES_DECISION) {
-                    CallsManager.syncDecisionCallsFromServer(
-                        hospitalizationsWithDecisionReadiness
-                            .filter { it.second }
-                            .map { it.first }
-                    )
+                    CallsManager.syncDecisionCallsFromServer(hospitalizations)
                 }
 
-                val newCalls = hospitalizationsWithDecisionReadiness.map { (hospitalization, hasPatientCondition) ->
-                    hospitalization.toUiHospitalization(hasPatientCondition)
-                }
+                val newCalls = hospitalizations.map { it.toUiHospitalization() }
 
                 if (resetBeforeLoad){
                     loadedCalls.clear()
@@ -312,9 +252,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return when (tab) {
             TabFilter.REQUIRES_DECISION ->
                 GetHospitalizationsFiltersRequestDto(
-                    // Для надежности берем активные вызовы и ниже дополнительно фильтруем decisionId = 0 на клиенте.
                     statuses = activeStatusIds(),
-                    decisions = listOf(HospitalizationDecision.NONE.id)
+                    decisions = listOf(HospitalizationDecision.NONE.id),
+                    // В режиме PATIENT_CONDITION сервер сам отдаёт только вызовы с данными пациента.
+                    hasPatientCondition = if (isPatientConditionDecisionMode()) true else null
                 )
 
             TabFilter.ACTIVE ->
@@ -373,8 +314,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return when (currentTabFilter) {
             TabFilter.REQUIRES_DECISION ->
                 call.decisionId == HospitalizationDecision.NONE.id &&
-                    details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true } != false &&
-                    (!isPatientConditionDecisionMode() || call.hasPatientConditionForDecision)
+                    details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true } != false
 
             TabFilter.ACTIVE ->
                 details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true }
@@ -540,9 +480,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Временный mapper: новый DTO приводим к старой UI-модели, чтобы не переписывать весь экран сразу
-    private fun HospitalizationResponseDto.toUiHospitalization(
-        hasPatientConditionForDecision: Boolean = false
-    ): Hospitalization {
+    private fun HospitalizationResponseDto.toUiHospitalization(): Hospitalization {
         val responseCall = call
 
         return Hospitalization(
@@ -582,7 +520,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             decisionId = decisionId,
             decisionName = decisionName,
             decisionRemainingMillis = calculateDecisionRemainingMillis(this),
-            hasPatientConditionForDecision = hasPatientConditionForDecision,
             details = this
         )
     }

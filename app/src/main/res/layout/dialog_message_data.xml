@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Диалог состояния пациента: автоматически открывается, когда в чат приходит сообщение типа
-  PATIENT_CONDITION. Показывает только клинически значимые поля (без служебных id).
+  PATIENT_CONDITION. Оформлен в едином стиле с dialog_user_data (профиль).
 -->
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_gravity="center"
@@ -13,93 +14,82 @@
     app:strokeColor="@color/border_gray_1"
     app:strokeWidth="1dp">
 
-    <androidx.constraintlayout.widget.ConstraintLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:padding="24dp">
 
-        <ImageView
-            android:id="@+id/info_icon"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:padding="10dp"
-            android:src="@drawable/ic_message_24"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/main_1" />
-
-        <TextView
-            android:id="@+id/title_text"
-            android:layout_width="0dp"
+        <!-- Шапка: иконка + заголовок -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp"
-            android:layout_marginEnd="16dp"
-            android:text="Состояние пациента"
-            android:textColor="@color/gray_1"
-            android:textSize="20sp"
-            android:textStyle="normal"
-            app:layout_constraintBottom_toBottomOf="@id/info_icon"
-            app:layout_constraintEnd_toStartOf="@id/button_close"
-            app:layout_constraintStart_toEndOf="@id/info_icon"
-            app:layout_constraintTop_toTopOf="@id/info_icon" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <ImageButton
-            android:id="@+id/button_close"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:background="@drawable/close_button_background"
-            android:contentDescription="Закрыть"
-            android:padding="12dp"
-            android:src="@drawable/ic_close_24"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:tint="@color/gray_1" />
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:padding="6dp"
+                android:src="@drawable/ic_message_24"
+                app:tint="@color/main_1" />
 
+            <TextView
+                android:id="@+id/title_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Состояние пациента"
+                android:textColor="@color/gray_1"
+                android:textSize="20sp"
+                android:textStyle="bold" />
+
+        </LinearLayout>
+
+        <!-- Дата получения данных -->
         <TextView
             android:id="@+id/reception_time_text"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="6dp"
+            android:layout_marginStart="52dp"
+            android:layout_marginTop="2dp"
             android:textColor="@color/border_gray_2"
             android:textSize="13sp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="@id/title_text"
-            app:layout_constraintTop_toBottomOf="@id/title_text" />
+            tools:text="Получено: 07.05.2026 17:29" />
 
         <View
-            android:id="@+id/divider"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="20dp"
-            android:background="@color/border_gray_1"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/reception_time_text" />
+            android:layout_marginTop="16dp"
+            android:layout_marginBottom="16dp"
+            android:background="@color/border_gray_1" />
 
         <!--
-          Высоту скрола не фиксируем — даём ему wrap_content и полагаемся на ограничение
-          высоты окна диалога, чтобы на маленьких экранах не вылезало за рамки.
+          Высота ScrollView ограничивается в MessageDataDialogFragment: если полей много и
+          диалог не влезает в экран, фрагмент ужимает скролл и список начинает прокручиваться.
         -->
         <ScrollView
             android:id="@+id/scroll_view"
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:overScrollMode="never"
-            android:paddingTop="0dp"
-            android:paddingBottom="0dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/divider">
+            android:overScrollMode="never">
 
             <LinearLayout
                 android:id="@+id/data_container"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:paddingTop="16dp" />
+                android:orientation="vertical" />
 
         </ScrollView>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/button_close"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="20dp"
+            android:text="Закрыть"
+            app:cornerRadius="12dp" />
+
+    </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>

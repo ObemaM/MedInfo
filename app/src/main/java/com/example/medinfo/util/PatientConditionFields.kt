@@ -14,7 +14,12 @@ import com.example.medinfo.model.api.PatientConditionResponseDto
 object PatientConditionFields {
 
     // Возвращает true, если хотя бы одно поле было отрисовано (есть смысл показывать секцию).
-    fun render(container: LinearLayout, condition: PatientConditionResponseDto?): Boolean {
+    // showDividers — рисовать ли серые линии-разделители между полями (в диалоге чата отключено).
+    fun render(
+        container: LinearLayout,
+        condition: PatientConditionResponseDto?,
+        showDividers: Boolean = true
+    ): Boolean {
         container.removeAllViews()
         if (condition == null) return false
 
@@ -35,14 +40,19 @@ object PatientConditionFields {
         var rendered = 0
         entries.forEach { (label, value) ->
             if (!value.isNullOrBlank()) {
-                addField(container, label, value)
+                addField(container, label, value, showDividers)
                 rendered += 1
             }
         }
         return rendered > 0
     }
 
-    private fun addField(container: LinearLayout, label: String, value: String) {
+    private fun addField(
+        container: LinearLayout,
+        label: String,
+        value: String,
+        showDivider: Boolean
+    ) {
         val context = container.context
 
         val fieldLayout = LinearLayout(context).apply {
@@ -86,6 +96,8 @@ object PatientConditionFields {
         fieldLayout.addView(labelView)
         fieldLayout.addView(valueView)
         container.addView(fieldLayout)
+
+        if (!showDivider) return
 
         val divider = View(context).apply {
             setBackgroundColor(ContextCompat.getColor(context, R.color.border_gray_1))

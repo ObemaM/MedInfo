@@ -339,7 +339,7 @@ class ChatActivity : AppCompatActivity() {
 
         val author = TextView(this).apply {
             text = buildAuthor(message)
-            setTextColor(resources.getColor(R.color.field_label_color, null))
+            setTextColor(resources.getColor(R.color.main_1, null))
             textSize = 13f
             typeface = Typeface.DEFAULT_BOLD
         }

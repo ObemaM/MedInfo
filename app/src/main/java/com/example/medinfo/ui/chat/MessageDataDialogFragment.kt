@@ -4,8 +4,6 @@ import android.app.Dialog
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
-import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
@@ -14,6 +12,7 @@ import com.example.medinfo.R
 import com.example.medinfo.databinding.DialogMessageDataBinding
 import com.example.medinfo.model.api.PatientConditionResponseDto
 import com.example.medinfo.util.DateFormatter
+import com.example.medinfo.util.DialogSizing
 import com.example.medinfo.util.PatientConditionFields
 
 // Диалог состояния пациента, прилетевшего вместе с сообщением чата.
@@ -35,38 +34,22 @@ class MessageDataDialogFragment : DialogFragment() {
 
         binding.buttonClose.setOnClickListener { dismiss() }
 
-        if (condition != null) {
-            renderFields(binding.dataContainer, condition)
-        } else {
-            renderFields(binding.dataContainer, null)
-        }
+        renderFields(binding.dataContainer, condition)
 
         val dialog = AlertDialog.Builder(requireContext())
             .setView(binding.root)
             .create()
-        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
 
-        // На маленьких экранах фиксированная 340dp-карточка обрезается. Растягиваем окно
-        // диалога до экрана с боковыми отступами, но клампим разумным максимумом, чтобы на
-        // широких планшетах диалог не растягивался во всю ширину.
-        dialog.setOnShowListener {
-            val window = dialog.window ?: return@setOnShowListener
-            val display = resources.displayMetrics
-            val horizontalMarginPx = 32.dp() // 16dp с каждой стороны
-            val maxWidthPx = 360.dp()
-            val targetWidth = (display.widthPixels - horizontalMarginPx).coerceAtMost(maxWidthPx)
-            window.setLayout(targetWidth, ViewGroup.LayoutParams.WRAP_CONTENT)
-            // Позиционируем по центру — на случай, если родительская активность задала иное.
-            window.setGravity(Gravity.CENTER)
-            // Клавиатура иногда сдвигает диалог; явно говорим окну адаптироваться.
-            window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
-        }
+        // Размеры и позицию задаём ДО показа — иначе диалог видимо "прыгает" к центру.
+        dialog.window?.setBackgroundDrawableResource(android.R.color.transparent)
+        DialogSizing.apply(dialog.window, binding.root, binding.scrollView)
+
         return dialog
     }
 
     // Заполняем диалог только клинически значимыми полями. Служебные поля (id) не показываем.
     private fun renderFields(container: LinearLayout, condition: PatientConditionResponseDto?) {
-        val rendered = PatientConditionFields.render(container, condition)
+        val rendered = PatientConditionFields.render(container, condition, showDividers = false)
         if (!rendered) {
             addPlaceholder(
                 container,
