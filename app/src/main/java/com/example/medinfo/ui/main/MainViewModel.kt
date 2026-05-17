@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.manager.CallsManager
+import com.example.medinfo.data.manager.HospitalizationEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.network.TokenInterceptor
 import com.example.medinfo.data.repository.HospitalizationRepository
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -116,6 +118,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _logoutEvent = MutableSharedFlow<Unit>()
     val logoutEvent: SharedFlow<Unit> = _logoutEvent.asSharedFlow()
+
+    init {
+        // Список слушает realtime-обновления госпитализаций из SignalR и обновляет статусы.
+        viewModelScope.launch {
+            HospitalizationEventBus.updates.collectLatest { applyRealtimeHospitalizationUpdates(it) }
+        }
+    }
 
     // Загрузка для первой страницы
     fun fetchCalls() {
@@ -278,6 +287,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         allCalls.addAll(calls)
         prepareCallsForSearch(allCalls)
         applyFilters()
+    }
+
+    // Точечно обновляет уже загруженные вызовы данными realtime-уведомлений SignalR.
+    // Пагинация и позиция прокрутки не сбрасываются: заменяем только реально изменившиеся вызовы.
+    // Если статус вызова сменился и он больше не подходит вкладке, applyFilters его уберёт.
+    private fun applyRealtimeHospitalizationUpdates(updated: List<HospitalizationResponseDto>) {
+        var changed = false
+        updated.forEach { dto ->
+            val index = loadedCalls.indexOfFirst { it.id == dto.id }
+            if (index != -1 && loadedCalls[index].details != dto) {
+                loadedCalls[index] = dto.toUiHospitalization()
+                changed = true
+            }
+        }
+        if (changed) {
+            updateCalls(loadedCalls.toList())
+        }
     }
 
     private fun applyFilters() {

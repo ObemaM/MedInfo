@@ -30,8 +30,9 @@ object PatientConditionFields {
             "ЧД" to condition.respirationRate?.toString(),
             "ЧСС" to condition.heartRate?.toString(),
             "Время от начала заболевания" to condition.startDisease?.let { "$it ч" },
-            "Температура" to condition.temperature?.let { formatNumber(it) },
-            "Глюкометрия" to condition.glucometry?.let { formatNumber(it) },
+            // Температура и глюкометрия: 0 — это "не измерено", такие значения скрываем.
+            "Температура" to condition.temperature?.takeIf { it != 0.0 }?.let { formatNumber(it) },
+            "Глюкометрия" to condition.glucometry?.takeIf { it != 0.0 }?.let { formatNumber(it) },
             "SpO2" to condition.spO2?.let { "$it%" },
             "Судороги" to formatBoolean(condition.convulsions),
             "Беременность" to formatBoolean(condition.pregnant)
