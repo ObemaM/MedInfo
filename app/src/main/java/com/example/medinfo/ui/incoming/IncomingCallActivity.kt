@@ -37,6 +37,7 @@ import com.example.medinfo.ui.chat.ChatActivity
 import com.example.medinfo.util.CallLog
 import com.example.medinfo.util.DateFormatter
 import com.example.medinfo.util.DecisionTimerStage
+import com.example.medinfo.util.HospitalizationSummaryBinder
 import com.example.medinfo.util.PatientConditionFields
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.repeatOnLifecycle
@@ -294,18 +295,10 @@ class IncomingCallActivity : AppCompatActivity() {
     }
 
     private fun bindSummary(hospitalization: HospitalizationResponseDto) {
-        val call = hospitalization.call
         val summary = binding.summaryBlock
+        HospitalizationSummaryBinder.bind(summary, hospitalization)
 
-        summary.callNumberText.text = "Вызов №${call.dayNumber}/${call.yearNumber}"
-        summary.statusText.text = hospitalization.statusName
-        summary.patientDetailsText.text =
-            "${buildPatientName(call).ifBlank { "Неизвестный пациент" }}, ${call.age ?: "Н/Д"} лет, ${call.sex ?: "Н/Д"}"
-        summary.callReasonText.text = call.reason ?: "Не указана"
-        summary.callAddressText.text = buildAddress(call).ifBlank { "Адрес не указан" }
-        summary.timeData.text = "Дата: ${DateFormatter.formatDateTime(call.callTime)}"
-        summary.urgencyData.text = call.urgency?.let { "Срочность: $it" } ?: "Срочность неизвестна"
-        summary.decisionTimerText.visibility = android.view.View.GONE
+        // На экране решения карточка-сводка не кликабельна.
         summary.root.setOnClickListener(null)
         summary.root.isClickable = false
     }
@@ -702,18 +695,6 @@ class IncomingCallActivity : AppCompatActivity() {
             call.patientName,
             call.patientPatronymic
         ).joinToString(" ").trim()
-    }
-
-    private fun buildAddress(call: CallResponseDto): String {
-        return buildList {
-            add(call.district)
-            add(call.point)
-            call.street?.let { add("ул. $it") }
-            call.house?.let { add("д. $it") }
-            call.apartment?.takeIf { it != "0" }?.let { add("кв. $it") }
-        }
-            .filterNot { it.isNullOrBlank() }
-            .joinToString(", ")
     }
 
     private fun formatDateTime(value: String?): String? {

@@ -79,29 +79,6 @@
             android:background="@color/border_gray_1" />
 
         <TextView
-            android:id="@+id/archive_status_label"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:text="Статус:"
-            android:textColor="@color/menu_text_color_1"
-            android:textStyle="italic"
-            android:visibility="gone"
-            tools:visibility="visible" />
-
-        <TextView
-            android:id="@+id/decision_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:layout_marginTop="-6dp"
-            android:textColor="@color/menu_text_color_2"
-            android:textSize="16sp"
-            android:visibility="gone"
-            tools:text="Завершена"
-            tools:visibility="visible" />
-
-        <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Пациент:"
@@ -117,10 +94,53 @@
             tools:text="Неизвестно" />
 
         <TextView
+            android:id="@+id/birth_day_label"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:text="Причина:"
+            android:text="Дата рождения:"
+            android:textColor="@color/menu_text_color_1"
+            android:textStyle="italic"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/birth_day_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textSize="16sp"
+            android:visibility="gone"
+            tools:text="01.01.1980"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/archive_status_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Статус:"
+            android:textColor="@color/menu_text_color_1"
+            android:textStyle="italic"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/decision_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/menu_text_color_2"
+            android:textSize="16sp"
+            android:visibility="gone"
+            tools:text="Завершена"
+            tools:visibility="visible" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Повод:"
             android:textColor="@color/menu_text_color_1"
             android:textStyle="italic" />
 
@@ -131,6 +151,27 @@
             android:layout_marginTop="2dp"
             android:textSize="16sp"
             tools:text="Неизвестно" />
+
+        <TextView
+            android:id="@+id/diagnosis_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Диагноз:"
+            android:textColor="@color/menu_text_color_1"
+            android:textStyle="italic"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/diagnosis_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textSize="16sp"
+            android:visibility="gone"
+            tools:text="ОКС"
+            tools:visibility="visible" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -154,15 +195,6 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
             android:text="Дата неизвестна"
-            android:textColor="@color/menu_text_color_1"
-            android:textStyle="italic" />
-
-        <TextView
-            android:id="@+id/urgency_data"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Срочность неизвестна"
             android:textColor="@color/menu_text_color_1"
             android:textStyle="italic" />
 

@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import com.example.medinfo.R
 import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.manager.CallsManager
+import com.example.medinfo.data.manager.HospitalizationEventBus
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
@@ -146,6 +147,10 @@ class SignalRService : Service() {
     // Обрабатываем госпитализации как основной источник очереди входящих решений.
     private fun handleHospitalizationNotifications(items: Array<out HospitalizationResponseDto>) {
         CallLog.event("SignalR", "HospitalizationNotification count=${items.size}")
+
+        // Отдаём обновления в список главного экрана: статусы уже загруженных вызовов
+        // должны меняться на лету, без переключения вкладок.
+        HospitalizationEventBus.emit(items.toList())
 
         val idsToConfirm = items
             .filter { !it.isNotificationSent }
