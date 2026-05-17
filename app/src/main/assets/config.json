@@ -24,6 +24,6 @@
     "serviceChannelId": "MedInfo_SignalR_Service"
   },
   "decisionFlow": {
-    "triggerMode": "HOSPITALIZATION"
+    "triggerMode": "PATIENT_CONDITION"
   }
 }

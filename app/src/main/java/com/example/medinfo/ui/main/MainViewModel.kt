@@ -164,6 +164,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Фильтрация по PATIENT_CONDITION делается на сервере через filters.hasPatientCondition,
                 // поэтому список приходит уже готовым — никаких доп. запросов getMessages.
                 val hospitalizations = content?.hospitalizations.orEmpty()
+                // Кэшируем загруженные госпитализации для realtime-сценария: активный вызов уже есть
+                // в списке, а сообщение с данными пациента приходит позже и должно поднять его в решения.
+                HospitalizationEventBus.remember(hospitalizations)
                 CallLog.event(
                     source = "MainViewModel",
                     message = "loaded hospitalizations tab=$currentTabFilter page=$page count=${hospitalizations.size} total=${content?.count ?: "unknown"}"

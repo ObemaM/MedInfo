@@ -48,7 +48,7 @@ object ConfigManager {
                     fakeCallDelayMinutes = 35,
                     notificationIdService = 101,
                     notificationChannelIdService = "MedInfo_SignalR_Service",
-                    decisionTriggerMode = DecisionTriggerMode.HOSPITALIZATION
+                    decisionTriggerMode = DecisionTriggerMode.PATIENT_CONDITION
                 )
             }
         }

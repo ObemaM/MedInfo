@@ -271,10 +271,12 @@ class SignalRService : Service() {
     }
 
     private fun handlePatientConditionDecisionTrigger(message: MessageResponseDto) {
-        val hospitalization = synchronized(decisionStateLock) {
+        val hospitalizationFromPending = synchronized(decisionStateLock) {
             patientConditionReadyIds.add(message.hospitalizationId)
             pendingDecisionCalls[message.hospitalizationId]
         }
+        val hospitalization = hospitalizationFromPending
+            ?: HospitalizationEventBus.latest(message.hospitalizationId)
 
         CallsManager.markDecisionTimerStarted(message.hospitalizationId)
 

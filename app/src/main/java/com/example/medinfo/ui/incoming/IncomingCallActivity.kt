@@ -309,6 +309,23 @@ class IncomingCallActivity : AppCompatActivity() {
 
         container.removeAllViews()
 
+        // Врачу в раскрытых данных важнее всего быстро увидеть пациента,
+        // поэтому блок пациента держим первым, а служебные статусы ниже.
+        addSection(container, "Пациент")
+        addDataField(container, "ФИО", buildPatientName(call))
+        addDataField(container, "Фамилия", call.patientSurname)
+        addDataField(container, "Имя", call.patientName)
+        addDataField(container, "Отчество", call.patientPatronymic)
+        addDataField(container, "Пол", call.sex)
+        addDataField(container, "Возраст", call.age)
+        addDataField(container, "Дата рождения", call.birthDay)
+        addDataField(container, "Алкогольное опьянение", formatBoolean(call.alcohol))
+        addDataField(container, "СНИЛС", call.snils)
+        addDataField(container, "Тип документа", call.documentType)
+        addDataField(container, "Номер документа", call.documentNumber)
+        addDataField(container, "СМО", call.smo)
+        addDataField(container, "Страховой полис", call.insuranceNumber)
+
         // На экране решения показываем тот же список полей, что и в деталях, чтобы интерфейс был единым.
         // Служебные id скрыты — врачу важны только осмысленные поля (статус, время, данные вызова).
         addSection(container, "Госпитализация")
@@ -363,21 +380,6 @@ class IncomingCallActivity : AppCompatActivity() {
         addDataField(container, "Этаж", call.floor?.toString())
         addDataField(container, "Долгота", call.longitude?.toString())
         addDataField(container, "Широта", call.latitude?.toString())
-
-        addSection(container, "Пациент")
-        addDataField(container, "ФИО", buildPatientName(call))
-        addDataField(container, "Фамилия", call.patientSurname)
-        addDataField(container, "Имя", call.patientName)
-        addDataField(container, "Отчество", call.patientPatronymic)
-        addDataField(container, "Пол", call.sex)
-        addDataField(container, "Возраст", call.age)
-        addDataField(container, "Дата рождения", call.birthDay)
-        addDataField(container, "Алкогольное опьянение", formatBoolean(call.alcohol))
-        addDataField(container, "СНИЛС", call.snils)
-        addDataField(container, "Тип документа", call.documentType)
-        addDataField(container, "Номер документа", call.documentNumber)
-        addDataField(container, "СМО", call.smo)
-        addDataField(container, "Страховой полис", call.insuranceNumber)
 
         addSection(container, "Бригада")
         // Телефон из PATIENT_CONDITION-сообщений, не из CallDto.

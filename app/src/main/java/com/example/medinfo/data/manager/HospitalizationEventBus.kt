@@ -13,10 +13,25 @@ object HospitalizationEventBus {
         replay = 0,
         extraBufferCapacity = 16
     )
+    private val latestById = mutableMapOf<String, HospitalizationResponseDto>()
+
     val updates: SharedFlow<List<HospitalizationResponseDto>> = _updates.asSharedFlow()
 
     fun emit(hospitalizations: List<HospitalizationResponseDto>) {
         if (hospitalizations.isEmpty()) return
+        remember(hospitalizations)
         _updates.tryEmit(hospitalizations)
+    }
+
+    // Держим последние DTO из SignalR и серверных списков: когда сначала видим активный вызов,
+    // а потом приходит PATIENT_CONDITION-сообщение, SignalR сможет поднять его в очередь решений по id.
+    @Synchronized
+    fun remember(hospitalizations: List<HospitalizationResponseDto>) {
+        hospitalizations.forEach { latestById[it.id] = it }
+    }
+
+    @Synchronized
+    fun latest(hospitalizationId: String): HospitalizationResponseDto? {
+        return latestById[hospitalizationId]
     }
 }
