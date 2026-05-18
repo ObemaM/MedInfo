@@ -299,8 +299,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         var changed = false
         updated.forEach { dto ->
             val index = loadedCalls.indexOfFirst { it.id == dto.id }
-            if (index != -1 && loadedCalls[index].details != dto) {
-                loadedCalls[index] = dto.toUiHospitalization()
+            if (index != -1) {
+                // Вызов уже в списке — обновляем, только если реально изменился.
+                if (loadedCalls[index].details != dto) {
+                    loadedCalls[index] = dto.toUiHospitalization()
+                    changed = true
+                }
+            } else {
+                // Вызова в списке нет — добавляем.
+                loadedCalls.add(dto.toUiHospitalization())
                 changed = true
             }
         }

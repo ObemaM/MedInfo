@@ -188,7 +188,16 @@ class MainActivity : AppCompatActivity() {
                     )
                 } else {
                     adapter.setShowDecisionTimer(currentTabFilter == MainViewModel.TabFilter.REQUIRES_DECISION)
+
+                    // Если пользователь уже в самом верху списка — после вставки нового вызова
+                    // подскролливаем к нему. Если листает/находится ниже — позицию не трогаем.
+                    val wasAtTop = !binding.recyclerView.canScrollVertically(-1)
                     adapter.submitItems(callsSnapshot)
+                    if (wasAtTop) {
+                        binding.recyclerView.post {
+                            binding.recyclerView.scrollToPosition(0)
+                        }
+                    }
                 }
             }
         }

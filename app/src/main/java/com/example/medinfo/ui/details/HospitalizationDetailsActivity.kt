@@ -187,7 +187,6 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
         // Врачу в раскрытых данных важнее всего быстро увидеть пациента,
         // поэтому блок пациента держим первым, а служебные статусы ниже.
         addSection(container, "Пациент")
-        addDataField(container, "ФИО", buildPatientName(call))
         addDataField(container, "Фамилия", call.patientSurname)
         addDataField(container, "Имя", call.patientName)
         addDataField(container, "Отчество", call.patientPatronymic)

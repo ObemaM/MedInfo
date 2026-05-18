@@ -189,11 +189,17 @@
                 android:layout_width="wrap_content"
                 android:layout_height="48dp"
                 android:layout_marginStart="8dp"
-                android:minWidth="52dp"
-                android:text="Отпр."
-                android:textSize="14sp"
+                android:contentDescription="Отправить"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="62dp"
+                android:paddingHorizontal="14dp"
                 app:cornerRadius="12dp"
-                tools:ignore="HardcodedText" />
+                app:icon="@drawable/ic_send_24"
+                app:iconGravity="textStart"
+                app:iconPadding="0dp"
+                app:iconSize="22dp"
+                app:iconTint="@color/white_1" />
 
         </LinearLayout>
 
