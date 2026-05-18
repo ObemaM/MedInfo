@@ -78,9 +78,33 @@
             android:layout_marginVertical="8dp"
             android:background="@color/border_gray_1" />
 
+        <!-- Архивный статус показываем первым блоком — он не должен теряться между
+             клинически важными для врача данными. Виден только для архивных вызовов. -->
+        <TextView
+            android:id="@+id/archive_status_label"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Статус:"
+            android:textColor="@color/menu_text_color_1"
+            android:textStyle="italic"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/decision_text"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textColor="@color/menu_text_color_2"
+            android:textSize="16sp"
+            android:visibility="gone"
+            tools:text="Завершена"
+            tools:visibility="visible" />
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
             android:text="Пациент:"
             android:textColor="@color/menu_text_color_1"
             android:textStyle="italic" />
@@ -112,28 +136,6 @@
             android:textSize="16sp"
             android:visibility="gone"
             tools:text="01.01.1980"
-            tools:visibility="visible" />
-
-        <TextView
-            android:id="@+id/archive_status_label"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:text="Статус:"
-            android:textColor="@color/menu_text_color_1"
-            android:textStyle="italic"
-            android:visibility="gone"
-            tools:visibility="visible" />
-
-        <TextView
-            android:id="@+id/decision_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="2dp"
-            android:textColor="@color/menu_text_color_2"
-            android:textSize="16sp"
-            android:visibility="gone"
-            tools:text="Завершена"
             tools:visibility="visible" />
 
         <TextView

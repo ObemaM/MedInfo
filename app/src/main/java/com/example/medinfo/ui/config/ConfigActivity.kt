@@ -103,6 +103,8 @@ class ConfigActivity : AppCompatActivity() {
         ) ?: return
 
         val current = ConfigManager.getConfig()
+        // Сравниваем до сохранения: перезапуск нужен только если реально сменили адрес сервера.
+        val serverChanged = current.serverBaseUrl != baseUrl
         val newConfig = current.copy(
             serverBaseUrl = baseUrl,
             // SignalR-хаб сейчас всегда живет рядом с API, поэтому не даем руками разнести адреса.
@@ -124,8 +126,17 @@ class ConfigActivity : AppCompatActivity() {
         try {
             ConfigManager.save(this, newConfig)
             RetrofitClient.init(applicationContext)
-            Toast.makeText(this, "Настройки сохранены", Toast.LENGTH_SHORT).show()
-            finish()
+
+            if (serverChanged) {
+                // Уже живые компоненты (SignalRService и т.п.) держат старый Retrofit —
+                // надёжнее всего перезапустить приложение целиком.
+                RestartRequiredDialogFragment { restartNow ->
+                    if (restartNow) restartApp() else finish()
+                }.show(supportFragmentManager, "RestartRequired")
+            } else {
+                Toast.makeText(this, "Настройки сохранены", Toast.LENGTH_SHORT).show()
+                finish()
+            }
         } catch (e: Exception) {
             Toast.makeText(
                 this,
@@ -133,6 +144,20 @@ class ConfigActivity : AppCompatActivity() {
                 Toast.LENGTH_LONG
             ).show()
         }
+    }
+
+    // Полный перезапуск: запускаем launcher-активити в новой задаче и убиваем процесс,
+    // чтобы все синглтоны (RetrofitClient, CallsManager) и сервисы пересоздались с нуля.
+    private fun restartApp() {
+        val launchIntent = packageManager.getLaunchIntentForPackage(packageName)
+        if (launchIntent != null) {
+            launchIntent.addFlags(
+                android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                    android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK
+            )
+            startActivity(launchIntent)
+        }
+        Runtime.getRuntime().exit(0)
     }
 
     private fun readInt(
