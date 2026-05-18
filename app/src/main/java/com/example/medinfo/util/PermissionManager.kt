@@ -7,6 +7,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
 import androidx.appcompat.app.AlertDialog
@@ -17,6 +19,11 @@ import kotlin.system.exitProcess
 object PermissionManager {
 
     const val REQUEST_CODE_CALL_PHONE = 102
+    private const val BATTERY_OPTIMIZATION_RECHECK_DELAY_MS = 1000L
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var delayNextBatteryOptimizationCheck = false
+    private var delayedPermissionCheck: Runnable? = null
+    private var delayedPermissionDialog: AlertDialog? = null
 
     data class PermissionStatus(
         val allGranted: Boolean,
@@ -44,8 +51,10 @@ object PermissionManager {
                             data = Uri.parse("package:${context.packageName}")
                         }
                         try {
+                            delayNextBatteryOptimizationCheck = true
                             (context as Activity).startActivity(intent)
                         } catch (e: Exception) {
+                            delayNextBatteryOptimizationCheck = true
                             openAppSettings(context)
                         }
                     }
@@ -121,6 +130,25 @@ object PermissionManager {
     }
 
     fun enforcePermissions(activity: Activity, onAllGranted: (() -> Unit)? = null) {
+        if (delayedPermissionCheck != null) return
+
+        if (delayNextBatteryOptimizationCheck) {
+            delayNextBatteryOptimizationCheck = false
+
+            // Показ секундного диалога ожидания, чтобы ОС точно проверила разрешения
+            showDelayedPermissionDialog(activity)
+            delayedPermissionCheck = Runnable {
+                delayedPermissionCheck = null
+                dismissDelayedPermissionDialog()
+                if (!activity.isFinishing && !activity.isDestroyed) {
+                    enforcePermissions(activity, onAllGranted)
+                }
+            }.also { check ->
+                mainHandler.postDelayed(check, BATTERY_OPTIMIZATION_RECHECK_DELAY_MS)
+            }
+            return
+        }
+
         val status = checkAllPermissions(activity)
         
         if (status.allGranted) {
@@ -129,6 +157,21 @@ object PermissionManager {
         }
 
         showPermissionDialog(activity, status.missingPermissions)
+    }
+
+    private fun showDelayedPermissionDialog(activity: Activity) {
+        if (activity.isFinishing || activity.isDestroyed || delayedPermissionDialog?.isShowing == true) return
+
+        delayedPermissionDialog = AlertDialog.Builder(activity)
+            .setMessage("Проверка разрешений...")
+            .setCancelable(false)
+            .create()
+            .also { it.show() }
+    }
+
+    private fun dismissDelayedPermissionDialog() {
+        delayedPermissionDialog?.dismiss()
+        delayedPermissionDialog = null
     }
 
     private fun showPermissionDialog(activity: Activity, missingPermissions: List<MissingPermission>) {

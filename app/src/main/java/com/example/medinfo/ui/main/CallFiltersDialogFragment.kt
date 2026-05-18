@@ -30,7 +30,6 @@ class CallFiltersDialogFragment : DialogFragment() {
         val initialFilters = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             arguments?.getSerializable(ARG_FILTERS, CallFilters::class.java)
         } else {
-            @Suppress("DEPRECATION")
             arguments?.getSerializable(ARG_FILTERS) as? CallFilters
         } ?: CallFilters()
 

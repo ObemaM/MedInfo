@@ -57,8 +57,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // Есть ли у сервера еще страницы для загрузки
     private var hasMorePages = true
 
-    // Уже загруженные элементы с сервера
+    // Уже загруженные элементы (серверные страницы + realtime-добавления)
     private val loadedCalls = mutableListOf<Hospitalization>()
+
+    // Сколько элементов реально пришло с сервера постранично
+    private var serverLoadedCount = 0
 
     // Отслеживание выбранной вкладки
     private var currentTabFilter = TabFilter.ACTIVE
@@ -161,8 +164,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 val content = response.content
-                // Фильтрация по PATIENT_CONDITION делается на сервере через filters.hasPatientCondition,
-                // поэтому список приходит уже готовым — никаких доп. запросов getMessages.
+                // Фильтрация по PATIENT_CONDITION делается через filters.hasPatientCondition
                 val hospitalizations = content?.hospitalizations.orEmpty()
                 // Кэшируем загруженные госпитализации для realtime-сценария: активный вызов уже есть
                 // в списке, а сообщение с данными пациента приходит позже и должно поднять его в решения.
@@ -180,10 +182,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
                 if (resetBeforeLoad){
                     loadedCalls.clear()
+                    serverLoadedCount = 0
                 }
 
                 // Добавляем к общему списку вызовов новые вызовы
                 loadedCalls.addAll(newCalls)
+                serverLoadedCount += newCalls.size
                 currentPage = page
 
                 val totalCount = content?.count
@@ -191,7 +195,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 // Проверка можно ли подгружать новые страницы
                 hasMorePages =
                     if (totalCount != null) {
-                        loadedCalls.size < totalCount
+                        serverLoadedCount < totalCount
                     } else {
                         // Если запросили 20, а пришло 7, значит больше вызовов нет => hasMorePages = false
                         newCalls.size >= pageSize
