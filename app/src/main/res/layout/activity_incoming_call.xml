@@ -212,6 +212,69 @@
                         tools:ignore="HardcodedText"
                         tools:visibility="visible" />
 
+                    <!-- DEBUG: Смена статуса имитирует HospitalizationNotification из SignalR. -->
+                    <LinearLayout
+                        android:id="@+id/debug_status_buttons_container"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        tools:visibility="visible">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/debug_status_en_route_button"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="Тест: статус - бригада в пути"
+                            android:textColor="@color/main_1"
+                            android:textSize="13sp"
+                            app:cornerRadius="8dp"
+                            app:strokeColor="@color/main_1"
+                            tools:ignore="HardcodedText" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/debug_status_on_site_button"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Тест: статус - бригада на месте"
+                            android:textColor="@color/main_1"
+                            android:textSize="13sp"
+                            app:cornerRadius="8dp"
+                            app:strokeColor="@color/main_1"
+                            tools:ignore="HardcodedText" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/debug_status_completed_button"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Тест: статус - завершена"
+                            android:textColor="@color/red_1"
+                            android:textSize="13sp"
+                            app:cornerRadius="8dp"
+                            app:strokeColor="@color/red_1"
+                            tools:ignore="HardcodedText" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/debug_status_other_lpu_button"
+                            style="@style/Widget.Material3.Button.OutlinedButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:text="Тест: статус - передана в другое ЛПУ"
+                            android:textColor="@color/red_1"
+                            android:textSize="13sp"
+                            app:cornerRadius="8dp"
+                            app:strokeColor="@color/red_1"
+                            tools:ignore="HardcodedText" />
+
+                    </LinearLayout>
+
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>

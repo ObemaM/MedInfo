@@ -30,6 +30,7 @@ class LoginActivity: AppCompatActivity() {
     private lateinit var sharedPreferences: SharedPreferences
 
     private val loginRepository by lazy { LoginRepository(RetrofitClient.apiServiceService) }
+    private var isLoginInProgress = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +41,8 @@ class LoginActivity: AppCompatActivity() {
         sharedPreferences = getSharedPreferences("app_session", Context.MODE_PRIVATE)
 
         binding.loginButton.setOnClickListener {
+            if (isLoginInProgress) return@setOnClickListener
+
             val inputText = binding.login.text?.toString()
             val inputPassword = binding.password.text?.toString()
 
@@ -60,6 +63,7 @@ class LoginActivity: AppCompatActivity() {
 
             // Уничтожается при уничтожении Activity
             lifecycleScope.launch {
+                setLoginLoading(true)
                 val inputPasswordHash = inputPassword.toSha256()
                 try {
                     val result = withContext(Dispatchers.IO) {
@@ -67,6 +71,7 @@ class LoginActivity: AppCompatActivity() {
                     }
 
                     if (result.success && result.content != null) {
+                        setLoginLoading(false)
                         // Проверяем разрешения перед входом
                         PermissionManager.enforcePermissions(this@LoginActivity) {
                             saveSession(inputText, result.content)
@@ -75,19 +80,34 @@ class LoginActivity: AppCompatActivity() {
                             finish()
                         }
                     } else {
-                        hideKeyboard()
                         val errorMessage = result.messages.firstOrNull() ?: "Неизвестная ошибка аутентификации"
-                        binding.errorTextView.text = errorMessage
-                        binding.errorTextView.visibility = View.VISIBLE
+                        showLoginError(errorMessage)
                     }
                 } catch (e: Exception) {
-                    hideKeyboard()
-                    binding.errorTextView.text = "Ошибка подключения к серверу. Проверьте интернет-соединение."
-                    binding.errorTextView.visibility = View.VISIBLE
+                    showLoginError("Ошибка подключения к серверу. Проверьте интернет-соединение.")
                     e.printStackTrace()
                 }
             }
         }
+    }
+
+    private fun setLoginLoading(loading: Boolean) {
+        isLoginInProgress = loading
+        binding.loginProgress.visibility = if (loading) View.VISIBLE else View.GONE
+        binding.loginButton.isEnabled = !loading
+        binding.login.isEnabled = !loading
+        binding.password.isEnabled = !loading
+        if (loading) {
+            hideKeyboard()
+            binding.errorTextView.visibility = View.GONE
+        }
+    }
+
+    private fun showLoginError(message: String) {
+        setLoginLoading(false)
+        hideKeyboard()
+        binding.errorTextView.text = message
+        binding.errorTextView.visibility = View.VISIBLE
     }
 
     // Метод для запуска SignalR сервиса

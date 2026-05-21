@@ -14,7 +14,12 @@ data class GetHospitalizationsFiltersRequestDto(
     val statuses: List<Int>? = null,
     val decisions: List<Int>? = null,
     // null — не фильтровать; true/false — только с данными о состоянии пациента / без них.
-    val hasPatientCondition: Boolean? = null
+    val hasPatientCondition: Boolean? = null,
+    val patientFullName: String? = null,
+    val hospitalizationDateTimeFrom: String? = null,
+    val hospitalizationDateTimeTo: String? = null,
+    val dayNumber: Int? = null,
+    val yearNumber: Int? = null
 ) : Serializable
 
 // GET для данных госпитализаций

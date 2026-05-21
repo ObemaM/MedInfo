@@ -127,6 +127,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             HospitalizationEventBus.updates.collectLatest { applyRealtimeHospitalizationUpdates(it) }
         }
+        // Очередь CallsManager решает, когда активный вызов реально попадает во вкладку
+        // "Требуют решения" в режиме ожидания данных пациента от бригады.
+        viewModelScope.launch {
+            CallsManager.calls.collectLatest { applyDecisionQueueUpdates(it) }
+        }
     }
 
     // Загрузка для первой страницы
@@ -228,7 +233,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setCustomFilters(filters: CallFilters) {
         currentFilters = filters
-        applyFilters()
+        _isFilterActive.value = filters.isActive()
+        // Новая спецификация поддерживает часть фильтров на сервере, поэтому при изменении
+        // фильтров перезагружаем страницы, а не только просеиваем уже загруженные 40 элементов.
+        fetchCalls()
     }
 
     fun refreshDecisionTimers() {
@@ -265,7 +273,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Формируем серверные фильтры для рабочих вкладок
     private fun createServerFilters(tab: TabFilter): GetHospitalizationsFiltersRequestDto {
-        return when (tab) {
+        val tabFilters = when (tab) {
             TabFilter.REQUIRES_DECISION ->
                 GetHospitalizationsFiltersRequestDto(
                     statuses = activeStatusIds(),
@@ -287,6 +295,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 )
         }
+
+        return tabFilters.copy(
+            patientFullName = currentFilters.patientFullName?.trim()?.takeIf { it.isNotBlank() },
+            hospitalizationDateTimeFrom = DateFormatter.formatApiDateTime(currentFilters.dateFromMillis),
+            hospitalizationDateTimeTo = DateFormatter.formatApiDateTime(currentFilters.dateToMillis),
+            dayNumber = currentFilters.dayNumber,
+            yearNumber = currentFilters.yearNumber
+        )
     }
 
     private fun updateCalls(calls: List<Hospitalization>) {
@@ -294,6 +310,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         allCalls.addAll(calls)
         prepareCallsForSearch(allCalls)
         applyFilters()
+    }
+
+    private fun applyDecisionQueueUpdates(decisionCalls: List<HospitalizationResponseDto>) {
+        var changed = false
+
+        decisionCalls.forEach { dto ->
+            val index = loadedCalls.indexOfFirst { it.id == dto.id }
+            val uiCall = dto.toUiHospitalization()
+            if (index == -1) {
+                loadedCalls.add(uiCall)
+                changed = true
+            } else if (loadedCalls[index].details != dto) {
+                loadedCalls[index] = uiCall
+                changed = true
+            }
+        }
+
+        if (changed) {
+            updateCalls(loadedCalls.toList())
+        } else {
+            applyFilters()
+        }
     }
 
     // Точечно обновляет уже загруженные вызовы данными realtime-уведомлений SignalR.
@@ -352,9 +390,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun matchesCurrentTab(call: Hospitalization): Boolean {
         val details = call.details
         return when (currentTabFilter) {
-            TabFilter.REQUIRES_DECISION ->
-                call.decisionId == HospitalizationDecision.NONE.id &&
-                    details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true } != false
+            TabFilter.REQUIRES_DECISION -> {
+                val activeWithoutDecision =
+                    call.decisionId == HospitalizationDecision.NONE.id &&
+                        details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true } != false
+
+                activeWithoutDecision &&
+                    (!isPatientConditionDecisionMode() ||
+                        CallsManager.calls.value.any { it.id == call.id })
+            }
 
             TabFilter.ACTIVE ->
                 details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true }
@@ -405,6 +449,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         call: Hospitalization,
         filters: CallFilters
     ): Boolean {
+        filters.patientFullName?.trim()?.takeIf { it.isNotBlank() }?.let { query ->
+            val fullName = listOfNotNull(
+                call.patientSurname,
+                call.patientName,
+                call.patientPatronymic
+            ).joinToString(" ").lowercase(Locale.getDefault())
+            if (!fullName.contains(query.lowercase(Locale.getDefault()))) return false
+        }
+
         if (filters.urgencyFrom != null) {
             val urgency = call.urgency ?: return false
             if (urgency < filters.urgencyFrom) return false
@@ -436,21 +489,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         if (filters.dateFromMillis != null || filters.dateToMillis != null) {
-            val callMillis = DateFormatter.parseCallTimeMillis(call.callTime) ?: return false
-            if (filters.dateFromMillis != null && callMillis < filters.dateFromMillis) return false
-            if (filters.dateToMillis != null && callMillis > filters.dateToMillis) return false
+            // В новой спецификации дата фильтрует начало госпитализации, а не время самого вызова.
+            val hospitalizationMillis = DateFormatter.parseCallTimeMillis(
+                call.details?.call?.hospitalizationTime ?: call.callTime
+            ) ?: return false
+            if (filters.dateFromMillis != null && hospitalizationMillis < filters.dateFromMillis) return false
+            if (filters.dateToMillis != null && hospitalizationMillis > filters.dateToMillis) return false
         }
 
-        if (filters.callDayFrom != null || filters.callDayTo != null) {
+        if (filters.dayNumber != null) {
             val day = call.dayNumber ?: return false
-            if (filters.callDayFrom != null && day < filters.callDayFrom) return false
-            if (filters.callDayTo != null && day > filters.callDayTo) return false
+            if (day != filters.dayNumber) return false
         }
 
-        if (filters.callYearFrom != null || filters.callYearTo != null) {
+        if (filters.yearNumber != null) {
             val year = call.yearNumber ?: return false
-            if (filters.callYearFrom != null && year < filters.callYearFrom) return false
-            if (filters.callYearTo != null && year > filters.callYearTo) return false
+            if (year != filters.yearNumber) return false
         }
 
         return true

@@ -33,6 +33,7 @@ class CallFiltersDialogFragment : DialogFragment() {
             arguments?.getSerializable(ARG_FILTERS) as? CallFilters
         } ?: CallFilters()
 
+        binding.patientFullNameEdit.setText(initialFilters.patientFullName.orEmpty())
         binding.urgencyFromEdit.setText(initialFilters.urgencyFrom?.toString().orEmpty())
         binding.urgencyToEdit.setText(initialFilters.urgencyTo?.toString().orEmpty())
 
@@ -51,10 +52,8 @@ class CallFiltersDialogFragment : DialogFragment() {
         binding.dateFromEdit.setText(dateFromMillis?.let { dateFormat.format(it) }.orEmpty())
         binding.dateToEdit.setText(dateToMillis?.let { dateFormat.format(it) }.orEmpty())
 
-        binding.callDayFromEdit.setText(initialFilters.callDayFrom?.toString().orEmpty())
-        binding.callDayToEdit.setText(initialFilters.callDayTo?.toString().orEmpty())
-        binding.callYearFromEdit.setText(initialFilters.callYearFrom?.toString().orEmpty())
-        binding.callYearToEdit.setText(initialFilters.callYearTo?.toString().orEmpty())
+        binding.callDayFromEdit.setText(initialFilters.dayNumber?.toString().orEmpty())
+        binding.callYearFromEdit.setText(initialFilters.yearNumber?.toString().orEmpty())
 
         binding.closeButton.setOnClickListener { dismiss() }
 
@@ -83,6 +82,7 @@ class CallFiltersDialogFragment : DialogFragment() {
         }
 
         binding.resetFiltersButton.setOnClickListener {
+            binding.patientFullNameEdit.setText("")
             binding.urgencyFromEdit.setText("")
             binding.urgencyToEdit.setText("")
             binding.sexToggleGroup.check(R.id.sex_any_button)
@@ -93,12 +93,14 @@ class CallFiltersDialogFragment : DialogFragment() {
             binding.dateFromEdit.setText("")
             binding.dateToEdit.setText("")
             binding.callDayFromEdit.setText("")
-            binding.callDayToEdit.setText("")
             binding.callYearFromEdit.setText("")
-            binding.callYearToEdit.setText("")
         }
 
         binding.applyFiltersButton.setOnClickListener {
+            val patientFullName = binding.patientFullNameEdit.text
+                ?.toString()
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
             val urgencyFrom = binding.urgencyFromEdit.text?.toString()?.trim()?.toIntOrNull()
             val urgencyTo = binding.urgencyToEdit.text?.toString()?.trim()?.toIntOrNull()
 
@@ -112,10 +114,8 @@ class CallFiltersDialogFragment : DialogFragment() {
                     else -> SexFilter.ANY
                 }
 
-            val callDayFrom = binding.callDayFromEdit.text?.toString()?.trim()?.toIntOrNull()
-            val callDayTo = binding.callDayToEdit.text?.toString()?.trim()?.toIntOrNull()
-            val callYearFrom = binding.callYearFromEdit.text?.toString()?.trim()?.toIntOrNull()
-            val callYearTo = binding.callYearToEdit.text?.toString()?.trim()?.toIntOrNull()
+            val dayNumber = binding.callDayFromEdit.text?.toString()?.trim()?.toIntOrNull()
+            val yearNumber = binding.callYearFromEdit.text?.toString()?.trim()?.toIntOrNull()
 
             var normUrgencyFrom = urgencyFrom
             var normUrgencyTo = urgencyTo
@@ -141,24 +141,9 @@ class CallFiltersDialogFragment : DialogFragment() {
                 normDateTo = tmp
             }
 
-            var normCallDayFrom = callDayFrom
-            var normCallDayTo = callDayTo
-            if (normCallDayFrom != null && normCallDayTo != null && normCallDayFrom > normCallDayTo) {
-                val tmp = normCallDayFrom
-                normCallDayFrom = normCallDayTo
-                normCallDayTo = tmp
-            }
-
-            var normCallYearFrom = callYearFrom
-            var normCallYearTo = callYearTo
-            if (normCallYearFrom != null && normCallYearTo != null && normCallYearFrom > normCallYearTo) {
-                val tmp = normCallYearFrom
-                normCallYearFrom = normCallYearTo
-                normCallYearTo = tmp
-            }
-
             val filters =
                 CallFilters(
+                    patientFullName = patientFullName,
                     urgencyFrom = normUrgencyFrom,
                     urgencyTo = normUrgencyTo,
                     sex = sex,
@@ -166,10 +151,8 @@ class CallFiltersDialogFragment : DialogFragment() {
                     ageTo = normAgeTo,
                     dateFromMillis = normDateFrom,
                     dateToMillis = normDateTo,
-                    callDayFrom = normCallDayFrom,
-                    callDayTo = normCallDayTo,
-                    callYearFrom = normCallYearFrom,
-                    callYearTo = normCallYearTo
+                    dayNumber = dayNumber,
+                    yearNumber = yearNumber
                 )
 
             setFragmentResult(REQUEST_KEY, bundleOf(KEY_FILTERS to filters))

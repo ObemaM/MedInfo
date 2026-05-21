@@ -15,11 +15,11 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.medinfo.R
+import com.example.medinfo.data.manager.HospitalizationEventBus
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.databinding.ActivityHospitalizationDetailsBinding
-import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
 import com.example.medinfo.model.api.MessageType
@@ -78,6 +78,7 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
         renderPatientCondition(null)
         fetchLatestPatientCondition(hospitalization.id)
         observeIncomingPatientCondition(hospitalization.id)
+        observeHospitalizationUpdates(hospitalization.id)
     }
 
     private fun setFullDetailsExpanded(expanded: Boolean) {
@@ -136,6 +137,28 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun observeHospitalizationUpdates(hospitalizationId: String) {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                HospitalizationEventBus.updates.collect { updates ->
+                    val updated = updates.lastOrNull { it.id == hospitalizationId } ?: return@collect
+                    applyHospitalizationUpdate(updated)
+                }
+            }
+        }
+    }
+
+    private fun applyHospitalizationUpdate(updated: HospitalizationResponseDto) {
+        if (updated == hospitalization) return
+
+        hospitalization = updated
+        // Статусы, решение и времена приходят через HospitalizationNotification, а не через чат.
+        // Поэтому обновляем сводку и полные данные отдельно от блока состояния пациента.
+        bindSummary(updated)
+        bindDetails(updated)
+        setFullDetailsExpanded(isFullDetailsExpanded)
     }
 
     // Сохраняет телефон и перерисовывает "Полные данные вызова" (секция "Бригада").
@@ -365,14 +388,6 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
             }
         }
         container.addView(divider)
-    }
-
-    private fun buildPatientName(call: CallResponseDto): String {
-        return listOfNotNull(
-            call.patientSurname,
-            call.patientName,
-            call.patientPatronymic
-        ).joinToString(" ").trim()
     }
 
     private fun formatDateTime(value: String?): String? {

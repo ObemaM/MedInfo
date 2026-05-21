@@ -73,13 +73,44 @@
                 android:paddingBottom="20dp">
 
                 <TextView
-                    android:id="@+id/urgency_label"
+                    android:id="@+id/patient_name_label"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Срочность"
+                    android:text="Пациент"
                     android:textColor="@color/gray_1"
                     android:textSize="14sp"
                     app:layout_constraintTop_toTopOf="parent" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/patient_full_name_layout"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    app:boxStrokeColor="@color/search_text_input_colors"
+                    app:hintTextColor="@color/search_text_input_colors"
+                    app:layout_constraintTop_toBottomOf="@+id/patient_name_label">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/patient_full_name_edit"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="ФИО пациента"
+                        android:inputType="textCapWords"
+                        android:maxLines="1"
+                        android:textColor="@color/gray_1" />
+
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <TextView
+                    android:id="@+id/urgency_label"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp"
+                    android:text="Срочность"
+                    android:textColor="@color/gray_1"
+                    android:textSize="14sp"
+                    app:layout_constraintTop_toBottomOf="@+id/patient_full_name_layout" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/urgency_from_layout"
@@ -243,7 +274,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="16dp"
-                    android:text="Дата"
+                    android:text="Дата начала госпитализации"
                     android:textColor="@color/gray_1"
                     android:textSize="14sp"
                     app:layout_constraintTop_toBottomOf="@+id/age_from_layout" />
@@ -327,10 +358,9 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:layout_marginEnd="12dp"
                     app:boxStrokeColor="@color/search_text_input_colors"
                     app:hintTextColor="@color/search_text_input_colors"
-                    app:layout_constraintEnd_toStartOf="@+id/call_day_to_layout"
+                    app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/call_day_label">
 
@@ -338,7 +368,7 @@
                         android:id="@+id/call_day_from_edit"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="от"
+                        android:hint="номер"
                         android:inputType="number"
                         android:textColor="@color/gray_1" />
 
@@ -350,6 +380,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
+                    android:visibility="gone"
                     app:boxStrokeColor="@color/search_text_input_colors"
                     app:hintTextColor="@color/search_text_input_colors"
                     app:layout_constraintEnd_toEndOf="parent"
@@ -382,10 +413,9 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:layout_marginEnd="12dp"
                     app:boxStrokeColor="@color/search_text_input_colors"
                     app:hintTextColor="@color/search_text_input_colors"
-                    app:layout_constraintEnd_toStartOf="@+id/call_year_to_layout"
+                    app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/call_year_label">
 
@@ -393,7 +423,7 @@
                         android:id="@+id/call_year_from_edit"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="от"
+                        android:hint="номер"
                         android:inputType="number"
                         android:textColor="@color/gray_1" />
 
@@ -405,6 +435,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
+                    android:visibility="gone"
                     app:boxStrokeColor="@color/search_text_input_colors"
                     app:hintTextColor="@color/search_text_input_colors"
                     app:layout_constraintEnd_toEndOf="parent"

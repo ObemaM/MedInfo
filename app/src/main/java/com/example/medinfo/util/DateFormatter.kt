@@ -5,6 +5,7 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.Date
 import java.util.Locale
 
 object DateFormatter {
@@ -13,6 +14,9 @@ object DateFormatter {
     }
     private val outputFormat = ThreadLocal.withInitial {
         SimpleDateFormat("dd.MM.yyyy HH:mm", Locale.getDefault())
+    }
+    private val apiOutputFormat = ThreadLocal.withInitial {
+        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
     }
 
     // Расшифровка даты
@@ -50,6 +54,11 @@ object DateFormatter {
         parseIsoLocalMillis(callTime)?.let { return it }
 
         return parseLegacyMillis(callTime)
+    }
+
+    fun formatApiDateTime(millis: Long?): String? {
+        if (millis == null) return null
+        return apiOutputFormat.get()?.format(Date(millis))
     }
 
     private fun parseIsoOffsetMillis(value: String): Long? {

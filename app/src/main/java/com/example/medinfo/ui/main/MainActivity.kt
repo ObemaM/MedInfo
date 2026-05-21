@@ -1,6 +1,7 @@
 package com.example.medinfo.ui.main
 
 import android.app.Dialog
+import android.content.res.ColorStateList
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -19,6 +20,8 @@ import com.example.medinfo.R
 import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.model.Hospitalization
 import com.example.medinfo.data.manager.CallsManager
+import com.example.medinfo.data.manager.SignalRConnectionState
+import com.example.medinfo.data.manager.SignalRConnectionStatus
 import com.example.medinfo.data.signalr.SignalRService
 import com.example.medinfo.receiver.FakeCallAlarmReceiver
 import com.example.medinfo.util.TestCallFactory
@@ -151,6 +154,7 @@ class MainActivity : AppCompatActivity() {
                 hospitalizationList.clear()
                 hospitalizationList.addAll(calls)
                 val callsSnapshot = calls.toList()
+                updateEmptyState(callsSnapshot.isEmpty())
 
                 if (!::adapter.isInitialized) {
                     adapter = HospitalizationAdapter(callsSnapshot) { hospitalization ->
@@ -214,6 +218,13 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.isFilterActive.collectLatest { isActive ->
                 binding.filterButton.isSelected = isActive
+            }
+        }
+
+        // Маленький индикатор в шапке показывает, живо ли SignalR-подключение к серверу.
+        lifecycleScope.launch {
+            SignalRConnectionState.status.collectLatest { status ->
+                updateConnectionStatus(status)
             }
         }
 
@@ -435,8 +446,40 @@ class MainActivity : AppCompatActivity() {
     private fun selectTabFilter(tabFilter: MainViewModel.TabFilter) {
         currentTabFilter = tabFilter
         updateSelectedTabTitle()
+        updateEmptyState(hospitalizationList.isEmpty())
         startDecisionTimerUpdatesIfNeeded()
         viewModel.setTabFilter(tabFilter)
+    }
+
+    private fun updateEmptyState(isEmpty: Boolean) {
+        binding.emptyStateText.isVisible = isEmpty
+        binding.recyclerView.isVisible = !isEmpty
+        if (isEmpty) {
+            binding.emptyStateText.text = when (currentTabFilter) {
+                MainViewModel.TabFilter.REQUIRES_DECISION -> "Нет вызовов, требующих решения"
+                MainViewModel.TabFilter.ACTIVE -> "Нет активных вызовов"
+                MainViewModel.TabFilter.ARCHIVE -> "Архив пуст"
+            }
+        }
+    }
+
+    private fun updateConnectionStatus(status: SignalRConnectionStatus) {
+        val colorRes = when (status) {
+            SignalRConnectionStatus.CONNECTED -> R.color.green_1
+            SignalRConnectionStatus.CONNECTING,
+            SignalRConnectionStatus.RECONNECTING -> R.color.yellow_1
+            SignalRConnectionStatus.DISCONNECTED -> R.color.red_1
+        }
+        val description = when (status) {
+            SignalRConnectionStatus.CONNECTED -> "Связь с сервером есть"
+            SignalRConnectionStatus.CONNECTING -> "Подключение к серверу"
+            SignalRConnectionStatus.RECONNECTING -> "Восстановление связи с сервером"
+            SignalRConnectionStatus.DISCONNECTED -> "Нет связи с сервером"
+        }
+
+        binding.connectionStatusDot.backgroundTintList =
+            ColorStateList.valueOf(getColor(colorRes))
+        binding.connectionStatusDot.contentDescription = description
     }
 
     private fun updateSelectedTabTitle() {
@@ -689,6 +732,7 @@ class MainActivity : AppCompatActivity() {
             val intent = Intent(this, IncomingCallActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 putExtra(IncomingCallActivity.EXTRA_HOSPITALIZATION, mockHospitalization)
+                putExtra(IncomingCallActivity.EXTRA_IS_TEST_CALL, true)
             }
 
             android.util.Log.i(

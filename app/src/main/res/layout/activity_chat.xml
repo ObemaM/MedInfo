@@ -186,14 +186,15 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/send_button"
-                android:layout_width="wrap_content"
+                android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:layout_marginStart="8dp"
                 android:contentDescription="Отправить"
                 android:insetTop="0dp"
                 android:insetBottom="0dp"
-                android:minWidth="62dp"
-                android:paddingHorizontal="14dp"
+                android:minWidth="48dp"
+                android:paddingHorizontal="0dp"
+                android:text=""
                 app:cornerRadius="12dp"
                 app:icon="@drawable/ic_send_24"
                 app:iconGravity="textStart"

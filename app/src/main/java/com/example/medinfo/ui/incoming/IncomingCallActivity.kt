@@ -21,13 +21,14 @@ import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.R
 import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.manager.CallsManager
+import com.example.medinfo.data.manager.HospitalizationEventBus
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.databinding.ActivityIncomingCallBinding
-import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
+import com.example.medinfo.model.api.HospitalizationStatus
 import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
@@ -66,6 +67,7 @@ class IncomingCallActivity : AppCompatActivity() {
     private var lastBrigadePhone: String? = null
     private val unreadChatMessageIds = mutableSetOf<String>()
     private var keepCurrentHospitalizationWhenMissingFromQueue: Boolean = false
+    private var isCurrentTestCall: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         CallLog.event("IncomingCallActivity", "onCreate START")
@@ -95,6 +97,7 @@ class IncomingCallActivity : AppCompatActivity() {
         }
 
         observeIncomingPatientCondition()
+        observeHospitalizationUpdates()
 
         binding.buttonStopAlerts.setOnClickListener {
             stopAlerts()
@@ -104,10 +107,7 @@ class IncomingCallActivity : AppCompatActivity() {
         // DEBUG: кнопка видна только когда в конфиге включён testCallEnabled.
         // Эмитит фейковое сообщение в чат: если ChatActivity открыт — оно появится сразу,
         // если закрыт — прилетит системное уведомление, тап по которому откроет чат.
-        val debugVisibility =
-            if (ConfigManager.testCallEnabled) android.view.View.VISIBLE else android.view.View.GONE
-        binding.debugSimulateMessageButton.visibility = debugVisibility
-        binding.debugSimulateConditionButton.visibility = debugVisibility
+        updateDebugControlsVisibility()
 
         binding.debugSimulateMessageButton.setOnClickListener {
             val id = currentHospitalization?.id ?: return@setOnClickListener
@@ -116,6 +116,18 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.debugSimulateConditionButton.setOnClickListener {
             val id = currentHospitalization?.id ?: return@setOnClickListener
             TestMessageSimulator.simulatePatientCondition(this, id)
+        }
+        binding.debugStatusEnRouteButton.setOnClickListener {
+            simulateStatusUpdate(HospitalizationStatus.CREW_EN_ROUTE, "Бригада в пути")
+        }
+        binding.debugStatusOnSiteButton.setOnClickListener {
+            simulateStatusUpdate(HospitalizationStatus.CREW_ON_SITE, "Бригада на месте")
+        }
+        binding.debugStatusCompletedButton.setOnClickListener {
+            simulateStatusUpdate(HospitalizationStatus.COMPLETED, "Завершена")
+        }
+        binding.debugStatusOtherLpuButton.setOnClickListener {
+            simulateStatusUpdate(HospitalizationStatus.REFERRED_TO_OTHER_LPU, "Передана в другое ЛПУ")
         }
 
         if (shouldStartAlerts(intent)) {
@@ -142,10 +154,12 @@ class IncomingCallActivity : AppCompatActivity() {
         }
 
         handleIncomingIntent(intent)
+        updateDebugControlsVisibility()
     }
 
     // Читаем новую госпитализацию из списка или старый extra для тестовых запусков экрана.
     private fun handleIncomingIntent(intent: Intent?) {
+        isCurrentTestCall = intent?.getBooleanExtra(EXTRA_IS_TEST_CALL, false) == true
         val hospitalization = readHospitalizationExtra(intent)
         if (hospitalization != null) {
             // После удаления нижней очереди экран должен оставаться на вызове, выбранном в списке.
@@ -201,6 +215,38 @@ class IncomingCallActivity : AppCompatActivity() {
 
     private fun shouldStartAlerts(intent: Intent?): Boolean {
         return intent?.getBooleanExtra(EXTRA_START_ALERTS, true) ?: true
+    }
+
+    private fun updateDebugControlsVisibility() {
+        val debugVisibility =
+            if (ConfigManager.testCallEnabled && isCurrentTestCall) {
+                android.view.View.VISIBLE
+            } else {
+                android.view.View.GONE
+            }
+        binding.debugSimulateMessageButton.visibility = debugVisibility
+        binding.debugSimulateConditionButton.visibility = debugVisibility
+        binding.debugStatusButtonsContainer.visibility = debugVisibility
+    }
+
+    private fun simulateStatusUpdate(status: HospitalizationStatus, statusName: String) {
+        val hospitalization = currentHospitalization ?: return
+        val updated = hospitalization.copy(
+            statusId = status.id,
+            statusName = statusName,
+            call = hospitalization.call.copy(status = statusName)
+        )
+
+        // Тестовая кнопка имитирует HospitalizationNotification: сначала отдаём DTO в realtime-шину,
+        // затем синхронизируем локальную очередь так же, как это делает SignalRService.
+        HospitalizationEventBus.emit(listOf(updated))
+        if (status.isActive && updated.decisionId == HospitalizationDecision.NONE.id) {
+            CallsManager.upsertCall(updated)
+        } else {
+            CallsManager.removeCall(updated.id)
+        }
+
+        Toast.makeText(this, "Тестовый статус: $statusName", Toast.LENGTH_SHORT).show()
     }
 
     private fun setupLockScreenFlags() {
@@ -260,10 +306,15 @@ class IncomingCallActivity : AppCompatActivity() {
 
     // Заполняем экран данными новой госпитализации и вложенного вызова.
     private fun displayCallDetails(hospitalization: HospitalizationResponseDto) {
+        val previousHospitalization = currentHospitalization
+        val isNewHospitalization = boundHospitalizationId != hospitalization.id
+        val isSameHospitalizationChanged =
+            boundHospitalizationId == hospitalization.id && previousHospitalization != hospitalization
+
         currentHospitalization = hospitalization
         CallLog.hospitalization("IncomingCallActivity", hospitalization, "display details")
 
-        if (boundHospitalizationId != hospitalization.id) {
+        if (isNewHospitalization) {
             // Данные карточки биндим хотя бы один раз; отдельно следим только за тем, чтобы не перезапускать таймер.
             unreadChatMessageIds.clear()
             updateChatUnreadBadge()
@@ -276,6 +327,12 @@ class IncomingCallActivity : AppCompatActivity() {
             renderPatientCondition(null)
             fetchLatestPatientCondition(hospitalization.id)
             boundHospitalizationId = hospitalization.id
+        } else if (isSameHospitalizationChanged) {
+            // HospitalizationNotification может обновить статус, решение и времена, пока врач уже на экране.
+            // Перерисовываем данные, но не сбрасываем чат, телефон бригады и раскрытость блоков.
+            bindSummary(hospitalization)
+            bindDetails(hospitalization)
+            setFullDetailsExpanded(isFullDetailsExpanded)
         }
 
         // Таймер берём из CallsManager, чтобы экран решения и список "Требуют решения" шли синхронно.
@@ -284,6 +341,18 @@ class IncomingCallActivity : AppCompatActivity() {
         val secondsToShow = if (remainingMs != null) ((remainingMs + 999L) / 1000L).toInt() else fallbackSeconds
         if (countdownHospitalizationId != hospitalization.id) {
             startVisualCountdown(hospitalization.id, secondsToShow)
+        }
+    }
+
+    private fun observeHospitalizationUpdates() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                HospitalizationEventBus.updates.collect { updates ->
+                    val expectedId = currentHospitalization?.id ?: requestedHospitalizationId ?: return@collect
+                    val updated = updates.lastOrNull { it.id == expectedId } ?: return@collect
+                    displayCallDetails(updated)
+                }
+            }
         }
     }
 
@@ -690,14 +759,6 @@ class IncomingCallActivity : AppCompatActivity() {
         container.addView(sectionView)
     }
 
-    private fun buildPatientName(call: CallResponseDto): String {
-        return listOfNotNull(
-            call.patientSurname,
-            call.patientName,
-            call.patientPatronymic
-        ).joinToString(" ").trim()
-    }
-
     private fun formatDateTime(value: String?): String? {
         if (value.isNullOrBlank()) return null
         return DateFormatter.formatDateTime(value)
@@ -791,5 +852,6 @@ class IncomingCallActivity : AppCompatActivity() {
         const val EXTRA_HOSPITALIZATION = "EXTRA_HOSPITALIZATION"
         const val EXTRA_HOSPITALIZATION_ID = "EXTRA_HOSPITALIZATION_ID"
         const val EXTRA_START_ALERTS = "EXTRA_START_ALERTS"
+        const val EXTRA_IS_TEST_CALL = "EXTRA_IS_TEST_CALL"
     }
 }

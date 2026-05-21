@@ -65,7 +65,7 @@ object CallsManager {
             currentList[existingIndex] = call
         }
 
-        val sortedList = sortByCreationTime(currentList)
+        val sortedList = sortByDecisionDeadline(currentList)
         _calls.value = sortedList
         CallLog.queue(
             source = "CallsManager",
@@ -310,16 +310,23 @@ object CallsManager {
             HospitalizationStatus.fromId(call.statusId)?.isActive == true
     }
 
-    // TODO: Для того чтобы сортировать по таймеру, у чего быстрее истекает время
-    private fun sortByCreationTime(
+    private fun sortByDecisionDeadline(
         calls: List<HospitalizationResponseDto>
     ): List<HospitalizationResponseDto> {
         return calls.sortedWith(
+            // Очередь решений должна совпадать со вкладкой "Требуют решения":
+            // выше показываем вызовы, у которых раньше истечет время на ответ врача.
             compareBy<HospitalizationResponseDto> {
+                calculateDecisionDeadlineMillis(it)
+            }.thenBy {
                 DateFormatter.parseCallTimeMillis(it.creationTime)
                     ?: DateFormatter.parseCallTimeMillis(it.call.callTime)
                     ?: Long.MAX_VALUE
             }.thenBy { it.id }
         )
+    }
+
+    private fun calculateDecisionDeadlineMillis(call: HospitalizationResponseDto): Long {
+        return calculateTimerStartWall(call) + ConfigManager.maxCallDurationMs
     }
 }

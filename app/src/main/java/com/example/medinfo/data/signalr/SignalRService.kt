@@ -14,6 +14,8 @@ import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.manager.HospitalizationEventBus
 import com.example.medinfo.data.manager.MessagesEventBus
+import com.example.medinfo.data.manager.SignalRConnectionState
+import com.example.medinfo.data.manager.SignalRConnectionStatus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.notifications.ChatMessageNotifier
@@ -92,6 +94,7 @@ class SignalRService : Service() {
     // Подключаемся к новому SignalR-хабу и подписываемся на два вида уведомлений.
     private fun initSignalR() {
         if (testModeDisableSignalR) {
+            SignalRConnectionState.set(SignalRConnectionStatus.DISCONNECTED)
             android.util.Log.i("CALL_LOG", "[SignalR] TEST MODE: SignalR disabled for testing")
             return
         }
@@ -135,7 +138,8 @@ class SignalRService : Service() {
 
         hubConnection?.onClosed {
             if (isSessionActive()) {
-                startHubConnection()
+                SignalRConnectionState.set(SignalRConnectionStatus.RECONNECTING)
+                startHubConnection(isReconnect = true)
             } else {
                 stopAndCleanup()
             }
@@ -322,7 +326,10 @@ class SignalRService : Service() {
     }
 
     // Запуск подключения вынесен отдельно, чтобы переиспользовать при реконнекте.
-    private fun startHubConnection() {
+    private fun startHubConnection(isReconnect: Boolean = false) {
+        SignalRConnectionState.set(
+            if (isReconnect) SignalRConnectionStatus.RECONNECTING else SignalRConnectionStatus.CONNECTING
+        )
         Thread {
             try {
                 if (!isSessionActive()) {
@@ -330,10 +337,12 @@ class SignalRService : Service() {
                     return@Thread
                 }
                 hubConnection?.start()?.blockingAwait()
+                SignalRConnectionState.set(SignalRConnectionStatus.CONNECTED)
             } catch (e: Exception) {
+                SignalRConnectionState.set(SignalRConnectionStatus.RECONNECTING)
                 Thread.sleep(5000)
                 if (isSessionActive()) {
-                    startHubConnection()
+                    startHubConnection(isReconnect = true)
                 } else {
                     stopAndCleanup()
                 }
@@ -354,6 +363,7 @@ class SignalRService : Service() {
 
         hubConnection = null
         IncomingCallRinger.stop()
+        SignalRConnectionState.set(SignalRConnectionStatus.DISCONNECTED)
         // Очищаем очередь только при намеренной остановке сервиса: при обычном onDestroy
         // (stopSelf=false) сервис может перезапуститься, и терять вызовы не нужно.
         if (stopSelf) {

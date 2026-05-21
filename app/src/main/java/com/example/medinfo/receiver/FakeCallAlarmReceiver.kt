@@ -44,6 +44,7 @@ class FakeCallAlarmReceiver : BroadcastReceiver() {
                         Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
                         Intent.FLAG_ACTIVITY_SINGLE_TOP
                 putExtra(IncomingCallActivity.EXTRA_HOSPITALIZATION, mockHospitalization)
+                putExtra(IncomingCallActivity.EXTRA_IS_TEST_CALL, true)
             }
 
             context.startActivity(fullScreenIntent)
