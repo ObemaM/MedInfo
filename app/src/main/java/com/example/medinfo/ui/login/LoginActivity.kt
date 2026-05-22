@@ -84,7 +84,7 @@ class LoginActivity: AppCompatActivity() {
                         showLoginError(errorMessage)
                     }
                 } catch (e: Exception) {
-                    showLoginError("Ошибка подключения к серверу. Проверьте интернет-соединение.")
+                    showLoginError("Нет подключения к серверу")
                     e.printStackTrace()
                 }
             }
