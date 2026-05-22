@@ -68,6 +68,7 @@ class MainActivity : AppCompatActivity() {
     private var tabMenuPopupWindow: PopupWindow? = null
     private var shouldRefreshCallsOnResume = false
     private var isFirstPageLoading = true
+    private var isFilterActive = false
 
     // Список для адаптера (обновляется при получении данных из ViewModel)
     private val hospitalizationList = mutableListOf<Hospitalization>()
@@ -224,7 +225,9 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             viewModel.isFilterActive.collectLatest { isActive ->
+                isFilterActive = isActive
                 binding.filterButton.isSelected = isActive
+                updateEmptyState()
             }
         }
 
@@ -469,9 +472,24 @@ class MainActivity : AppCompatActivity() {
             binding.emptyStateText.text = "Загрузка..."
         } else if (showEmpty) {
             binding.emptyStateText.text = when (currentTabFilter) {
-                MainViewModel.TabFilter.REQUIRES_DECISION -> "Нет вызовов, требующих решения"
-                MainViewModel.TabFilter.ACTIVE -> "Нет активных вызовов"
-                MainViewModel.TabFilter.ARCHIVE -> "Архив пуст"
+                MainViewModel.TabFilter.REQUIRES_DECISION ->
+                    if (isFilterActive) {
+                        "Нет вызовов, требующих решения, соответствующих фильтрам"
+                    } else {
+                        "Нет вызовов, требующих решения"
+                    }
+                MainViewModel.TabFilter.ACTIVE ->
+                    if (isFilterActive) {
+                        "Нет активных вызовов, соответствующих фильтрам"
+                    } else {
+                        "Нет активных вызовов"
+                    }
+                MainViewModel.TabFilter.ARCHIVE ->
+                    if (isFilterActive) {
+                        "Нет архивных вызовов, соответствующих фильтрам"
+                    } else {
+                        "Архив пуст"
+                    }
             }
         }
     }
