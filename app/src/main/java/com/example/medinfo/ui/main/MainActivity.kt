@@ -1,7 +1,6 @@
 package com.example.medinfo.ui.main
 
 import android.app.Dialog
-import android.content.res.ColorStateList
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -68,6 +67,7 @@ class MainActivity : AppCompatActivity() {
     private var currentDecisionCount = 0
     private var tabMenuPopupWindow: PopupWindow? = null
     private var shouldRefreshCallsOnResume = false
+    private var isFirstPageLoading = true
 
     // Список для адаптера (обновляется при получении данных из ViewModel)
     private val hospitalizationList = mutableListOf<Hospitalization>()
@@ -154,7 +154,7 @@ class MainActivity : AppCompatActivity() {
                 hospitalizationList.clear()
                 hospitalizationList.addAll(calls)
                 val callsSnapshot = calls.toList()
-                updateEmptyState(callsSnapshot.isEmpty())
+                updateEmptyState()
 
                 if (!::adapter.isInitialized) {
                     adapter = HospitalizationAdapter(callsSnapshot) { hospitalization ->
@@ -215,6 +215,13 @@ class MainActivity : AppCompatActivity() {
         }
 
         // Подписка на состояние фильтра
+        lifecycleScope.launch {
+            viewModel.isFirstPageLoading.collectLatest { isLoading ->
+                isFirstPageLoading = isLoading
+                updateEmptyState()
+            }
+        }
+
         lifecycleScope.launch {
             viewModel.isFilterActive.collectLatest { isActive ->
                 binding.filterButton.isSelected = isActive
@@ -446,15 +453,21 @@ class MainActivity : AppCompatActivity() {
     private fun selectTabFilter(tabFilter: MainViewModel.TabFilter) {
         currentTabFilter = tabFilter
         updateSelectedTabTitle()
-        updateEmptyState(hospitalizationList.isEmpty())
+        updateEmptyState()
         startDecisionTimerUpdatesIfNeeded()
         viewModel.setTabFilter(tabFilter)
     }
 
-    private fun updateEmptyState(isEmpty: Boolean) {
-        binding.emptyStateText.isVisible = isEmpty
+    private fun updateEmptyState() {
+        val isEmpty = hospitalizationList.isEmpty()
+        val showLoading = isFirstPageLoading && isEmpty
+        val showEmpty = !isFirstPageLoading && isEmpty
+
+        binding.emptyStateText.isVisible = showLoading || showEmpty
         binding.recyclerView.isVisible = !isEmpty
-        if (isEmpty) {
+        if (showLoading) {
+            binding.emptyStateText.text = "Загрузка..."
+        } else if (showEmpty) {
             binding.emptyStateText.text = when (currentTabFilter) {
                 MainViewModel.TabFilter.REQUIRES_DECISION -> "Нет вызовов, требующих решения"
                 MainViewModel.TabFilter.ACTIVE -> "Нет активных вызовов"
@@ -464,6 +477,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateConnectionStatus(status: SignalRConnectionStatus) {
+        applyConnectionStatus(binding.profileConnectionStatusDot, null, status)
+    }
+
+    private fun applyConnectionStatus(
+        dot: View,
+        statusText: TextView?,
+        status: SignalRConnectionStatus
+    ) {
         val colorRes = when (status) {
             SignalRConnectionStatus.CONNECTED -> R.color.green_1
             SignalRConnectionStatus.CONNECTING,
@@ -476,10 +497,23 @@ class MainActivity : AppCompatActivity() {
             SignalRConnectionStatus.RECONNECTING -> "Восстановление связи с сервером"
             SignalRConnectionStatus.DISCONNECTED -> "Нет связи с сервером"
         }
+        val shortText = when (status) {
+            SignalRConnectionStatus.CONNECTED -> "Подключено"
+            SignalRConnectionStatus.CONNECTING -> "Подключение"
+            SignalRConnectionStatus.RECONNECTING -> "Переподключение"
+            SignalRConnectionStatus.DISCONNECTED -> "Нет связи"
+        }
 
-        binding.connectionStatusDot.backgroundTintList =
-            ColorStateList.valueOf(getColor(colorRes))
-        binding.connectionStatusDot.contentDescription = description
+        dot.background = createConnectionStatusDot(getColor(colorRes))
+        dot.contentDescription = description
+        statusText?.text = shortText
+    }
+
+    private fun createConnectionStatusDot(color: Int): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(color)
+        }
     }
 
     private fun updateSelectedTabTitle() {
@@ -619,8 +653,19 @@ class MainActivity : AppCompatActivity() {
         val login = viewModel.getUserLogin() ?: "Неизвестно"
         dialogBinding.userLoginText.text = login
         dialogBinding.versionText.text = getAppVersion()
+        val connectionStatusJob =
+            lifecycleScope.launch {
+                SignalRConnectionState.status.collectLatest { status ->
+                    applyConnectionStatus(
+                        dialogBinding.dialogConnectionStatusDot,
+                        dialogBinding.connectionStatusText,
+                        status
+                    )
+                }
+            }
 
         dialogBinding.buttonOk.setOnClickListener { dialog.dismiss() }
+        dialog.setOnDismissListener { connectionStatusJob.cancel() }
 
         // Адаптивная ширина, центрирование и ограничение высоты — задаём до show().
         DialogSizing.apply(dialog.window, dialogBinding.root, dialogBinding.scrollView)

@@ -33,7 +33,6 @@ class CallFiltersDialogFragment : DialogFragment() {
             arguments?.getSerializable(ARG_FILTERS) as? CallFilters
         } ?: CallFilters()
 
-        binding.patientFullNameEdit.setText(initialFilters.patientFullName.orEmpty())
         binding.urgencyFromEdit.setText(initialFilters.urgencyFrom?.toString().orEmpty())
         binding.urgencyToEdit.setText(initialFilters.urgencyTo?.toString().orEmpty())
 
@@ -82,7 +81,6 @@ class CallFiltersDialogFragment : DialogFragment() {
         }
 
         binding.resetFiltersButton.setOnClickListener {
-            binding.patientFullNameEdit.setText("")
             binding.urgencyFromEdit.setText("")
             binding.urgencyToEdit.setText("")
             binding.sexToggleGroup.check(R.id.sex_any_button)
@@ -97,10 +95,6 @@ class CallFiltersDialogFragment : DialogFragment() {
         }
 
         binding.applyFiltersButton.setOnClickListener {
-            val patientFullName = binding.patientFullNameEdit.text
-                ?.toString()
-                ?.trim()
-                ?.takeIf { it.isNotBlank() }
             val urgencyFrom = binding.urgencyFromEdit.text?.toString()?.trim()?.toIntOrNull()
             val urgencyTo = binding.urgencyToEdit.text?.toString()?.trim()?.toIntOrNull()
 
@@ -143,7 +137,6 @@ class CallFiltersDialogFragment : DialogFragment() {
 
             val filters =
                 CallFilters(
-                    patientFullName = patientFullName,
                     urgencyFrom = normUrgencyFrom,
                     urgencyTo = normUrgencyTo,
                     sex = sex,

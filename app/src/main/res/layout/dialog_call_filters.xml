@@ -73,44 +73,13 @@
                 android:paddingBottom="20dp">
 
                 <TextView
-                    android:id="@+id/patient_name_label"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="Пациент"
-                    android:textColor="@color/gray_1"
-                    android:textSize="14sp"
-                    app:layout_constraintTop_toTopOf="parent" />
-
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/patient_full_name_layout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    app:boxStrokeColor="@color/search_text_input_colors"
-                    app:hintTextColor="@color/search_text_input_colors"
-                    app:layout_constraintTop_toBottomOf="@+id/patient_name_label">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/patient_full_name_edit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="ФИО пациента"
-                        android:inputType="textCapWords"
-                        android:maxLines="1"
-                        android:textColor="@color/gray_1" />
-
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <TextView
                     android:id="@+id/urgency_label"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
                     android:text="Срочность"
                     android:textColor="@color/gray_1"
                     android:textSize="14sp"
-                    app:layout_constraintTop_toBottomOf="@+id/patient_full_name_layout" />
+                    app:layout_constraintTop_toTopOf="parent" />
 
                 <com.google.android.material.textfield.TextInputLayout
                     android:id="@+id/urgency_from_layout"

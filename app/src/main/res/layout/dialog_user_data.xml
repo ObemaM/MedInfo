@@ -26,14 +26,14 @@
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:padding="6dp"
-                android:src="@drawable/ic_person_24"
+                android:src="@drawable/ic_info_24"
                 app:tint="@color/gray_1" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="12dp"
-                android:text="Данные"
+                android:text="Информация"
                 android:textColor="@color/gray_1"
                 android:textSize="20sp"
                 android:textStyle="bold" />
@@ -66,13 +66,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="12dp"
+                    android:baselineAligned="false"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingVertical="12dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="0.8"
                         android:layout_marginEnd="12dp"
                         android:text="Логин"
                         android:textColor="@color/gray_1"
@@ -82,10 +84,8 @@
                         android:id="@+id/user_login_text"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
+                        android:layout_weight="1.2"
                         android:gravity="end"
-                        android:maxLines="1"
                         android:textColor="@color/black_1"
                         android:textSize="15sp"
                         tools:text="user_login" />
@@ -96,13 +96,15 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginHorizontal="12dp"
+                    android:baselineAligned="false"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
                     android:paddingVertical="12dp">
 
                     <TextView
-                        android:layout_width="wrap_content"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
+                        android:layout_weight="1.25"
                         android:layout_marginEnd="12dp"
                         android:text="Версия приложения"
                         android:textColor="@color/gray_1"
@@ -112,13 +114,55 @@
                         android:id="@+id/version_text"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:ellipsize="end"
+                        android:layout_weight="0.75"
                         android:gravity="end"
-                        android:maxLines="1"
                         android:textColor="@color/black_1"
                         android:textSize="15sp"
                         tools:text="version" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="12dp"
+                    android:baselineAligned="false"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingVertical="12dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="0.8"
+                        android:layout_marginEnd="12dp"
+                        android:text="Подключение"
+                        android:textColor="@color/gray_1"
+                        android:textSize="15sp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1.2"
+                        android:gravity="center_vertical|end"
+                        android:orientation="horizontal">
+
+                        <View
+                            android:id="@+id/dialog_connection_status_dot"
+                            android:layout_width="9dp"
+                            android:layout_height="9dp"
+                            android:layout_marginEnd="8dp"
+                            android:background="@drawable/connection_status_dot" />
+
+                        <TextView
+                            android:id="@+id/connection_status_text"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textColor="@color/black_1"
+                            android:textSize="15sp"
+                            tools:text="Подключено" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
 

@@ -113,6 +113,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _filteredCalls = MutableStateFlow<List<Hospitalization>>(emptyList())
     val filteredCalls: StateFlow<List<Hospitalization>> = _filteredCalls.asStateFlow()
 
+    private val _isFirstPageLoading = MutableStateFlow(true)
+    val isFirstPageLoading: StateFlow<Boolean> = _isFirstPageLoading.asStateFlow()
+
     private val _isFilterActive = MutableStateFlow(false)
     val isFilterActive: StateFlow<Boolean> = _isFilterActive.asStateFlow()
 
@@ -140,6 +143,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         currentPage = FIRST_PAGE
         hasMorePages = true
         isLoadingNextPage = false
+        _isFirstPageLoading.value = true
         loadedCalls.clear()
 
         loadPage(page = FIRST_PAGE, resetBeforeLoad = true)
@@ -217,6 +221,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             } finally {
                 isLoadingNextPage = false
+                if (resetBeforeLoad) {
+                    _isFirstPageLoading.value = false
+                }
             }
         }
     }
@@ -227,15 +234,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setSearchQuery(query: String) {
-        currentSearchQuery = query
-        applyFilters()
+        val normalizedQuery = query.trim()
+        if (currentSearchQuery == normalizedQuery) return
+
+        currentSearchQuery = normalizedQuery
+        fetchCalls()
     }
 
     fun setCustomFilters(filters: CallFilters) {
         currentFilters = filters
         _isFilterActive.value = filters.isActive()
-        // Новая спецификация поддерживает часть фильтров на сервере, поэтому при изменении
-        // фильтров перезагружаем страницы, а не только просеиваем уже загруженные 40 элементов.
+        // TODO: Новая спецификация поддерживает часть фильтров на сервере
         fetchCalls()
     }
 
@@ -297,7 +306,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         return tabFilters.copy(
-            patientFullName = currentFilters.patientFullName?.trim()?.takeIf { it.isNotBlank() },
+            patientFullName = currentSearchQuery.takeIf { it.isNotBlank() },
             hospitalizationDateTimeFrom = DateFormatter.formatApiDateTime(currentFilters.dateFromMillis),
             hospitalizationDateTimeTo = DateFormatter.formatApiDateTime(currentFilters.dateToMillis),
             dayNumber = currentFilters.dayNumber,
@@ -359,29 +368,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun applyFilters() {
-        val lowerCaseQuery = currentSearchQuery.lowercase().trim()
-
         _isFilterActive.value = currentFilters.isActive()
 
         val baseListWithTabFilter = allCalls.filter { call ->
             matchesCurrentTab(call)
         }
 
-        val baseListWithCustomFilters =
+        val filteredList =
             baseListWithTabFilter.filter { call ->
                 matchesCustomFilters(call, currentFilters)
-            }
-
-        val filteredList =
-            if (lowerCaseQuery.isEmpty()) {
-                baseListWithCustomFilters
-            } else {
-                baseListWithCustomFilters.filter { call ->
-                    if (call.searchCache.isNullOrBlank()) {
-                        call.searchCache = buildSearchIndex(call)
-                    }
-                    call.searchCache?.contains(lowerCaseQuery) == true
-                }
             }
 
         _filteredCalls.value = sortForCurrentTab(filteredList)
@@ -449,15 +444,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         call: Hospitalization,
         filters: CallFilters
     ): Boolean {
-        filters.patientFullName?.trim()?.takeIf { it.isNotBlank() }?.let { query ->
-            val fullName = listOfNotNull(
-                call.patientSurname,
-                call.patientName,
-                call.patientPatronymic
-            ).joinToString(" ").lowercase(Locale.getDefault())
-            if (!fullName.contains(query.lowercase(Locale.getDefault()))) return false
-        }
-
         if (filters.urgencyFrom != null) {
             val urgency = call.urgency ?: return false
             if (urgency < filters.urgencyFrom) return false
@@ -486,25 +472,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (filters.ageTo != null) {
             val value = age ?: return false
             if (value > filters.ageTo) return false
-        }
-
-        if (filters.dateFromMillis != null || filters.dateToMillis != null) {
-            // В новой спецификации дата фильтрует начало госпитализации, а не время самого вызова.
-            val hospitalizationMillis = DateFormatter.parseCallTimeMillis(
-                call.details?.call?.hospitalizationTime ?: call.callTime
-            ) ?: return false
-            if (filters.dateFromMillis != null && hospitalizationMillis < filters.dateFromMillis) return false
-            if (filters.dateToMillis != null && hospitalizationMillis > filters.dateToMillis) return false
-        }
-
-        if (filters.dayNumber != null) {
-            val day = call.dayNumber ?: return false
-            if (day != filters.dayNumber) return false
-        }
-
-        if (filters.yearNumber != null) {
-            val year = call.yearNumber ?: return false
-            if (year != filters.yearNumber) return false
         }
 
         return true

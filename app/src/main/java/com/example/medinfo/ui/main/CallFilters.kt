@@ -9,7 +9,6 @@ enum class SexFilter : Serializable {
 }
 
 data class CallFilters(
-        val patientFullName: String? = null,
         val urgencyFrom: Int? = null,
         val urgencyTo: Int? = null,
         val sex: SexFilter = SexFilter.ANY,
@@ -21,8 +20,7 @@ data class CallFilters(
         val yearNumber: Int? = null
 ) : Serializable {
     fun isActive(): Boolean { // Для свечения иконки фильтров при активных фильтрах
-        return !patientFullName.isNullOrBlank() ||
-                urgencyFrom != null ||
+        return urgencyFrom != null ||
                 urgencyTo != null ||
                 sex != SexFilter.ANY ||
                 ageFrom != null ||

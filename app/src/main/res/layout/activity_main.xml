@@ -35,14 +35,25 @@
                 android:layout_height="52dp"
                 android:layout_marginStart="2dp"
                 android:background="@drawable/circular_button_ripple"
-                android:contentDescription="Профиль"
+                android:contentDescription="Информация"
                 android:padding="10dp"
                 android:scaleType="fitCenter"
-                android:src="@drawable/ic_person_24"
+                android:src="@drawable/ic_info_24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
                 app:tint="@color/gray_1" />
+
+            <View
+                android:id="@+id/profile_connection_status_dot"
+                android:layout_width="10dp"
+                android:layout_height="10dp"
+                android:layout_marginTop="6dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/connection_status_dot"
+                android:elevation="4dp"
+                app:layout_constraintEnd_toEndOf="@+id/profile_button"
+                app:layout_constraintTop_toTopOf="@+id/profile_button" />
 
             <!-- Тестовый звонок: справа от кнопки профиля. Виден только при testCallEnabled. -->
             <ImageButton
@@ -76,17 +87,6 @@
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent" />
-
-            <View
-                android:id="@+id/connection_status_dot"
-                android:layout_width="12dp"
-                android:layout_height="12dp"
-                android:layout_marginEnd="6dp"
-                android:background="@drawable/connection_status_dot"
-                android:contentDescription="Нет связи с сервером"
-                app:layout_constraintBottom_toBottomOf="@+id/logout_button"
-                app:layout_constraintEnd_toStartOf="@+id/logout_button"
-                app:layout_constraintTop_toTopOf="@+id/logout_button" />
 
             <!-- Выход — справа. -->
             <ImageButton
