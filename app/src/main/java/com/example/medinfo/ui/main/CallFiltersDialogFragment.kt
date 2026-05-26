@@ -33,18 +33,6 @@ class CallFiltersDialogFragment : DialogFragment() {
             arguments?.getSerializable(ARG_FILTERS) as? CallFilters
         } ?: CallFilters()
 
-        binding.urgencyFromEdit.setText(initialFilters.urgencyFrom?.toString().orEmpty())
-        binding.urgencyToEdit.setText(initialFilters.urgencyTo?.toString().orEmpty())
-
-        when (initialFilters.sex) {
-            SexFilter.ANY -> binding.sexToggleGroup.check(R.id.sex_any_button)
-            SexFilter.MALE -> binding.sexToggleGroup.check(R.id.sex_male_button)
-            SexFilter.FEMALE -> binding.sexToggleGroup.check(R.id.sex_female_button)
-        }
-
-        binding.ageFromEdit.setText(initialFilters.ageFrom?.toString().orEmpty())
-        binding.ageToEdit.setText(initialFilters.ageTo?.toString().orEmpty())
-
         dateFromMillis = initialFilters.dateFromMillis
         dateToMillis = initialFilters.dateToMillis
 
@@ -81,11 +69,6 @@ class CallFiltersDialogFragment : DialogFragment() {
         }
 
         binding.resetFiltersButton.setOnClickListener {
-            binding.urgencyFromEdit.setText("")
-            binding.urgencyToEdit.setText("")
-            binding.sexToggleGroup.check(R.id.sex_any_button)
-            binding.ageFromEdit.setText("")
-            binding.ageToEdit.setText("")
             dateFromMillis = null
             dateToMillis = null
             binding.dateFromEdit.setText("")
@@ -95,37 +78,8 @@ class CallFiltersDialogFragment : DialogFragment() {
         }
 
         binding.applyFiltersButton.setOnClickListener {
-            val urgencyFrom = binding.urgencyFromEdit.text?.toString()?.trim()?.toIntOrNull()
-            val urgencyTo = binding.urgencyToEdit.text?.toString()?.trim()?.toIntOrNull()
-
-            val ageFrom = binding.ageFromEdit.text?.toString()?.trim()?.toIntOrNull()
-            val ageTo = binding.ageToEdit.text?.toString()?.trim()?.toIntOrNull()
-
-            val sex =
-                when (binding.sexToggleGroup.checkedButtonId) {
-                    R.id.sex_male_button -> SexFilter.MALE
-                    R.id.sex_female_button -> SexFilter.FEMALE
-                    else -> SexFilter.ANY
-                }
-
             val dayNumber = binding.callDayFromEdit.text?.toString()?.trim()?.toIntOrNull()
             val yearNumber = binding.callYearFromEdit.text?.toString()?.trim()?.toIntOrNull()
-
-            var normUrgencyFrom = urgencyFrom
-            var normUrgencyTo = urgencyTo
-            if (normUrgencyFrom != null && normUrgencyTo != null && normUrgencyFrom > normUrgencyTo) {
-                val tmp = normUrgencyFrom
-                normUrgencyFrom = normUrgencyTo
-                normUrgencyTo = tmp
-            }
-
-            var normAgeFrom = ageFrom
-            var normAgeTo = ageTo
-            if (normAgeFrom != null && normAgeTo != null && normAgeFrom > normAgeTo) {
-                val tmp = normAgeFrom
-                normAgeFrom = normAgeTo
-                normAgeTo = tmp
-            }
 
             var normDateFrom = dateFromMillis
             var normDateTo = dateToMillis
@@ -137,11 +91,6 @@ class CallFiltersDialogFragment : DialogFragment() {
 
             val filters =
                 CallFilters(
-                    urgencyFrom = normUrgencyFrom,
-                    urgencyTo = normUrgencyTo,
-                    sex = sex,
-                    ageFrom = normAgeFrom,
-                    ageTo = normAgeTo,
                     dateFromMillis = normDateFrom,
                     dateToMillis = normDateTo,
                     dayNumber = dayNumber,

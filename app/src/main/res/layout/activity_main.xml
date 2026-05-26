@@ -138,7 +138,7 @@
                 android:id="@+id/search_edit_text"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="Поиск"
+                android:hint="ФИО"
                 android:imeOptions="actionSearch"
                 android:inputType="textCapSentences|textFilter"
                 android:maxLines="1"

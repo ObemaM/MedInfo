@@ -1,6 +1,7 @@
 package com.example.medinfo.ui.main
 
 import android.app.Dialog
+import android.content.res.ColorStateList
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -496,6 +497,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateConnectionStatus(status: SignalRConnectionStatus) {
         applyConnectionStatus(binding.profileConnectionStatusDot, null, status)
+        val iconColorRes = when (status) {
+            SignalRConnectionStatus.CONNECTED -> R.color.gray_1
+            SignalRConnectionStatus.CONNECTING -> R.color.yellow_1
+            SignalRConnectionStatus.RECONNECTING,
+            SignalRConnectionStatus.DISCONNECTED -> R.color.red_1
+        }
+        binding.profileButton.imageTintList = ColorStateList.valueOf(getColor(iconColorRes))
     }
 
     private fun applyConnectionStatus(

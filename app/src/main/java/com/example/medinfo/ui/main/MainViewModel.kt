@@ -18,7 +18,6 @@ import com.example.medinfo.model.api.HospitalizationStatus
 import com.example.medinfo.ui.incoming.IncomingCallRinger
 import com.example.medinfo.util.CallLog
 import com.example.medinfo.util.DateFormatter
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -444,42 +443,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         call: Hospitalization,
         filters: CallFilters
     ): Boolean {
-        if (filters.urgencyFrom != null) {
-            val urgency = call.urgency ?: return false
-            if (urgency < filters.urgencyFrom) return false
-        }
-        if (filters.urgencyTo != null) {
-            val urgency = call.urgency ?: return false
-            if (urgency > filters.urgencyTo) return false
-        }
-
-        if (filters.sex != SexFilter.ANY) {
-            val sex = call.sex?.lowercase(Locale.getDefault())?.trim().orEmpty()
-            val isMale = sex.contains("муж") || sex.contains("male") || sex == "м"
-            val isFemale = sex.contains("жен") || sex.contains("female") || sex == "ж"
-            when (filters.sex) {
-                SexFilter.MALE -> if (!isMale) return false
-                SexFilter.FEMALE -> if (!isFemale) return false
-                SexFilter.ANY -> Unit
-            }
+        if (filters.dateFromMillis != null || filters.dateToMillis != null) {
+            val hospitalizationMillis = DateFormatter.parseCallTimeMillis(
+                call.details?.call?.hospitalizationTime ?: call.callTime
+            ) ?: return false
+            if (filters.dateFromMillis != null && hospitalizationMillis < filters.dateFromMillis) return false
+            if (filters.dateToMillis != null && hospitalizationMillis > filters.dateToMillis) return false
         }
 
-        val age = parseAge(call.age)
-        if (filters.ageFrom != null) {
-            val value = age ?: return false
-            if (value < filters.ageFrom) return false
+        if (filters.dayNumber != null) {
+            val day = call.dayNumber ?: return false
+            if (day != filters.dayNumber) return false
         }
-        if (filters.ageTo != null) {
-            val value = age ?: return false
-            if (value > filters.ageTo) return false
+
+        if (filters.yearNumber != null) {
+            val year = call.yearNumber ?: return false
+            if (year != filters.yearNumber) return false
         }
 
         return true
-    }
-
-    private fun parseAge(age: String?): Int? {
-        if (age.isNullOrBlank()) return null
-        return age.trim().toIntOrNull()
     }
 
     private fun prepareCallsForSearch(calls: List<Hospitalization>) {
