@@ -6,6 +6,9 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -55,6 +58,10 @@ class SignalRService : Service() {
     private val decisionStateLock = Any()
     private val pendingDecisionCalls = mutableMapOf<String, HospitalizationResponseDto>()
     private val patientConditionReadyIds = mutableSetOf<String>()
+    private var connectivityManager: ConnectivityManager? = null
+    private var networkCallback: ConnectivityManager.NetworkCallback? = null
+    @Volatile
+    private var hasInternetConnection = true
 
     // Проверяем, что у приложения еще есть активная сессия.
     private fun isSessionActive(): Boolean {
@@ -83,8 +90,11 @@ class SignalRService : Service() {
             .build()
 
         startForeground(notificationIdService, notification)
+        registerNetworkCallback()
 
-        if (hubConnection == null) {
+        if (!hasInternetConnection) {
+            SignalRConnectionState.set(SignalRConnectionStatus.DISCONNECTED)
+        } else if (hubConnection == null) {
             initSignalR()
         }
 
@@ -92,10 +102,15 @@ class SignalRService : Service() {
     }
 
     // Подключаемся к новому SignalR-хабу и подписываемся на два вида уведомлений.
-    private fun initSignalR() {
+    private fun initSignalR(isReconnect: Boolean = false) {
         if (testModeDisableSignalR) {
             SignalRConnectionState.set(SignalRConnectionStatus.DISCONNECTED)
             android.util.Log.i("CALL_LOG", "[SignalR] TEST MODE: SignalR disabled for testing")
+            return
+        }
+
+        if (!hasInternetConnection) {
+            SignalRConnectionState.set(SignalRConnectionStatus.DISCONNECTED)
             return
         }
 
@@ -137,7 +152,9 @@ class SignalRService : Service() {
         )
 
         hubConnection?.onClosed {
-            if (isSessionActive()) {
+            if (!hasInternetConnection) {
+                SignalRConnectionState.set(SignalRConnectionStatus.DISCONNECTED)
+            } else if (isSessionActive()) {
                 SignalRConnectionState.set(SignalRConnectionStatus.RECONNECTING)
                 startHubConnection(isReconnect = true)
             } else {
@@ -145,7 +162,7 @@ class SignalRService : Service() {
             }
         }
 
-        startHubConnection()
+        startHubConnection(isReconnect = isReconnect)
     }
 
     // Обрабатываем госпитализации как основной источник очереди входящих решений.
@@ -325,8 +342,102 @@ class SignalRService : Service() {
         }
     }
 
+    private fun registerNetworkCallback() {
+        if (networkCallback != null) return
+
+        val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        connectivityManager = manager
+        hasInternetConnection = hasValidatedInternetConnection()
+
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                if (hasValidatedInternetConnection()) {
+                    handleNetworkAvailable()
+                }
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                if (hasValidatedInternetConnection()) {
+                    handleNetworkAvailable()
+                } else {
+                    handleNetworkLost()
+                }
+            }
+
+            override fun onLost(network: Network) {
+                if (!hasValidatedInternetConnection()) {
+                    handleNetworkLost()
+                }
+            }
+
+            override fun onUnavailable() {
+                handleNetworkLost()
+            }
+        }
+
+        networkCallback = callback
+        manager.registerDefaultNetworkCallback(callback)
+    }
+
+    private fun unregisterNetworkCallback() {
+        val callback = networkCallback ?: return
+        runCatching {
+            connectivityManager?.unregisterNetworkCallback(callback)
+        }
+        networkCallback = null
+        connectivityManager = null
+    }
+
+    private fun hasValidatedInternetConnection(): Boolean {
+        val manager = connectivityManager
+            ?: getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = manager.activeNetwork ?: return false
+        val capabilities = manager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    private fun handleNetworkAvailable() {
+        val wasDisconnected = !hasInternetConnection
+        hasInternetConnection = true
+
+        if (wasDisconnected && isSessionActive()) {
+            SignalRConnectionState.set(SignalRConnectionStatus.RECONNECTING)
+            if (hubConnection == null) {
+                initSignalR(isReconnect = true)
+            } else {
+                startHubConnection(isReconnect = true)
+            }
+        }
+    }
+
+    private fun handleNetworkLost() {
+        if (!hasInternetConnection) return
+
+        hasInternetConnection = false
+        SignalRConnectionState.set(SignalRConnectionStatus.DISCONNECTED)
+        runCatching {
+            hubConnection?.stop()
+        }
+        hubConnection = null
+    }
+
     // Запуск подключения вынесен отдельно, чтобы переиспользовать при реконнекте.
     private fun startHubConnection(isReconnect: Boolean = false) {
+        if (!hasInternetConnection) {
+            SignalRConnectionState.set(SignalRConnectionStatus.DISCONNECTED)
+            return
+        }
+
+        val connection = hubConnection ?: run {
+            if (isSessionActive()) {
+                initSignalR(isReconnect = isReconnect)
+            } else {
+                stopAndCleanup()
+            }
+            return
+        }
+
         SignalRConnectionState.set(
             if (isReconnect) SignalRConnectionStatus.RECONNECTING else SignalRConnectionStatus.CONNECTING
         )
@@ -336,9 +447,19 @@ class SignalRService : Service() {
                     stopAndCleanup()
                     return@Thread
                 }
-                hubConnection?.start()?.blockingAwait()
-                SignalRConnectionState.set(SignalRConnectionStatus.CONNECTED)
+                if (!hasInternetConnection) {
+                    SignalRConnectionState.set(SignalRConnectionStatus.DISCONNECTED)
+                    return@Thread
+                }
+                connection.start().blockingAwait()
+                if (hubConnection === connection && hasInternetConnection) {
+                    SignalRConnectionState.set(SignalRConnectionStatus.CONNECTED)
+                }
             } catch (e: Exception) {
+                if (!hasInternetConnection) {
+                    SignalRConnectionState.set(SignalRConnectionStatus.DISCONNECTED)
+                    return@Thread
+                }
                 SignalRConnectionState.set(SignalRConnectionStatus.RECONNECTING)
                 Thread.sleep(5000)
                 if (isSessionActive()) {
@@ -356,6 +477,8 @@ class SignalRService : Service() {
 
     // Единая очистка подключения, звонка и очереди.
     private fun stopAndCleanupInternal(stopSelf: Boolean) {
+        unregisterNetworkCallback()
+
         try {
             hubConnection?.stop()
         } catch (_: Exception) {
