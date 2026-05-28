@@ -118,6 +118,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val _isFilterActive = MutableStateFlow(false)
     val isFilterActive: StateFlow<Boolean> = _isFilterActive.asStateFlow()
 
+    private val _isSearchActive = MutableStateFlow(false)
+    val isSearchActive: StateFlow<Boolean> = _isSearchActive.asStateFlow()
+
     private val _toastMessage = MutableSharedFlow<String>()
     val toastMessage: SharedFlow<String> = _toastMessage.asSharedFlow()
 
@@ -237,6 +240,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (currentSearchQuery == normalizedQuery) return
 
         currentSearchQuery = normalizedQuery
+        _isSearchActive.value = normalizedQuery.isNotBlank()
         fetchCalls()
     }
 

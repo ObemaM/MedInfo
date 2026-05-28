@@ -5,6 +5,7 @@ import android.app.Dialog
 import android.app.TimePickerDialog
 import android.os.Build
 import android.os.Bundle
+import android.view.Gravity
 import android.view.ViewGroup
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.DialogFragment
@@ -113,9 +114,10 @@ class CallFiltersDialogFragment : DialogFragment() {
     override fun onStart() {
         super.onStart()
         val margin = (8 * resources.displayMetrics.density).toInt()
+        dialog?.window?.setGravity(Gravity.CENTER)
         dialog?.window?.setLayout(
             resources.displayMetrics.widthPixels - margin * 2,
-            (resources.displayMetrics.heightPixels * 0.86f).toInt()
+            ViewGroup.LayoutParams.WRAP_CONTENT
         )
     }
 

@@ -1,7 +1,6 @@
 package com.example.medinfo.ui.main
 
 import android.app.Dialog
-import android.content.res.ColorStateList
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
@@ -70,6 +69,7 @@ class MainActivity : AppCompatActivity() {
     private var shouldRefreshCallsOnResume = false
     private var isFirstPageLoading = true
     private var isFilterActive = false
+    private var isSearchActive = false
 
     // Список для адаптера (обновляется при получении данных из ViewModel)
     private val hospitalizationList = mutableListOf<Hospitalization>()
@@ -228,6 +228,13 @@ class MainActivity : AppCompatActivity() {
             viewModel.isFilterActive.collectLatest { isActive ->
                 isFilterActive = isActive
                 binding.filterButton.isSelected = isActive
+                updateEmptyState()
+            }
+        }
+
+        lifecycleScope.launch {
+            viewModel.isSearchActive.collectLatest { isActive ->
+                isSearchActive = isActive
                 updateEmptyState()
             }
         }
@@ -466,6 +473,7 @@ class MainActivity : AppCompatActivity() {
         val isEmpty = hospitalizationList.isEmpty()
         val showLoading = isFirstPageLoading && isEmpty
         val showEmpty = !isFirstPageLoading && isEmpty
+        val hasActiveConstraints = isFilterActive || isSearchActive
 
         binding.emptyStateText.isVisible = showLoading || showEmpty
         binding.recyclerView.isVisible = !isEmpty
@@ -474,19 +482,19 @@ class MainActivity : AppCompatActivity() {
         } else if (showEmpty) {
             binding.emptyStateText.text = when (currentTabFilter) {
                 MainViewModel.TabFilter.REQUIRES_DECISION ->
-                    if (isFilterActive) {
+                    if (hasActiveConstraints) {
                         "Нет вызовов, требующих решения, соответствующих фильтрам"
                     } else {
                         "Нет вызовов, требующих решения"
                     }
                 MainViewModel.TabFilter.ACTIVE ->
-                    if (isFilterActive) {
+                    if (hasActiveConstraints) {
                         "Нет активных вызовов, соответствующих фильтрам"
                     } else {
                         "Нет активных вызовов"
                     }
                 MainViewModel.TabFilter.ARCHIVE ->
-                    if (isFilterActive) {
+                    if (hasActiveConstraints) {
                         "Нет архивных вызовов, соответствующих фильтрам"
                     } else {
                         "Архив пуст"
@@ -497,13 +505,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateConnectionStatus(status: SignalRConnectionStatus) {
         applyConnectionStatus(binding.profileConnectionStatusDot, null, status)
-        val iconColorRes = when (status) {
-            SignalRConnectionStatus.CONNECTED -> R.color.gray_1
-            SignalRConnectionStatus.CONNECTING -> R.color.yellow_1
-            SignalRConnectionStatus.RECONNECTING,
-            SignalRConnectionStatus.DISCONNECTED -> R.color.red_1
-        }
-        binding.profileButton.imageTintList = ColorStateList.valueOf(getColor(iconColorRes))
     }
 
     private fun applyConnectionStatus(
