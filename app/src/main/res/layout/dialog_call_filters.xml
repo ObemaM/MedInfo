@@ -152,6 +152,7 @@
                     android:text="Суточный номер"
                     android:textColor="@color/gray_1"
                     android:textSize="12sp"
+                    android:visibility="gone"
                     app:layout_constraintEnd_toStartOf="@+id/call_year_label"
                     app:layout_constraintStart_toStartOf="parent"
                     app:layout_constraintTop_toBottomOf="@+id/call_number_label" />
@@ -167,13 +168,13 @@
                     app:hintTextColor="@color/search_text_input_colors"
                     app:layout_constraintEnd_toStartOf="@+id/call_year_from_layout"
                     app:layout_constraintStart_toStartOf="parent"
-                    app:layout_constraintTop_toBottomOf="@+id/call_day_label">
+                    app:layout_constraintTop_toBottomOf="@+id/call_number_label">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/call_day_from_edit"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="номер"
+                        android:hint="дневной"
                         android:inputType="number"
                         android:textColor="@color/gray_1" />
 
@@ -187,6 +188,7 @@
                     android:text="Годовой номер"
                     android:textColor="@color/gray_1"
                     android:textSize="12sp"
+                    android:visibility="gone"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toEndOf="@+id/call_day_label"
                     app:layout_constraintTop_toBottomOf="@+id/call_number_label" />
@@ -201,13 +203,13 @@
                     app:hintTextColor="@color/search_text_input_colors"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toEndOf="@+id/call_day_from_layout"
-                    app:layout_constraintTop_toBottomOf="@+id/call_year_label">
+                    app:layout_constraintTop_toBottomOf="@+id/call_number_label">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/call_year_from_edit"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:hint="номер"
+                        android:hint="годовой"
                         android:inputType="number"
                         android:textColor="@color/gray_1" />
 
