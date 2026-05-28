@@ -515,7 +515,7 @@ class MainActivity : AppCompatActivity() {
         val colorRes = when (status) {
             SignalRConnectionStatus.CONNECTED -> R.color.green_1
             SignalRConnectionStatus.CONNECTING,
-            SignalRConnectionStatus.RECONNECTING -> R.color.yellow_1
+            SignalRConnectionStatus.RECONNECTING,
             SignalRConnectionStatus.DISCONNECTED -> R.color.red_1
         }
         val description = when (status) {
