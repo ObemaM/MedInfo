@@ -26,8 +26,8 @@ object TestMessageSimulator {
             origin = MessageOrigin.TABLET.id, // иначе ChatMessageNotifier отфильтрует
             userId = null,
             type = MessageType.TEXT.id,
-            isNotificationSent = true,
             receptionTime = currentIsoTime(),
+            notificationTime = currentIsoTime(),
             patientCondition = null,
             text = text,
             phoneNumber = null
@@ -51,8 +51,8 @@ object TestMessageSimulator {
             origin = MessageOrigin.TABLET.id,
             userId = null,
             type = MessageType.PATIENT_CONDITION.id,
-            isNotificationSent = true,
             receptionTime = currentIsoTime(),
+            notificationTime = currentIsoTime(),
             patientCondition = buildFakeCondition(),
             text = null,
             phoneNumber = phoneNumber

@@ -41,7 +41,7 @@ object CallLog {
                 append(" hospitalizationId=${message.hospitalizationId}")
                 append(" origin=${message.origin}")
                 append(" type=${message.type}")
-                append(" notificationSent=${message.isNotificationSent}")
+                append(" notificationTime=${message.notificationTime ?: "-"}")
                 append(" receptionTime=${message.receptionTime}")
                 note?.let { append(" note=$it") }
             }
@@ -59,9 +59,10 @@ object CallLog {
             append(" call=${call.call.dayNumber}/${call.call.yearNumber}")
             append(" status=${call.statusId}/${call.statusName}")
             append(" decision=${call.decisionId}/${call.decisionName}")
-            append(" notificationSent=${call.isNotificationSent}")
             append(" creationTime=${call.creationTime ?: "-"}")
-            append(" notificationTime=${call.notificationTime ?: "-"}")
+            append(" consultationRequestTime=${call.consultationRequestTime ?: "-"}")
+            append(" consultationNotificationTime=${call.consultationNotificationTime ?: "-"}")
+            append(" hospitalizationNotificationTime=${call.hospitalizationNotificationTime ?: "-"}")
             append(" callTime=${call.call.callTime}")
             message?.let { append(" note=$it") }
         }

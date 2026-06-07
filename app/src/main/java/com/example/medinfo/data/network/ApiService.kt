@@ -4,6 +4,7 @@ import com.example.medinfo.model.ApiResponse
 import com.example.medinfo.model.CallAnswerRequest
 import com.example.medinfo.model.CallListContent
 import com.example.medinfo.model.api.AuthRequestDto
+import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.ConfirmReceptionRequestDto
 import com.example.medinfo.model.api.GetHospitalizationsRequestDto
 import com.example.medinfo.model.api.GetHospitalizationsResponseDto
@@ -31,6 +32,9 @@ interface ApiService {
     suspend fun getHospitalizations(
         @Body request: GetHospitalizationsRequestDto
     ): Response<ApiResponse<GetHospitalizationsResponseDto>>
+
+    @GET("/hospitalizations/get-in-service-calls")
+    suspend fun getInServiceCalls(): Response<ApiResponse<List<CallResponseDto>>>
 
     // Получение истории сообщений по госпитализации
     @POST("/hospitalizations/get-messages")

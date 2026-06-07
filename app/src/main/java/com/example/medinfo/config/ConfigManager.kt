@@ -40,7 +40,7 @@ object ConfigManager {
                     signalrHubUrl = "http://46.146.213.95:27234/notifications",
                     httpConnectTimeoutSeconds = 20,
                     httpReadTimeoutSeconds = 20,
-                    maxCallDurationMs = 2_700_000L,
+                    maxCallDurationMs = 300_000L,
                     sessionPrefsName = "app_session",
                     jwtTokenKey = "jwt_token",
                     testModeDisableSignalR = false,

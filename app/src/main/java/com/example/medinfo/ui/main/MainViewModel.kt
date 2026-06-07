@@ -69,6 +69,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     // иначе ACTIVE. Фильтрация по PATIENT_CONDITION (если включён режим) делается на сервере,
     // поэтому достаточно проверить count в ответе.
     suspend fun resolveStartTab(): TabFilter {
+        if (isPatientConditionDecisionMode()) {
+            return if (CallsManager.calls.value.isNotEmpty()) {
+                TabFilter.REQUIRES_DECISION
+            } else {
+                TabFilter.ACTIVE
+            }
+        }
+
         return try {
             val response = withContext(Dispatchers.IO) {
                 hospitalizationRepository.getHospitalizations(
@@ -92,6 +100,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun activeStatusIds(): List<Int> {
         return listOf(
+            HospitalizationStatus.CONSULTATION.id,
             HospitalizationStatus.CREW_EN_ROUTE.id,
             HospitalizationStatus.CREW_ON_SITE.id
         )
@@ -175,7 +184,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
 
                 val content = response.content
-                // Фильтрация по PATIENT_CONDITION делается через filters.hasPatientCondition
+                // Фильтрация по запросу консультации делается через filters.hasConsultationRequest
                 val hospitalizations = content?.hospitalizations.orEmpty()
                 // Кэшируем загруженные госпитализации для realtime-сценария: активный вызов уже есть
                 // в списке, а сообщение с данными пациента приходит позже и должно поднять его в решения.
@@ -185,7 +194,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     message = "loaded hospitalizations tab=$currentTabFilter page=$page count=${hospitalizations.size} total=${content?.count ?: "unknown"}"
                 )
 
-                if (currentTabFilter == TabFilter.REQUIRES_DECISION) {
+                if (
+                    currentTabFilter == TabFilter.REQUIRES_DECISION &&
+                    !isPatientConditionDecisionMode()
+                ) {
                     CallsManager.syncDecisionCallsFromServer(hospitalizations)
                 }
 
@@ -288,10 +300,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val tabFilters = when (tab) {
             TabFilter.REQUIRES_DECISION ->
                 GetHospitalizationsFiltersRequestDto(
-                    statuses = activeStatusIds(),
+                    statuses =
+                        if (isPatientConditionDecisionMode()) {
+                            activeStatusIds()
+                        } else {
+                            listOf(HospitalizationStatus.CONSULTATION.id)
+                        },
                     decisions = listOf(HospitalizationDecision.NONE.id),
-                    // В режиме PATIENT_CONDITION сервер сам отдаёт только вызовы с данными пациента.
-                    hasPatientCondition = if (isPatientConditionDecisionMode()) true else null
+                    hasConsultationRequest = true
                 )
 
             TabFilter.ACTIVE ->
@@ -389,11 +405,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val details = call.details
         return when (currentTabFilter) {
             TabFilter.REQUIRES_DECISION -> {
-                val activeWithoutDecision =
-                    call.decisionId == HospitalizationDecision.NONE.id &&
-                        details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true } != false
+                val status = HospitalizationStatus.fromId(details?.statusId)
+                val statusEligible =
+                    if (isPatientConditionDecisionMode()) {
+                        status?.isActive == true
+                    } else {
+                        status?.allowsDecision == true
+                    }
+                val withoutDecision = call.decisionId == HospitalizationDecision.NONE.id
 
-                activeWithoutDecision &&
+                withoutDecision &&
+                    statusEligible &&
                     (!isPatientConditionDecisionMode() ||
                         CallsManager.calls.value.any { it.id == call.id })
             }
@@ -449,7 +471,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ): Boolean {
         if (filters.dateFromMillis != null || filters.dateToMillis != null) {
             val hospitalizationMillis = DateFormatter.parseCallTimeMillis(
-                call.details?.call?.hospitalizationTime ?: call.callTime
+                call.details?.consultationRequestTime
+                    ?: call.details?.call?.hospitalizationTime
+                    ?: call.callTime
             ) ?: return false
             if (filters.dateFromMillis != null && hospitalizationMillis < filters.dateFromMillis) return false
             if (filters.dateToMillis != null && hospitalizationMillis > filters.dateToMillis) return false
@@ -560,9 +584,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             yearNumber = responseCall.yearNumber,
             status = statusName,
             callTime = responseCall.callTime,
-            creationTime = creationTime,
+            creationTime = consultationRequestTime ?: creationTime,
+            consultationRequestTime = consultationRequestTime,
+            consultationNotificationTime = consultationNotificationTime,
+            hospitalizationNotificationTime = hospitalizationNotificationTime,
+            consultationDiagnosis = consultationDiagnosis,
             urgency = responseCall.urgency,
-            isNotificationSent = isNotificationSent,
+            isNotificationSent = consultationNotificationTime != null,
             isArchived = HospitalizationStatus.fromId(statusId)?.isArchive == true,
             decisionId = decisionId,
             decisionName = decisionName,
@@ -579,7 +607,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         // Первичный расчет нужен только для серверных уведомлений с известным notificationTime.
         // Если времени уведомления нет, CallsManager создаст локальный якорь при получении вызова.
-        val startedAtMillis = DateFormatter.parseCallTimeMillis(hospitalization.notificationTime)
+        val startedAtMillis = DateFormatter.parseCallTimeMillis(
+            hospitalization.consultationNotificationTime
+                ?: hospitalization.consultationRequestTime
+        )
             ?: return null
 
         val deadlineMillis = startedAtMillis + ConfigManager.maxCallDurationMs

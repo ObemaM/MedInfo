@@ -24,12 +24,12 @@ object PatientConditionFields {
         if (condition == null) return false
 
         val entries: List<Pair<String, String?>> = listOf(
-            "Сознание (ШКГ)" to condition.consciousness,
+            "Время от начала заболевания" to condition.startDisease?.let { "$it ч" },
             "LAMS" to condition.lams?.toString(),
+            "Сознание (ШКГ)" to condition.consciousness,
             "АД" to condition.bloodPressure,
             "ЧД" to condition.respirationRate?.toString(),
             "ЧСС" to condition.heartRate?.toString(),
-            "Время от начала заболевания" to condition.startDisease?.let { "$it ч" },
             // Температура и глюкометрия: 0 — это "не измерено", такие значения скрываем.
             "Температура" to condition.temperature?.takeIf { it != 0.0 }?.let { formatNumber(it) },
             "Глюкометрия" to condition.glucometry?.takeIf { it != 0.0 }?.let { formatNumber(it) },

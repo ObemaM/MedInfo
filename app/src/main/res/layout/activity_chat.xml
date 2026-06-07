@@ -11,9 +11,9 @@
         android:id="@+id/header_card"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginStart="16dp"
+        android:layout_marginStart="24dp"
         android:layout_marginTop="8dp"
-        android:layout_marginEnd="16dp"
+        android:layout_marginEnd="24dp"
         app:cardBackgroundColor="@color/background_2"
         app:cardCornerRadius="24dp"
         app:cardElevation="0dp"
@@ -46,14 +46,14 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:layout_marginEnd="63dp"
+                android:layout_marginEnd="8dp"
                 android:gravity="center"
                 android:text="Чат"
                 android:textColor="@color/gray_1"
                 android:textSize="20sp"
                 android:textStyle="bold"
                 app:layout_constraintBottom_toBottomOf="parent"
-                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/call_button"
                 app:layout_constraintStart_toEndOf="@+id/close_button"
                 app:layout_constraintTop_toTopOf="parent" />
 
@@ -68,27 +68,33 @@
                 android:src="@drawable/ic_call_24"
                 app:layout_constraintBottom_toBottomOf="parent"
                 app:layout_constraintEnd_toEndOf="parent"
-                app:layout_constraintHorizontal_bias="1.0"
-                app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintTop_toTopOf="parent"
-                app:layout_constraintVertical_bias="0.0"
                 app:tint="@color/gray_1" />
 
         </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>
 
+    <View
+        android:id="@+id/top_divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="10dp"
+        android:background="@color/border_gray_1"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/header_card" />
+
     <androidx.core.widget.NestedScrollView
         android:id="@+id/messages_scroll"
         android:layout_width="0dp"
         android:layout_height="0dp"
-        android:layout_marginTop="10dp"
         android:fillViewport="true"
         android:overScrollMode="never"
         app:layout_constraintBottom_toTopOf="@+id/input_container"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/header_card">
+        app:layout_constraintTop_toBottomOf="@+id/top_divider">
 
         <LinearLayout
             android:id="@+id/messages_container"
@@ -124,7 +130,7 @@
         app:cardBackgroundColor="@color/background_2"
         app:cardCornerRadius="16dp"
         app:cardElevation="0dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/bottom_divider"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:strokeColor="@color/border_gray_1"
@@ -137,7 +143,6 @@
             android:orientation="horizontal"
             android:padding="8dp">
 
-            <!-- DEBUG: имитирует входящее текстовое сообщение от бригады. -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/debug_simulate_button"
                 style="@style/Widget.Material3.Button.OutlinedButton"
@@ -152,7 +157,6 @@
                 app:strokeColor="@color/red_1"
                 tools:ignore="HardcodedText" />
 
-            <!-- DEBUG: PATIENT_CONDITION с phoneNumber — обновляет карточку состояния на экране принятия решения. -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/debug_simulate_condition_button"
                 style="@style/Widget.Material3.Button.OutlinedButton"
@@ -203,6 +207,73 @@
                 app:iconTint="@color/white_1" />
 
         </LinearLayout>
+
+    </com.google.android.material.card.MaterialCardView>
+
+    <View
+        android:id="@+id/bottom_divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginBottom="10dp"
+        android:background="@color/border_gray_1"
+        app:layout_constraintBottom_toTopOf="@+id/actions_container"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/actions_container"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="24dp"
+        android:layout_marginEnd="24dp"
+        android:layout_marginBottom="10dp"
+        app:cardBackgroundColor="@color/background_2"
+        app:cardCornerRadius="24dp"
+        app:cardElevation="2dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:strokeColor="@color/border_gray_1"
+        app:strokeWidth="1dp">
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_reject"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="10dp"
+                android:minHeight="50dp"
+                android:text="ОТКАЗАТЬ"
+                android:textColor="@color/black_1"
+                android:textSize="14sp"
+                app:cornerRadius="12dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@+id/button_confirm"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent"
+                app:strokeColor="@color/border_gray_2" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/button_confirm"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:minHeight="50dp"
+                android:text="ПРИНЯТЬ"
+                android:textColor="@color/white_1"
+                android:textSize="14sp"
+                app:cornerRadius="12dp"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintStart_toEndOf="@+id/button_reject"
+                app:layout_constraintTop_toTopOf="parent" />
+
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
     </com.google.android.material.card.MaterialCardView>
 

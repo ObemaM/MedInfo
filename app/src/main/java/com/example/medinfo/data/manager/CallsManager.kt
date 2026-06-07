@@ -246,7 +246,9 @@ object CallsManager {
 
     private fun calculateTimerStartWall(call: HospitalizationResponseDto): Long {
         val nowWall = System.currentTimeMillis()
-        val serverStartWall = DateFormatter.parseCallTimeMillis(call.notificationTime)
+        val serverStartWall = DateFormatter.parseCallTimeMillis(
+            call.consultationNotificationTime ?: call.consultationRequestTime
+        )
             ?.coerceAtMost(nowWall)
         val savedStartWall = getKnownTimerStartWall(call.id)
             ?.coerceAtMost(nowWall)

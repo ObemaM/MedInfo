@@ -2,6 +2,7 @@ package com.example.medinfo.data.repository
 
 import com.example.medinfo.data.network.ApiService
 import com.example.medinfo.model.ApiResponse
+import com.example.medinfo.model.api.CallResponseDto
 import com.example.medinfo.model.api.ConfirmReceptionRequestDto
 import com.example.medinfo.model.api.GetHospitalizationsFiltersRequestDto
 import com.example.medinfo.model.api.GetHospitalizationsRequestDto
@@ -43,6 +44,12 @@ class HospitalizationRepository(private val apiServiceService: ApiService) {
 
         return handleApiResponse(
             response = apiServiceService.getMessages(request)
+        )
+    }
+
+    suspend fun getInServiceCalls(): ApiResponse<List<CallResponseDto>> {
+        return handleApiResponse(
+            response = apiServiceService.getInServiceCalls()
         )
     }
 

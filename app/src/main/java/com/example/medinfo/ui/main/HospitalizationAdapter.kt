@@ -149,7 +149,9 @@ class HospitalizationAdapter(
         val details = call.details ?: return call.decisionRemainingMillis
         // В списке используем тот же источник, что и CallsManager: только время уведомления.
         // callTime описывает сам вызов и не должен уменьшать таймер нового решения.
-        val startedAtMillis = DateFormatter.parseCallTimeMillis(details.notificationTime)
+        val startedAtMillis = DateFormatter.parseCallTimeMillis(
+            details.consultationNotificationTime ?: details.consultationRequestTime
+        )
             ?: return call.decisionRemainingMillis
 
         return (startedAtMillis + ConfigManager.maxCallDurationMs - System.currentTimeMillis())

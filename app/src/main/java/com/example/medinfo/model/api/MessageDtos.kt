@@ -19,8 +19,8 @@ data class MessageResponseDto(
     val origin: Int,
     val userId: String?,
     val type: Int,
-    val isNotificationSent: Boolean,
     val receptionTime: String,
+    val notificationTime: String?,
     val patientCondition: PatientConditionResponseDto?,
     val text: String?,
     val phoneNumber: String?

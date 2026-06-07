@@ -20,14 +20,16 @@ object TestCallFactory {
 
         return HospitalizationResponseDto(
             id = hospitalizationId,
-            isNotificationSent = true,
             decisionId = HospitalizationDecision.NONE.id,
             decisionName = "Нет решения",
-            statusId = HospitalizationStatus.CREW_EN_ROUTE.id,
-            statusName = "Бригада в пути",
+            statusId = HospitalizationStatus.CONSULTATION.id,
+            statusName = "Консультация",
             creationTime = now,
-            notificationTime = now,
             decisionTime = null,
+            consultationRequestTime = now,
+            consultationNotificationTime = now,
+            hospitalizationNotificationTime = null,
+            consultationDiagnosis = "Боль в груди",
             call = CallResponseDto(
                 id = callId,
                 brigadeSmpCode = 10,

@@ -174,7 +174,7 @@ class SignalRService : Service() {
         HospitalizationEventBus.emit(items.toList())
 
         val idsToConfirm = items
-            .filter { !it.isNotificationSent }
+            .filter { it.consultationNotificationTime == null }
             .map { it.id }
 
         if (idsToConfirm.isNotEmpty()) {
@@ -249,7 +249,10 @@ class SignalRService : Service() {
             }
 
         val idsToConfirm = items
-            .filter { !it.isNotificationSent && MessageOrigin.fromId(it.origin) == MessageOrigin.TABLET }
+            .filter {
+                it.notificationTime == null &&
+                    MessageOrigin.fromId(it.origin) == MessageOrigin.TABLET
+            }
             .map { it.id }
 
         if (idsToConfirm.isNotEmpty()) {
@@ -599,7 +602,14 @@ class SignalRService : Service() {
 
     // Во входящий экран попадают только активные госпитализации без решения.
     private fun HospitalizationResponseDto.requiresIncomingDecision(): Boolean {
-        return decisionId == HospitalizationDecision.NONE.id &&
-            HospitalizationStatus.fromId(statusId)?.isActive == true
+        val status = HospitalizationStatus.fromId(statusId)
+        val statusEligible =
+            if (ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION) {
+                status?.isActive == true
+            } else {
+                status?.allowsDecision == true
+            }
+
+        return decisionId == HospitalizationDecision.NONE.id && statusEligible
     }
 }

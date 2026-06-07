@@ -3,48 +3,52 @@ package com.example.medinfo.model
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import java.io.Serializable
 
-// Полная модель данных, представляющая один вызов (госпитализацию),
+// Полная модель данных, представляющая один вызов (госпитализацию) в UI.
 data class Hospitalization(
     // Идентификатор
     val id: String,
 
     // Данные пациента и причина
-    val patientFullName: String?, // ФИО пациента (как строка)
+    val patientFullName: String?,
     val patientName: String?,
     val patientSurname: String?,
     val patientPatronymic: String?,
-
     val age: String?,
     val sex: String?,
-    val reason: String?, // Причина вызова
-    val additionalInfo: String?, // Дополнительная информация
+    val reason: String?,
+    val additionalInfo: String?,
 
     // Адрес и локация
-    val district: String?, // Район
-    val point: String?, // Населенный пункт
-    val street: String?, // Улица
-    val house: String?, // Дом
-    val apartment: String?, // Квартира
-    val entrance: Int?, // Подъезд
-    val comment: String?, // Комментарий к адресу
+    val district: String?,
+    val point: String?,
+    val street: String?,
+    val house: String?,
+    val apartment: String?,
+    val entrance: Int?,
+    val comment: String?,
 
     // Геоданные
-    val longitude: Double?, // Долгота
-    val latitude: Double?, // Широта
+    val longitude: Double?,
+    val latitude: Double?,
 
     // Данные вызова/бригады
-    val brigadeNumber: Int?, // Номер бригады
-    val brigadeProfile: String?, // Профиль бригады
-    val seniorFullName: String?, // ФИО старшего
+    val brigadeNumber: Int?,
+    val brigadeProfile: String?,
+    val seniorFullName: String?,
+    val dayNumber: Int?,
+    val yearNumber: Int?,
+    var status: String?,
+    val callTime: String?,
+    val creationTime: String?,
 
-    val dayNumber: Int?, // День (для номера вызова)
-    val yearNumber: Int?, // Год (для номера вызова)
-    var status: String?, // Текущий статус ("транспортировка", "Активен" и т.д.)
-    val callTime: String?, // Время вызова
-    val creationTime: String?, // Время создания госпитализации
-    val urgency: Int?, // Срочность
+    // Новые поля v1.1.6 по консультации и уведомлениям
+    val consultationRequestTime: String? = null,
+    val consultationNotificationTime: String? = null,
+    val hospitalizationNotificationTime: String? = null,
+    val consultationDiagnosis: String? = null,
+    val urgency: Int?,
 
-    // Локальные поля (не из ApiService, для нужд UI/логики)
+    // Локальные поля для UI/логики, не отдельные поля старого ApiService
     var isNotificationSent: Boolean = true,
     var isArchived: Boolean = false,
     val decisionId: Int? = null,

@@ -21,16 +21,20 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.medinfo.R
 import com.example.medinfo.config.ConfigManager
+import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.databinding.ActivityChatBinding
+import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.model.api.PatientConditionResponseDto
 import com.example.medinfo.notifications.ChatMessageNotifier
 import com.example.medinfo.notifications.TestMessageSimulator
+import com.example.medinfo.ui.incoming.ConfirmAcceptDialogFragment
+import com.example.medinfo.ui.incoming.ConfirmRejectDialogFragment
 import com.example.medinfo.util.DateFormatter
 import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.Dispatchers
@@ -83,7 +87,11 @@ class ChatActivity : AppCompatActivity() {
         binding.closeButton.setOnClickListener { finish() }
         binding.callButton.setOnClickListener { callToTablet() }
         binding.inputContainer.visibility = if (readOnly) View.GONE else View.VISIBLE
+        binding.bottomDivider.visibility = if (readOnly) View.GONE else View.VISIBLE
+        binding.actionsContainer.visibility = if (readOnly) View.GONE else View.VISIBLE
         binding.sendButton.setOnClickListener { sendMessage() }
+        binding.buttonConfirm.setOnClickListener { showConfirmAcceptDialog() }
+        binding.buttonReject.setOnClickListener { showConfirmRejectDialog() }
 
         // T — текстовое сообщение, PC — PATIENT_CONDITION с phoneNumber. Видны только в test-режиме.
         val debugVisibility = if (ConfigManager.testCallEnabled) View.VISIBLE else View.GONE
@@ -231,6 +239,42 @@ class ChatActivity : AppCompatActivity() {
                 ).show()
             } finally {
                 binding.sendButton.isEnabled = true
+            }
+        }
+    }
+
+    private fun handleDecision(accepted: Boolean) {
+        if (readOnly) return
+
+        val decisionId = if (accepted) {
+            HospitalizationDecision.ACCEPTED.id
+        } else {
+            HospitalizationDecision.REJECTED.id
+        }
+
+        binding.buttonConfirm.isEnabled = false
+        binding.buttonReject.isEnabled = false
+
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    hospitalizationRepository.saveDecision(
+                        hospitalizationId = hospitalizationId,
+                        decisionId = decisionId
+                    )
+                }
+
+                Toast.makeText(this@ChatActivity, "Отправлено", Toast.LENGTH_SHORT).show()
+                CallsManager.removeCall(hospitalizationId)
+                finish()
+            } catch (e: Exception) {
+                Toast.makeText(
+                    this@ChatActivity,
+                    e.message ?: "Ошибка сервера",
+                    Toast.LENGTH_SHORT
+                ).show()
+                binding.buttonConfirm.isEnabled = true
+                binding.buttonReject.isEnabled = true
             }
         }
     }
@@ -439,6 +483,7 @@ class ChatActivity : AppCompatActivity() {
 
         return when (MessageType.fromId(message.type)) {
             MessageType.PATIENT_CONDITION -> buildPatientConditionText(message.patientCondition)
+            MessageType.CONSULTATION_REQUEST -> "Запрос консультации"
             MessageType.TEXT -> "Сообщение без текста"
             null -> "Сообщение без текста"
         }
@@ -452,6 +497,18 @@ class ChatActivity : AppCompatActivity() {
         } else {
             "Получены данные о состоянии пациента"
         }
+    }
+
+    private fun showConfirmAcceptDialog() {
+        ConfirmAcceptDialogFragment { confirmed ->
+            if (confirmed) handleDecision(true)
+        }.show(supportFragmentManager, "ConfirmAcceptDialog")
+    }
+
+    private fun showConfirmRejectDialog() {
+        ConfirmRejectDialogFragment { confirmed ->
+            if (confirmed) handleDecision(false)
+        }.show(supportFragmentManager, "ConfirmRejectDialog")
     }
 
     private fun Int.dp(): Int = (this * resources.displayMetrics.density).toInt()

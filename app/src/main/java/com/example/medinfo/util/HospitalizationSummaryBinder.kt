@@ -25,10 +25,10 @@ object HospitalizationSummaryBinder {
         binding.patientDetailsText.text = buildPatientLine(call)
         bindOptionalField(binding.birthDayLabel, binding.birthDayText, call.birthDay)
         binding.callReasonText.text = call.reason ?: "Не указана"
-        bindOptionalField(binding.diagnosisLabel, binding.diagnosisText, call.mainDiagnosis)
+        bindOptionalField(binding.diagnosisLabel, binding.diagnosisText, hospitalization.consultationDiagnosis)
         binding.callAddressText.text = buildAddress(call).ifBlank { "Адрес не указан" }
         // В карточке врачу нужна дата начала госпитализации; callTime оставляем только как запасной источник.
-        val cardDate = call.hospitalizationTime ?: call.callTime
+        val cardDate = hospitalization.consultationRequestTime ?: call.hospitalizationTime ?: call.callTime
         binding.timeData.text = "Дата: ${DateFormatter.formatDateTime(cardDate)}"
         binding.decisionTimerText.visibility = View.GONE
     }

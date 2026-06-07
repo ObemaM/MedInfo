@@ -227,8 +227,9 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
         addDataField(container, "Статус госпитализации", hospitalization.statusName)
         addDataField(container, "Решение", hospitalization.decisionName)
         addDataField(container, "Время создания госпитализации", formatDateTime(hospitalization.creationTime))
-        addDataField(container, "Уведомление отправлено", formatBoolean(hospitalization.isNotificationSent))
-        addDataField(container, "Время подтверждения уведомления", formatDateTime(hospitalization.notificationTime))
+        addDataField(container, "Время запроса консультации", formatDateTime(hospitalization.consultationRequestTime))
+        addDataField(container, "Подтверждение уведомления о консультации", formatDateTime(hospitalization.consultationNotificationTime))
+        addDataField(container, "Подтверждение уведомления о госпитализации", formatDateTime(hospitalization.hospitalizationNotificationTime))
         addDataField(container, "Время принятия решения", formatDateTime(hospitalization.decisionTime))
 
         addSection(container, "Вызов")
@@ -257,7 +258,7 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
 
         addSection(container, "Диагноз")
         addDataField(container, "Код МКБ", call.mkbCode)
-        addDataField(container, "Основной диагноз", call.mainDiagnosis)
+        addDataField(container, "Основной диагноз", hospitalization.consultationDiagnosis)
         addDataField(container, "Осложнение", call.secondDiagnosis)
         addDataField(container, "Комментарий к диагнозу", call.diagnosisComment)
         addDataField(container, "Вид травмы", call.diseaseType)
