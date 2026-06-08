@@ -45,6 +45,8 @@ object ChatMessageNotifier {
     private fun shouldShow(context: Context, message: MessageResponseDto): Boolean {
         // Не от планшета (бригады) — это либо своё отправленное сообщение, либо системное.
         if (MessageOrigin.fromId(message.origin) != MessageOrigin.TABLET) return false
+        // TODO: Удалить уведомление о PATIENT_CONDITION полностью, когда подтвердим новый сценарий без него.
+        if (MessageType.fromId(message.type) == MessageType.PATIENT_CONDITION) return false
         // Этот чат уже открыт пользователем — он и так видит сообщение, шторку не трогаем.
         if (isChatScreenOpenFor(message.hospitalizationId)) return false
         // Пользователь не дал разрешение POST_NOTIFICATIONS — система всё равно проигнорирует.
