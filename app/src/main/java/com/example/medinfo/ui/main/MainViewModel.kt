@@ -110,7 +110,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION
     }
 
-
     // Отслеживание поисковой строки
     private var currentSearchQuery = ""
 
@@ -312,7 +311,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
             TabFilter.ACTIVE ->
                 GetHospitalizationsFiltersRequestDto(
-                    statuses = activeStatusIds()
+                    statuses = activeStatusIds(),
+                    hasConsultationRequest = true
                 )
 
             TabFilter.ARCHIVE ->
@@ -420,9 +420,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         CallsManager.calls.value.any { it.id == call.id })
             }
 
-            TabFilter.ACTIVE ->
-                details?.let { HospitalizationStatus.fromId(it.statusId)?.isActive == true }
-                    ?: !call.isArchived
+            TabFilter.ACTIVE -> {
+                val status = details?.let { HospitalizationStatus.fromId(it.statusId) }
+                status?.isActive == true &&
+                        (details.consultationRequestTime != null || details.consultationDiagnosis != null)
+            }
 
             TabFilter.ARCHIVE ->
                 details?.let { HospitalizationStatus.fromId(it.statusId)?.isArchive == true }

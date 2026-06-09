@@ -56,6 +56,8 @@ class ChatActivity : AppCompatActivity() {
 
     private var readOnly: Boolean = false
 
+    private var currentDecision: Int = HospitalizationDecision.NONE.id
+
     // ID уже отрисованных сообщений — для дедупа: если SignalR пушит сообщение,
     // которое уже пришло через loadMessages (или прилетело дважды), игнорируем.
     private val shownMessageIds = mutableSetOf<String>()
