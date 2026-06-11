@@ -12,6 +12,7 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import com.example.medinfo.data.manager.ChatUnreadManager
 import com.example.medinfo.R
 import com.example.medinfo.config.ConfigManager
 import com.example.medinfo.data.manager.CallsManager
@@ -22,6 +23,7 @@ import com.example.medinfo.data.manager.SignalRConnectionStatus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.notifications.ChatMessageNotifier
+import com.example.medinfo.ui.chat.ChatActivity
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
@@ -223,6 +225,16 @@ class SignalRService : Service() {
     private fun handleMessageNotifications(items: Array<out MessageResponseDto>) {
         CallLog.event("SignalR", "MessageNotification count=${items.size}")
 
+        // Rabbit-сообщения от бригады приходят сюда через SignalR. Логируем каждое
+        // короткой технической строкой, чтобы на тестах видеть messageType=2/3 и не
+        // вытаскивать в logcat персональные данные пациента.
+        items.forEach { message ->
+            CallLog.rabbitMessage("SignalR", message, "received from MessageNotification")
+            if (shouldMarkChatUnread(message)) {
+                ChatUnreadManager.markUnread(message)
+            }
+        }
+
         // Realtime: пробрасываем все сообщения в шину — открытый ChatActivity
         // подпишется и отрисует сообщение, если оно для его hospitalizationId.
         items.forEach { MessagesEventBus.emit(it) }
@@ -343,6 +355,18 @@ class SignalRService : Service() {
         } else {
             "Сообщение по вызову"
         }
+    }
+
+    private fun shouldMarkChatUnread(message: MessageResponseDto): Boolean {
+        return MessageOrigin.fromId(message.origin) == MessageOrigin.TABLET &&
+            !isChatScreenOpenFor(message.hospitalizationId)
+    }
+
+    private fun isChatScreenOpenFor(hospitalizationId: String): Boolean {
+        if (!AppVisibilityTracker.isAppInForeground) return false
+
+        val currentScreen = AppVisibilityTracker.currentActivity()
+        return currentScreen is ChatActivity && currentScreen.chatId == hospitalizationId
     }
 
     private fun registerNetworkCallback() {
@@ -494,6 +518,7 @@ class SignalRService : Service() {
         // (stopSelf=false) сервис может перезапуститься, и терять вызовы не нужно.
         if (stopSelf) {
             CallsManager.clearAll()
+            ChatUnreadManager.clearAll()
             synchronized(decisionStateLock) {
                 pendingDecisionCalls.clear()
                 patientConditionReadyIds.clear()

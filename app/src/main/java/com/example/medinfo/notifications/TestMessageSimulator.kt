@@ -1,12 +1,15 @@
 package com.example.medinfo.notifications
 
 import android.content.Context
+import com.example.medinfo.data.manager.ChatUnreadManager
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.model.api.PatientConditionResponseDto
+import com.example.medinfo.ui.chat.ChatActivity
+import com.example.medinfo.util.AppVisibilityTracker
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -34,6 +37,9 @@ object TestMessageSimulator {
         )
 
         // Шина — для открытого чата; notifier — для закрытого (он сам решит, показать или нет).
+        if (shouldMarkUnread(message)) {
+            ChatUnreadManager.markUnread(message)
+        }
         MessagesEventBus.emit(message)
         val title = buildChatTitle(hospitalizationId)
         ChatMessageNotifier.notifyIfNeeded(context, message, title)
@@ -58,10 +64,25 @@ object TestMessageSimulator {
             phoneNumber = phoneNumber
         )
 
+        if (shouldMarkUnread(message)) {
+            ChatUnreadManager.markUnread(message)
+        }
         MessagesEventBus.emit(message)
 
         val title = buildChatTitle(hospitalizationId)
         ChatMessageNotifier.notifyIfNeeded(context, message, title)
+    }
+
+    private fun shouldMarkUnread(message: MessageResponseDto): Boolean {
+        return MessageOrigin.fromId(message.origin) == MessageOrigin.TABLET &&
+            !isChatScreenOpenFor(message.hospitalizationId)
+    }
+
+    private fun isChatScreenOpenFor(hospitalizationId: String): Boolean {
+        if (!AppVisibilityTracker.isAppInForeground) return false
+
+        val currentScreen = AppVisibilityTracker.currentActivity()
+        return currentScreen is ChatActivity && currentScreen.chatId == hospitalizationId
     }
 
     // Правдоподобные витальные, чтобы поля не пропускались из-за null.

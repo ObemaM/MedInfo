@@ -48,6 +48,25 @@ object CallLog {
         )
     }
 
+    fun rabbitMessage(source: String, message: MessageResponseDto, note: String? = null) {
+        Log.i(
+            TAG,
+            buildString {
+                append("[$source] rabbit-message")
+                append(" id=${message.id}")
+                append(" hospitalizationId=${message.hospitalizationId}")
+                append(" origin=${message.origin}")
+                append(" type=${message.type}")
+                append(" notificationTime=${message.notificationTime ?: "-"}")
+                append(" receptionTime=${message.receptionTime}")
+                append(" hasPatientCondition=${message.patientCondition != null}")
+                append(" hasPhone=${!message.phoneNumber.isNullOrBlank()}")
+                append(" hasText=${!message.text.isNullOrBlank()}")
+                note?.let { append(" note=$it") }
+            }
+        )
+    }
+
     private fun buildHospitalizationMessage(
         call: HospitalizationResponseDto,
         message: String?

@@ -305,6 +305,8 @@ class HospitalizationDetailsActivity : AppCompatActivity() {
                 "Вызов №${hospitalization.call.dayNumber}/${hospitalization.call.yearNumber}"
             )
             putExtra(ChatActivity.EXTRA_READ_ONLY, isArchive)
+            putExtra(ChatActivity.EXTRA_DECISION_ID, hospitalization.decisionId)
+            putExtra(ChatActivity.EXTRA_STATUS_ID, hospitalization.statusId)
         }
         startActivity(intent)
     }

@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.medinfo.R
+import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
@@ -26,6 +27,9 @@ object ChatMessageNotifier {
 
     // База + хэш hospitalizationId — у каждого чата своё уведомление, не затирают друг друга.
     private const val NOTIFICATION_ID_BASE = 2000
+    private const val MAX_NOTIFIED_MESSAGE_IDS = 100
+
+    private val notifiedMessageIds = linkedSetOf<String>()
 
     // Lint не видит permission check в shouldShow → hasPostNotificationsPermission.
     @SuppressLint("MissingPermission")
@@ -37,6 +41,8 @@ object ChatMessageNotifier {
         if (!shouldShow(context, message))
             return
 
+        if (!rememberNotification(message.id)) return
+
         val notification = buildNotification(context, message, chatTitle)
         val notificationId = notificationIdFor(message.hospitalizationId)
         NotificationManagerCompat.from(context).notify(notificationId, notification)
@@ -45,12 +51,22 @@ object ChatMessageNotifier {
     private fun shouldShow(context: Context, message: MessageResponseDto): Boolean {
         // Не от планшета (бригады) — это либо своё отправленное сообщение, либо системное.
         if (MessageOrigin.fromId(message.origin) != MessageOrigin.TABLET) return false
-        // TODO: Удалить уведомление о PATIENT_CONDITION полностью, когда подтвердим новый сценарий без него.
-        if (MessageType.fromId(message.type) == MessageType.PATIENT_CONDITION) return false
         // Этот чат уже открыт пользователем — он и так видит сообщение, шторку не трогаем.
         if (isChatScreenOpenFor(message.hospitalizationId)) return false
         // Пользователь не дал разрешение POST_NOTIFICATIONS — система всё равно проигнорирует.
         if (!hasPostNotificationsPermission(context)) return false
+        return true
+    }
+
+    @Synchronized
+    private fun rememberNotification(messageId: String): Boolean {
+        if (!notifiedMessageIds.add(messageId)) return false
+
+        while (notifiedMessageIds.size > MAX_NOTIFIED_MESSAGE_IDS) {
+            val oldest = notifiedMessageIds.firstOrNull() ?: break
+            notifiedMessageIds.remove(oldest)
+        }
+
         return true
     }
 
@@ -78,7 +94,8 @@ object ChatMessageNotifier {
     // Превью текста сообщения в уведомлении
     private fun previewFor(message: MessageResponseDto): String {
         return when (MessageType.fromId(message.type)) {
-            MessageType.PATIENT_CONDITION -> "Получены данные о состоянии пациента"
+            MessageType.PATIENT_CONDITION -> "Получены новые данные о состоянии пациента"
+            MessageType.CONSULTATION_REQUEST -> "Запрошена консультация"
             MessageType.TEXT -> message.text?.takeIf {it.isNotBlank()} ?: "Новое сообщение"
             else -> message.text?.takeIf { it.isNotBlank() } ?: "Новое сообщение"
         }
@@ -90,10 +107,17 @@ object ChatMessageNotifier {
         hospitalizationId: String,
         chatTitle: String
     ): PendingIntent {
+        val knownHospitalization = CallsManager.calls.value.firstOrNull {
+            it.id == hospitalizationId
+        }
         val chatIntent = Intent(context, ChatActivity::class.java).apply {
             putExtra(ChatActivity.EXTRA_HOSPITALIZATION_ID, hospitalizationId)
             putExtra(ChatActivity.EXTRA_CHAT_TITLE, chatTitle)
             putExtra(ChatActivity.EXTRA_READ_ONLY, false)
+            knownHospitalization?.let {
+                putExtra(ChatActivity.EXTRA_DECISION_ID, it.decisionId)
+                putExtra(ChatActivity.EXTRA_STATUS_ID, it.statusId)
+            }
         }
 
         // Уникальный requestCode на чат — иначе PendingIntent будет один на всех.

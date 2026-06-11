@@ -21,12 +21,15 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.example.medinfo.R
 import com.example.medinfo.config.ConfigManager
+import com.example.medinfo.data.manager.ChatUnreadManager
 import com.example.medinfo.data.manager.CallsManager
+import com.example.medinfo.data.manager.HospitalizationEventBus
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.data.network.RetrofitClient
 import com.example.medinfo.data.repository.HospitalizationRepository
 import com.example.medinfo.databinding.ActivityChatBinding
 import com.example.medinfo.model.api.HospitalizationDecision
+import com.example.medinfo.model.api.HospitalizationStatus
 import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
@@ -57,6 +60,25 @@ class ChatActivity : AppCompatActivity() {
     private var readOnly: Boolean = false
 
     private var currentDecision: Int = HospitalizationDecision.NONE.id
+    private var currentStatusId: Int? = null
+
+    private val canSendMessages: Boolean
+        get() = !readOnly
+
+    private val canMakeDecision: Boolean
+        get() {
+            val status = HospitalizationStatus.fromId(currentStatusId)
+            val statusEligible =
+                if (ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION) {
+                    status?.isActive == true
+                } else {
+                    status?.allowsDecision == true
+                }
+
+            return canSendMessages &&
+                currentDecision == HospitalizationDecision.NONE.id &&
+                statusEligible
+        }
 
     // ID уже отрисованных сообщений — для дедупа: если SignalR пушит сообщение,
     // которое уже пришло через loadMessages (или прилетело дважды), игнорируем.
@@ -84,13 +106,12 @@ class ChatActivity : AppCompatActivity() {
 
         hospitalizationId = id
         readOnly = intent.getBooleanExtra(EXTRA_READ_ONLY, false)
+        initHospitalizationState(intent)
 
         binding.titleText.text = intent.getStringExtra(EXTRA_CHAT_TITLE)?.let { "Чат: $it" } ?: "Чат"
         binding.closeButton.setOnClickListener { finish() }
         binding.callButton.setOnClickListener { callToTablet() }
-        binding.inputContainer.visibility = if (readOnly) View.GONE else View.VISIBLE
-        binding.bottomDivider.visibility = if (readOnly) View.GONE else View.VISIBLE
-        binding.actionsContainer.visibility = if (readOnly) View.GONE else View.VISIBLE
+        applyInteractionState()
         binding.sendButton.setOnClickListener { sendMessage() }
         binding.buttonConfirm.setOnClickListener { showConfirmAcceptDialog() }
         binding.buttonReject.setOnClickListener { showConfirmRejectDialog() }
@@ -133,6 +154,7 @@ class ChatActivity : AppCompatActivity() {
                         if (message.hospitalizationId == hospitalizationId &&
                             message.id !in shownMessageIds
                         ) {
+                            ChatUnreadManager.markRead(hospitalizationId)
                             appendMessage(message)
                             maybeShowPatientConditionDialog(message)
 
@@ -145,6 +167,10 @@ class ChatActivity : AppCompatActivity() {
                 launch {
                     fetchAndRenderMessages()
                 }
+
+                launch {
+                    observeHospitalizationState()
+                }
             }
         }
     }
@@ -153,7 +179,44 @@ class ChatActivity : AppCompatActivity() {
         super.onResume()
 
         // Гасим висящее в шторке уведомление (через chatId — безопасно к неинициализированному lateinit).
-        chatId?.let { ChatMessageNotifier.cancelFor(this, it) }
+        chatId?.let {
+            ChatUnreadManager.markRead(it)
+            ChatMessageNotifier.cancelFor(this, it)
+        }
+    }
+
+    private fun initHospitalizationState(intent: Intent) {
+        val queuedHospitalization = CallsManager.calls.value.firstOrNull {
+            it.id == hospitalizationId
+        }
+
+        currentDecision = intent.getIntExtra(
+            EXTRA_DECISION_ID,
+            queuedHospitalization?.decisionId ?: HospitalizationDecision.NONE.id
+        )
+        currentStatusId = if (intent.hasExtra(EXTRA_STATUS_ID)) {
+            intent.getIntExtra(EXTRA_STATUS_ID, UNKNOWN_STATUS_ID)
+                .takeIf { it != UNKNOWN_STATUS_ID }
+        } else {
+            queuedHospitalization?.statusId
+        }
+    }
+
+    private suspend fun observeHospitalizationState() {
+        HospitalizationEventBus.updates.collect { updates ->
+            val updated = updates.lastOrNull { it.id == hospitalizationId } ?: return@collect
+            currentDecision = updated.decisionId
+            currentStatusId = updated.statusId
+            applyInteractionState()
+        }
+    }
+
+    private fun applyInteractionState() {
+        binding.inputContainer.visibility = if (canSendMessages) View.VISIBLE else View.GONE
+        binding.bottomDivider.visibility = if (canSendMessages) View.VISIBLE else View.GONE
+        binding.actionsContainer.visibility = if (canMakeDecision) View.VISIBLE else View.GONE
+        binding.buttonConfirm.isEnabled = canMakeDecision
+        binding.buttonReject.isEnabled = canMakeDecision
     }
 
     // PATIENT_CONDITION → диалог. Дедуп через shownConditionMessageIds; новый закрывает старый.
@@ -246,7 +309,7 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun handleDecision(accepted: Boolean) {
-        if (readOnly) return
+        if (!canMakeDecision) return
 
         val decisionId = if (accepted) {
             HospitalizationDecision.ACCEPTED.id
@@ -267,6 +330,8 @@ class ChatActivity : AppCompatActivity() {
                 }
 
                 Toast.makeText(this@ChatActivity, "Отправлено", Toast.LENGTH_SHORT).show()
+                currentDecision = decisionId
+                applyInteractionState()
                 CallsManager.removeCall(hospitalizationId)
                 finish()
             } catch (e: Exception) {
@@ -519,5 +584,8 @@ class ChatActivity : AppCompatActivity() {
         const val EXTRA_HOSPITALIZATION_ID = "EXTRA_HOSPITALIZATION_ID"
         const val EXTRA_CHAT_TITLE = "EXTRA_CHAT_TITLE"
         const val EXTRA_READ_ONLY = "EXTRA_READ_ONLY"
+        const val EXTRA_DECISION_ID = "EXTRA_DECISION_ID"
+        const val EXTRA_STATUS_ID = "EXTRA_STATUS_ID"
+        private const val UNKNOWN_STATUS_ID = -1
     }
 }

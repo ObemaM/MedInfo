@@ -5,6 +5,7 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.medinfo.config.ConfigManager
+import com.example.medinfo.data.manager.ChatUnreadManager
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.manager.HospitalizationEventBus
 import com.example.medinfo.data.network.RetrofitClient
@@ -279,6 +280,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val app = getApplication<Application>()
             IncomingCallRinger.stop()
             CallsManager.clearAll()
+            ChatUnreadManager.clearAll()
             TokenInterceptor.clearToken(app)
             val sharedPrefs = app.getSharedPreferences("app_session", Context.MODE_PRIVATE)
             sharedPrefs.edit().remove("isLoggedIn").remove("user_login").apply()

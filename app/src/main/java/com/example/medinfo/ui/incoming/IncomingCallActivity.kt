@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.R
 import com.example.medinfo.config.ConfigManager
+import com.example.medinfo.data.manager.ChatUnreadManager
 import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.manager.HospitalizationEventBus
 import com.example.medinfo.data.manager.MessagesEventBus
@@ -29,7 +30,6 @@ import com.example.medinfo.databinding.ActivityIncomingCallBinding
 import com.example.medinfo.model.api.HospitalizationDecision
 import com.example.medinfo.model.api.HospitalizationResponseDto
 import com.example.medinfo.model.api.HospitalizationStatus
-import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.model.api.PatientConditionResponseDto
@@ -65,7 +65,7 @@ class IncomingCallActivity : AppCompatActivity() {
     private var lastPatientCondition: PatientConditionResponseDto? = null
     // Последний номер телефона бригады из PATIENT_CONDITION-сообщений. Показывается в секции "Бригада".
     private var lastBrigadePhone: String? = null
-    private val unreadChatMessageIds = mutableSetOf<String>()
+    private var unreadChatMessageCount: Int = 0
     private var keepCurrentHospitalizationWhenMissingFromQueue: Boolean = false
     private var isCurrentTestCall: Boolean = false
 
@@ -89,6 +89,7 @@ class IncomingCallActivity : AppCompatActivity() {
         binding.closeButton.setOnClickListener { finish() }
         binding.chatButton.setOnClickListener { openChatScreen() }
         updateChatUnreadBadge()
+        observeChatUnreadBadge()
         binding.fullDetailsCard.setOnClickListener {
             setFullDetailsExpanded(!isFullDetailsExpanded)
         }
@@ -316,8 +317,7 @@ class IncomingCallActivity : AppCompatActivity() {
 
         if (isNewHospitalization) {
             // Данные карточки биндим хотя бы один раз; отдельно следим только за тем, чтобы не перезапускать таймер.
-            unreadChatMessageIds.clear()
-            updateChatUnreadBadge()
+            syncChatUnreadBadge(hospitalization.id)
             lastBrigadePhone = null
             bindSummary(hospitalization)
             bindDetails(hospitalization)
@@ -529,8 +529,6 @@ class IncomingCallActivity : AppCompatActivity() {
                     val expectedId = boundHospitalizationId ?: return@collect
                     if (message.hospitalizationId != expectedId) return@collect
 
-                    markChatMessageUnread(message)
-
                     // Телефон обновляется на любом сообщении: пустые значения игнорируются внутри.
                     applyBrigadePhone(message.phoneNumber)
 
@@ -542,25 +540,36 @@ class IncomingCallActivity : AppCompatActivity() {
         }
     }
 
-    private fun markChatMessageUnread(message: MessageResponseDto) {
-        if (MessageOrigin.fromId(message.origin) != MessageOrigin.TABLET) return
-        if (unreadChatMessageIds.add(message.id)) {
-            updateChatUnreadBadge()
+    private fun observeChatUnreadBadge() {
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                ChatUnreadManager.unreadCounts.collect { counts ->
+                    val hospitalizationId =
+                        boundHospitalizationId ?: currentHospitalization?.id ?: return@collect
+                    unreadChatMessageCount = counts[hospitalizationId] ?: 0
+                    updateChatUnreadBadge()
+                }
+            }
         }
     }
 
     private fun clearChatUnreadMessages() {
-        if (unreadChatMessageIds.isEmpty()) return
-        unreadChatMessageIds.clear()
+        val hospitalizationId = currentHospitalization?.id ?: boundHospitalizationId ?: return
+        ChatUnreadManager.markRead(hospitalizationId)
+        unreadChatMessageCount = 0
+        updateChatUnreadBadge()
+    }
+
+    private fun syncChatUnreadBadge(hospitalizationId: String) {
+        unreadChatMessageCount = ChatUnreadManager.unreadCount(hospitalizationId)
         updateChatUnreadBadge()
     }
 
     private fun updateChatUnreadBadge() {
-        val unreadCount = unreadChatMessageIds.size
         binding.chatUnreadBadge.visibility =
-            if (unreadCount > 0) android.view.View.VISIBLE else android.view.View.GONE
-        if (unreadCount > 0) {
-            binding.chatUnreadBadge.text = unreadCount.coerceAtMost(9).toString()
+            if (unreadChatMessageCount > 0) android.view.View.VISIBLE else android.view.View.GONE
+        if (unreadChatMessageCount > 0) {
+            binding.chatUnreadBadge.text = unreadChatMessageCount.coerceAtMost(9).toString()
         }
     }
 
@@ -655,6 +664,8 @@ class IncomingCallActivity : AppCompatActivity() {
                 "Вызов №${hospitalization.call.dayNumber}/${hospitalization.call.yearNumber}"
             )
             putExtra(ChatActivity.EXTRA_READ_ONLY, false)
+            putExtra(ChatActivity.EXTRA_DECISION_ID, hospitalization.decisionId)
+            putExtra(ChatActivity.EXTRA_STATUS_ID, hospitalization.statusId)
         }
         startActivity(intent)
     }
