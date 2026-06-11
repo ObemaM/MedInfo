@@ -250,13 +250,8 @@ class SignalRService : Service() {
             .filter { MessageOrigin.fromId(it.origin) == MessageOrigin.TABLET }
             // Сообщение от бригады считается моментом, когда врачу реально нужно начать принимать решение.
             .forEach { message ->
-                if (ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION) {
-                    if (message.isPatientConditionFromTablet()) {
-                        handlePatientConditionDecisionTrigger(message)
-                    }
-                } else {
-                    CallLog.message("SignalR", message, "tablet message starts/keeps decision timer")
-                    CallsManager.markDecisionTimerStarted(message.hospitalizationId)
+                if (message.isPatientConditionFromTablet()) {
+                    handlePatientConditionDecisionTrigger(message)
                 }
             }
 
@@ -285,11 +280,6 @@ class SignalRService : Service() {
 
     // Для правильного названия чата
     private fun handleIncomingDecisionCandidate(hospitalization: HospitalizationResponseDto) {
-        if (ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.HOSPITALIZATION) {
-            promoteToDecisionCall(hospitalization)
-            return
-        }
-
         val shouldPromote = synchronized(decisionStateLock) {
             pendingDecisionCalls[hospitalization.id] = hospitalization
             patientConditionReadyIds.contains(hospitalization.id)
@@ -628,13 +618,7 @@ class SignalRService : Service() {
     // Во входящий экран попадают только активные госпитализации без решения.
     private fun HospitalizationResponseDto.requiresIncomingDecision(): Boolean {
         val status = HospitalizationStatus.fromId(statusId)
-        val statusEligible =
-            if (ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION) {
-                status?.isActive == true
-            } else {
-                status?.allowsDecision == true
-            }
-
-        return decisionId == HospitalizationDecision.NONE.id && statusEligible
+        return decisionId == HospitalizationDecision.NONE.id &&
+            status?.isActive == true
     }
 }

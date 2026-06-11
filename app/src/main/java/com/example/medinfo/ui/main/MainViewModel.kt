@@ -65,36 +65,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Отслеживание выбранной вкладки
     private var currentTabFilter = TabFilter.ACTIVE
-
-    // Решает, какую вкладку открыть при старте: REQUIRES_DECISION если есть такие вызовы,
-    // иначе ACTIVE. Фильтрация по PATIENT_CONDITION (если включён режим) делается на сервере,
-    // поэтому достаточно проверить count в ответе.
+    // Opens the decision tab only when a patient-condition-triggered call is already queued.
     suspend fun resolveStartTab(): TabFilter {
-        if (isPatientConditionDecisionMode()) {
-            return if (CallsManager.calls.value.isNotEmpty()) {
-                TabFilter.REQUIRES_DECISION
-            } else {
-                TabFilter.ACTIVE
-            }
-        }
-
-        return try {
-            val response = withContext(Dispatchers.IO) {
-                hospitalizationRepository.getHospitalizations(
-                    pageNumber = FIRST_PAGE,
-                    pageSize = 1,
-                    getCount = true,
-                    filters = createServerFilters(TabFilter.REQUIRES_DECISION)
-                )
-            }
-
-            if ((response.content?.count ?: 0) > 0) {
-                TabFilter.REQUIRES_DECISION
-            } else {
-                TabFilter.ACTIVE
-            }
-        } catch (e: Exception) {
-            _toastMessage.emit("Не удалось проверить вызовы, требующие решения")
+        return if (CallsManager.calls.value.isNotEmpty()) {
+            TabFilter.REQUIRES_DECISION
+        } else {
             TabFilter.ACTIVE
         }
     }
@@ -105,10 +80,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             HospitalizationStatus.CREW_EN_ROUTE.id,
             HospitalizationStatus.CREW_ON_SITE.id
         )
-    }
-
-    private fun isPatientConditionDecisionMode(): Boolean {
-        return ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION
     }
 
     // Отслеживание поисковой строки
@@ -193,13 +164,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     source = "MainViewModel",
                     message = "loaded hospitalizations tab=$currentTabFilter page=$page count=${hospitalizations.size} total=${content?.count ?: "unknown"}"
                 )
-
-                if (
-                    currentTabFilter == TabFilter.REQUIRES_DECISION &&
-                    !isPatientConditionDecisionMode()
-                ) {
-                    CallsManager.syncDecisionCallsFromServer(hospitalizations)
-                }
 
                 val newCalls = hospitalizations.map { it.toUiHospitalization() }
 
@@ -301,12 +265,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val tabFilters = when (tab) {
             TabFilter.REQUIRES_DECISION ->
                 GetHospitalizationsFiltersRequestDto(
-                    statuses =
-                        if (isPatientConditionDecisionMode()) {
-                            activeStatusIds()
-                        } else {
-                            listOf(HospitalizationStatus.CONSULTATION.id)
-                        },
+                    statuses = activeStatusIds(),
                     decisions = listOf(HospitalizationDecision.NONE.id),
                     hasConsultationRequest = true
                 )
@@ -408,18 +367,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         return when (currentTabFilter) {
             TabFilter.REQUIRES_DECISION -> {
                 val status = HospitalizationStatus.fromId(details?.statusId)
-                val statusEligible =
-                    if (isPatientConditionDecisionMode()) {
-                        status?.isActive == true
-                    } else {
-                        status?.allowsDecision == true
-                    }
                 val withoutDecision = call.decisionId == HospitalizationDecision.NONE.id
 
                 withoutDecision &&
-                    statusEligible &&
-                    (!isPatientConditionDecisionMode() ||
-                        CallsManager.calls.value.any { it.id == call.id })
+                    status?.isActive == true &&
+                    CallsManager.calls.value.any { it.id == call.id }
             }
 
             TabFilter.ACTIVE -> {

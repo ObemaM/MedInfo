@@ -68,16 +68,10 @@ class ChatActivity : AppCompatActivity() {
     private val canMakeDecision: Boolean
         get() {
             val status = HospitalizationStatus.fromId(currentStatusId)
-            val statusEligible =
-                if (ConfigManager.decisionTriggerMode == ConfigManager.DecisionTriggerMode.PATIENT_CONDITION) {
-                    status?.isActive == true
-                } else {
-                    status?.allowsDecision == true
-                }
 
             return canSendMessages &&
                 currentDecision == HospitalizationDecision.NONE.id &&
-                statusEligible
+                status?.isActive == true
         }
 
     // ID уже отрисованных сообщений — для дедупа: если SignalR пушит сообщение,

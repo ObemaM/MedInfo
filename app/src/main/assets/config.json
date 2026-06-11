@@ -22,8 +22,5 @@
   "notifications": {
     "serviceNotificationId": 101,
     "serviceChannelId": "MedInfo_SignalR_Service"
-  },
-  "decisionFlow": {
-    "triggerMode": "PATIENT_CONDITION"
   }
 }
