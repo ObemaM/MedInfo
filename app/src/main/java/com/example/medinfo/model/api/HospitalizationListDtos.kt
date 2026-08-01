@@ -16,8 +16,8 @@ data class GetHospitalizationsFiltersRequestDto(
     // null — не фильтровать; true/false — только с данными о состоянии пациента / без них.
     val hasConsultationRequest: Boolean? = null,
     val patientFullName: String? = null,
-    val hospitalizationDateTimeFrom: String? = null,
-    val hospitalizationDateTimeTo: String? = null,
+    val consultationDateTimeFrom: String? = null,
+    val consultationDateTimeTo: String? = null,
     val dayNumber: Int? = null,
     val yearNumber: Int? = null
 ) : Serializable
@@ -41,6 +41,10 @@ data class HospitalizationResponseDto(
     val hospitalizationNotificationTime: String?,
     val consultationDiagnosis: String?,
     val call: CallResponseDto,
+    val reactionId: Int? = null,
+    val reactionName: String? = null,
+    val reactionTime: String? = null,
+    val hospitalizationBeginningTime: String? = null
 ) : Serializable
 
 data class CallResponseDto(

@@ -77,7 +77,7 @@
                     android:id="@+id/date_label"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Дата начала госпитализации"
+                    android:text="Дата начала консультации"
                     android:textColor="@color/gray_1"
                     android:textSize="14sp"
                     app:layout_constraintTop_toTopOf="parent" />

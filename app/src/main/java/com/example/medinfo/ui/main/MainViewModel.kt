@@ -65,6 +65,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     // Отслеживание выбранной вкладки
     private var currentTabFilter = TabFilter.ACTIVE
+
     // Opens the decision tab only when a patient-condition-triggered call is already queued.
     suspend fun resolveStartTab(): TabFilter {
         return if (CallsManager.calls.value.isNotEmpty()) {
@@ -223,7 +224,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setCustomFilters(filters: CallFilters) {
         currentFilters = filters
         _isFilterActive.value = filters.isActive()
-        // TODO: Новая спецификация поддерживает часть фильтров на сервере
         fetchCalls()
     }
 
@@ -281,14 +281,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     statuses = listOf(
                         HospitalizationStatus.COMPLETED.id,
                         HospitalizationStatus.REFERRED_TO_OTHER_LPU.id
-                    )
+                    ),
+                    hasConsultationRequest = true
                 )
         }
 
         return tabFilters.copy(
             patientFullName = currentSearchQuery.takeIf { it.isNotBlank() },
-            hospitalizationDateTimeFrom = DateFormatter.formatApiDateTime(currentFilters.dateFromMillis),
-            hospitalizationDateTimeTo = DateFormatter.formatApiDateTime(currentFilters.dateToMillis),
+            consultationDateTimeFrom = DateFormatter.formatApiDateTime(currentFilters.dateFromMillis),
+            consultationDateTimeTo = DateFormatter.formatApiDateTime(currentFilters.dateToMillis),
             dayNumber = currentFilters.dayNumber,
             yearNumber = currentFilters.yearNumber
         )
