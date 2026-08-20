@@ -12,8 +12,8 @@ android {
         applicationId = "com.example.medinfo"
         minSdk = 29
         targetSdk = 36
-        versionCode = 2
-        versionName = "0.1.3"
+        versionCode = 3
+        versionName = "0.1.4"
         setProperty("archivesBaseName", "MedInfo-v$versionName")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

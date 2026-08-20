@@ -2,7 +2,6 @@ package com.example.medinfo.notifications
 
 import android.content.Context
 import com.example.medinfo.data.manager.ChatUnreadManager
-import com.example.medinfo.data.manager.CallsManager
 import com.example.medinfo.data.manager.MessagesEventBus
 import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
@@ -10,6 +9,7 @@ import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.model.api.PatientConditionResponseDto
 import com.example.medinfo.ui.chat.ChatActivity
 import com.example.medinfo.util.AppVisibilityTracker
+import com.example.medinfo.util.ChatTitles
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
@@ -41,7 +41,7 @@ object TestMessageSimulator {
             ChatUnreadManager.markUnread(message)
         }
         MessagesEventBus.emit(message)
-        val title = buildChatTitle(hospitalizationId)
+        val title = ChatTitles.forHospitalizationId(hospitalizationId)
         ChatMessageNotifier.notifyIfNeeded(context, message, title)
     }
 
@@ -69,7 +69,7 @@ object TestMessageSimulator {
         }
         MessagesEventBus.emit(message)
 
-        val title = buildChatTitle(hospitalizationId)
+        val title = ChatTitles.forHospitalizationId(hospitalizationId)
         ChatMessageNotifier.notifyIfNeeded(context, message, title)
     }
 
@@ -118,17 +118,6 @@ object TestMessageSimulator {
             algoverIndex = 0.7,
             lams = 2
         )
-    }
-
-    private fun buildChatTitle(hospitalizationId: String): String {
-        val hospitalization = CallsManager.calls.value
-            .firstOrNull { it.id == hospitalizationId }
-        return if (hospitalization != null) {
-            val call = hospitalization.call
-            "Вызов №${call.dayNumber}/${call.yearNumber}"
-        } else {
-            "Сообщение по вызову"
-        }
     }
 
     private fun currentIsoTime(): String =

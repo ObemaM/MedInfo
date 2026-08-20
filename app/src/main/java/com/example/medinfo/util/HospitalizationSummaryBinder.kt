@@ -70,11 +70,12 @@ object HospitalizationSummaryBinder {
         val isArchive = HospitalizationStatus.fromId(hospitalization.statusId)?.isArchive == true
 
         if (isArchive) {
-            // В архиве бейдж показывает решение, а под чертой — статус госпитализации.
-            binding.statusText.text = decisionTitle(hospitalization, decision)
+            // Как в активных: цвет карточки — решение, бейдж сверху — статус госпитализации.
+            // Под чертой показываем решение по консультации.
+            binding.statusText.text = hospitalization.statusName
             binding.archiveStatusLabel.visibility = View.VISIBLE
             binding.decisionText.visibility = View.VISIBLE
-            binding.decisionText.text = hospitalization.statusName
+            binding.decisionText.text = decisionTitle(hospitalization, decision)
             return
         }
 

@@ -36,6 +36,7 @@ import com.example.medinfo.ui.incoming.IncomingCallActivity
 import com.example.medinfo.ui.incoming.IncomingCallRinger
 import com.example.medinfo.util.AppVisibilityTracker
 import com.example.medinfo.util.CallLog
+import com.example.medinfo.util.ChatTitles
 import com.microsoft.signalr.HubConnection
 import com.microsoft.signalr.HubConnectionBuilder
 import io.reactivex.rxjava3.core.Single
@@ -242,7 +243,7 @@ class SignalRService : Service() {
         // Системные уведомления для сообщений в "неоткрытых" чатах. Внутри notifier
         // сам решает, нужно ли его показывать (проверка origin/foreground/permission).
         items.forEach { message ->
-            val chatTitle = buildChatTitle(message.hospitalizationId)
+            val chatTitle = ChatTitles.forHospitalizationId(message.hospitalizationId)
             ChatMessageNotifier.notifyIfNeeded(this, message, chatTitle)
         }
 
@@ -335,16 +336,6 @@ class SignalRService : Service() {
         return MessageOrigin.fromId(origin) == MessageOrigin.TABLET &&
             MessageType.fromId(type) == MessageType.PATIENT_CONDITION &&
             patientCondition != null
-    }
-
-    private fun buildChatTitle(hospitalizationId: String): String {
-        val hospitalization = CallsManager.calls.value.firstOrNull { it.id == hospitalizationId }
-        return if (hospitalization != null) {
-            val call = hospitalization.call
-            "Вызов №${call.dayNumber}/${call.yearNumber}"
-        } else {
-            "Сообщение по вызову"
-        }
     }
 
     private fun shouldMarkChatUnread(message: MessageResponseDto): Boolean {

@@ -38,6 +38,7 @@ import com.example.medinfo.notifications.ChatMessageNotifier
 import com.example.medinfo.notifications.TestMessageSimulator
 import com.example.medinfo.ui.incoming.ConfirmAcceptDialogFragment
 import com.example.medinfo.ui.incoming.ConfirmRejectDialogFragment
+import com.example.medinfo.util.ChatTitles
 import com.example.medinfo.util.DateFormatter
 import com.google.android.material.card.MaterialCardView
 import kotlinx.coroutines.Dispatchers
@@ -102,7 +103,7 @@ class ChatActivity : AppCompatActivity() {
         readOnly = intent.getBooleanExtra(EXTRA_READ_ONLY, false)
         initHospitalizationState(intent)
 
-        binding.titleText.text = intent.getStringExtra(EXTRA_CHAT_TITLE)?.let { "Чат: $it" } ?: "Чат"
+        applyChatTitle(intent.getStringExtra(EXTRA_CHAT_TITLE))
         binding.closeButton.setOnClickListener { finish() }
         binding.callButton.setOnClickListener { callToTablet() }
         applyInteractionState()
@@ -180,9 +181,8 @@ class ChatActivity : AppCompatActivity() {
     }
 
     private fun initHospitalizationState(intent: Intent) {
-        val queuedHospitalization = CallsManager.calls.value.firstOrNull {
-            it.id == hospitalizationId
-        }
+        val queuedHospitalization = HospitalizationEventBus.latest(hospitalizationId)
+            ?: CallsManager.calls.value.firstOrNull { it.id == hospitalizationId }
 
         currentDecision = intent.getIntExtra(
             EXTRA_DECISION_ID,
@@ -201,8 +201,18 @@ class ChatActivity : AppCompatActivity() {
             val updated = updates.lastOrNull { it.id == hospitalizationId } ?: return@collect
             currentDecision = updated.decisionId
             currentStatusId = updated.statusId
+            applyChatTitle(ChatTitles.forHospitalization(updated))
             applyInteractionState()
         }
+    }
+
+    private fun applyChatTitle(intentTitle: String?) {
+        val resolved = if (ChatTitles.isUnresolved(intentTitle)) {
+            ChatTitles.forHospitalizationId(hospitalizationId)
+        } else {
+            intentTitle
+        }
+        binding.titleText.text = ChatTitles.screenTitle(resolved)
     }
 
     private fun applyInteractionState() {

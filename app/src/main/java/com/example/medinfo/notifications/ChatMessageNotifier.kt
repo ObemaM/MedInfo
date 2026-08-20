@@ -13,12 +13,14 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.medinfo.R
 import com.example.medinfo.data.manager.CallsManager
+import com.example.medinfo.data.manager.HospitalizationEventBus
 import com.example.medinfo.model.api.MessageOrigin
 import com.example.medinfo.model.api.MessageResponseDto
 import com.example.medinfo.model.api.MessageType
 import com.example.medinfo.ui.chat.ChatActivity
 import com.example.medinfo.ui.main.MainActivity
 import com.example.medinfo.util.AppVisibilityTracker
+import com.example.medinfo.util.ChatTitles
 
 // Системные уведомления для входящих сообщений чата (если чат не открыт у пользователя).
 object ChatMessageNotifier {
@@ -76,11 +78,14 @@ object ChatMessageNotifier {
         message: MessageResponseDto,
         chatTitle: String
     ): android.app.Notification {
-        val contentIntent = buildContentPendingIntent(context, message.hospitalizationId, chatTitle)
+        val resolvedTitle = ChatTitles.forHospitalizationId(message.hospitalizationId)
+            .takeUnless { ChatTitles.isUnresolved(it) }
+            ?: chatTitle
+        val contentIntent = buildContentPendingIntent(context, message.hospitalizationId, resolvedTitle)
 
         return NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(chatTitle)
+            .setContentTitle(resolvedTitle)
             .setContentText(previewFor(message))
             // BigTextStyle — длинный текст раскроется при разворачивании уведомления.
             .setStyle(NotificationCompat.BigTextStyle().bigText(previewFor(message)))
@@ -107,9 +112,8 @@ object ChatMessageNotifier {
         hospitalizationId: String,
         chatTitle: String
     ): PendingIntent {
-        val knownHospitalization = CallsManager.calls.value.firstOrNull {
-            it.id == hospitalizationId
-        }
+        val knownHospitalization = HospitalizationEventBus.latest(hospitalizationId)
+            ?: CallsManager.calls.value.firstOrNull { it.id == hospitalizationId }
         val chatIntent = Intent(context, ChatActivity::class.java).apply {
             putExtra(ChatActivity.EXTRA_HOSPITALIZATION_ID, hospitalizationId)
             putExtra(ChatActivity.EXTRA_CHAT_TITLE, chatTitle)
