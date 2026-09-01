@@ -19,9 +19,7 @@ object ConfigManager {
         val sessionPrefsName: String,
         val jwtTokenKey: String,
         val testModeDisableSignalR: Boolean,
-        // Глобальный тумблер тестового вызова: когда выключен, кнопка имитации звонка
-        // на главном экране и Doze-таймер FakeCallAlarmReceiver не работают.
-        // По умолчанию выключен — чтобы в боевой сборке нельзя было случайно дёрнуть.
+        // Сервисный режим: выключен по умолчанию и включается администратором в настройках.
         val testCallEnabled: Boolean,
         val fakeCallDelayMinutes: Int,
         val notificationIdService: Int,

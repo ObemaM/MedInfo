@@ -14,7 +14,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
-// Дев-хелпер: имитирует входящее сообщение от бригады. Безопасно удалить на проде.
+// Сервисный инструмент: имитирует входящее сообщение от бригады при включенном testCallEnabled.
 object TestMessageSimulator {
 
     fun simulateBrigadeMessage(

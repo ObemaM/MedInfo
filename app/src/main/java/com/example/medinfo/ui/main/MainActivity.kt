@@ -7,7 +7,6 @@ import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupWindow
@@ -23,8 +22,8 @@ import com.example.medinfo.data.manager.SignalRConnectionState
 import com.example.medinfo.data.manager.SignalRConnectionStatus
 import com.example.medinfo.data.signalr.SignalRService
 import com.example.medinfo.receiver.FakeCallAlarmReceiver
-import com.example.medinfo.util.TestCallFactory
 import com.example.medinfo.ui.login.LoginActivity
+import com.example.medinfo.util.TestCallFactory
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -45,7 +44,6 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.example.medinfo.databinding.ActivityMainBinding
 import com.example.medinfo.databinding.DialogUserDataBinding
-import com.example.medinfo.databinding.PopupMenuCustomBinding
 import com.example.medinfo.databinding.PopupTabMenuBinding
 import com.example.medinfo.ui.details.HospitalizationDetailsActivity
 import com.example.medinfo.util.DialogSizing
@@ -139,13 +137,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applyTestCallVisibility() {
-        val show = ConfigManager.testCallEnabled
-        binding.callButton.isVisible = show
+        binding.callButton.isVisible = ConfigManager.testCallEnabled
     }
 
     override fun onPause() {
         stopDecisionTimerUpdates()
         super.onPause()
+    }
+
+    override fun onDestroy() {
+        PermissionManager.dismissActiveDialogs()
+        super.onDestroy()
     }
 
     private fun observeViewModel() {
@@ -585,25 +587,6 @@ class MainActivity : AppCompatActivity() {
         return (value * resources.displayMetrics.density).toInt()
     }
 
-    // Вспомогательные акцентные цвета и круглый маркер. Сейчас не используются —
-    // оставлены на случай возврата цветных точек слева от пунктов popup-меню.
-    private fun getTabAccent(tabFilter: MainViewModel.TabFilter): Int {
-        return when (tabFilter) {
-            MainViewModel.TabFilter.REQUIRES_DECISION -> getColor(R.color.red_1)
-            MainViewModel.TabFilter.ACTIVE -> getColor(R.color.green_1)
-            MainViewModel.TabFilter.ARCHIVE -> getColor(R.color.main_1)
-        }
-    }
-
-    private fun createTabMarker(color: Int): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.OVAL
-            setColor(color)
-            setSize(dp(9), dp(9))
-            setBounds(0, 0, dp(9), dp(9))
-        }
-    }
-
     // Подсветка выбранного пункта popup'а должна совпадать со скруглением самой карточки
     private fun createTabItemBackground(
         tabFilter: MainViewModel.TabFilter,
@@ -638,36 +621,6 @@ class MainActivity : AppCompatActivity() {
             MainViewModel.TabFilter.ACTIVE,
             MainViewModel.TabFilter.ARCHIVE -> getColor(R.color.tab_selected_bg)
         }
-    }
-
-    // TODO: legacy — попап-меню профиля заменено прямой кнопкой выхода в шапке.
-    //  Метод и layout popup_menu_custom.xml оставлены на случай, если потребуется
-    //  вернуть пункт "Данные пользователя". Можно безопасно удалить позже.
-    @Suppress("unused")
-    private fun showProfilePopupWindow(anchor: View) {
-        val inflater = getSystemService(LAYOUT_INFLATER_SERVICE) as LayoutInflater
-        val popupBinding = PopupMenuCustomBinding.inflate(inflater)
-        val popupWindow =
-                PopupWindow(
-                        popupBinding.root,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        ViewGroup.LayoutParams.WRAP_CONTENT,
-                        true
-                )
-        popupWindow.setBackgroundDrawable(ColorDrawable(Color.TRANSPARENT))
-
-        popupBinding.userdata.setOnClickListener {
-            popupWindow.dismiss()
-            showUserDataDialog()
-        }
-
-        popupBinding.popupLogout.setOnClickListener {
-            popupWindow.dismiss()
-            ConfirmLogoutDialogFragment()
-                    .show(supportFragmentManager, ConfirmLogoutDialogFragment.TAG)
-        }
-
-        popupWindow.showAsDropDown(anchor, 0, 36)
     }
 
     private fun showUserDataDialog() {
@@ -777,15 +730,6 @@ class MainActivity : AppCompatActivity() {
         decisionTimerJob = null
     }
 
-     private fun showConfirmArchiveDialog() {
-         val dialog = ConfirmArchiveDialogFragment().apply {
-             arguments = Bundle().apply {
-                 putInt("ITEM_ID", -1)
-             }
-         }
-         dialog.show(supportFragmentManager, ConfirmArchiveDialogFragment.TAG)
-     }
-
     private fun simulateIncomingCall() {
         if (!ConfigManager.testCallEnabled) {
             Toast.makeText(
@@ -817,4 +761,5 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(this, "Ошибка теста: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
+
 }

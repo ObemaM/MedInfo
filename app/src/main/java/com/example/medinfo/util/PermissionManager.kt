@@ -24,6 +24,7 @@ object PermissionManager {
     private var delayNextBatteryOptimizationCheck = false
     private var delayedPermissionCheck: Runnable? = null
     private var delayedPermissionDialog: AlertDialog? = null
+    private var permissionDialog: AlertDialog? = null
 
     data class PermissionStatus(
         val allGranted: Boolean,
@@ -130,6 +131,11 @@ object PermissionManager {
     }
 
     fun enforcePermissions(activity: Activity, onAllGranted: (() -> Unit)? = null) {
+        if (activity.isFinishing || activity.isDestroyed) {
+            dismissActiveDialogs()
+            return
+        }
+
         if (delayedPermissionCheck != null) return
 
         if (delayNextBatteryOptimizationCheck) {
@@ -152,6 +158,7 @@ object PermissionManager {
         val status = checkAllPermissions(activity)
         
         if (status.allGranted) {
+            dismissActiveDialogs()
             onAllGranted?.invoke()
             return
         }
@@ -162,6 +169,7 @@ object PermissionManager {
     private fun showDelayedPermissionDialog(activity: Activity) {
         if (activity.isFinishing || activity.isDestroyed || delayedPermissionDialog?.isShowing == true) return
 
+        dismissPermissionDialog()
         delayedPermissionDialog = AlertDialog.Builder(activity)
             .setMessage("Проверка разрешений...")
             .setCancelable(false)
@@ -175,24 +183,48 @@ object PermissionManager {
     }
 
     private fun showPermissionDialog(activity: Activity, missingPermissions: List<MissingPermission>) {
-        if (missingPermissions.isEmpty()) return
+        if (missingPermissions.isEmpty() || activity.isFinishing || activity.isDestroyed) return
 
         val firstMissing = missingPermissions.first()
 
-        AlertDialog.Builder(activity)
+        dismissPermissionDialog()
+        permissionDialog = AlertDialog.Builder(activity)
             .setTitle(firstMissing.name)
             .setMessage("${firstMissing.description}\n\nПриложение не может работать без этого разрешения.")
             .setCancelable(false)
             .setPositiveButton("Открыть настройки") { _, _ ->
+                permissionDialog = null
                 firstMissing.settingsAction()
             }
             .setNegativeButton("Выйти из приложения") { _, _ ->
+                permissionDialog = null
                 exitApp(activity)
             }
-            .show()
+            .create()
+            .also { dialog ->
+                dialog.setOnDismissListener {
+                    if (permissionDialog === dialog) {
+                        permissionDialog = null
+                    }
+                }
+                dialog.show()
+            }
+    }
+
+    fun dismissActiveDialogs() {
+        delayedPermissionCheck?.let(mainHandler::removeCallbacks)
+        delayedPermissionCheck = null
+        dismissDelayedPermissionDialog()
+        dismissPermissionDialog()
+    }
+
+    private fun dismissPermissionDialog() {
+        permissionDialog?.dismiss()
+        permissionDialog = null
     }
 
     fun exitApp(activity: Activity) {
+        dismissActiveDialogs()
         activity.finishAffinity()
         exitProcess(0)
     }

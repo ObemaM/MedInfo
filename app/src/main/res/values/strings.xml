@@ -16,11 +16,4 @@
     <string name="login_wrong">Неверный логин или пароль</string>
     <string name="filters_name">Фильтры</string>
     <string name="in_app_call_alert_title">Новый вызов требует решения</string>
-    <string name="in_app_call_alert_action">Открыть</string>
-    <plurals name="calls_count">
-        <item quantity="one">%d вызов</item>
-        <item quantity="few">%d вызова</item>
-        <item quantity="many">%d вызовов</item>
-        <item quantity="other">%d вызова</item>
-    </plurals>
 </resources>

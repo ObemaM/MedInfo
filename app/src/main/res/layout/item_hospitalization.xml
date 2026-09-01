@@ -53,21 +53,6 @@
                 android:textStyle="bold"
                 tools:text="Неизвестно" />
 
-            <TextView
-                android:id="@+id/decision_badge_unused"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:background="@drawable/rounded_status_background"
-                android:paddingHorizontal="8dp"
-                android:paddingVertical="2dp"
-                android:textColor="@color/white_1"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:visibility="gone"
-                tools:text="Отклонена"
-                tools:visibility="visible" />
-
             </LinearLayout>
 
         </LinearLayout>

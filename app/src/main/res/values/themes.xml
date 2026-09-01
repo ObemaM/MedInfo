@@ -45,16 +45,4 @@
         <item name="android:background">@android:color/transparent</item>
     </style>
 
-    <style name="App.Custom.Indicator" parent="Widget.Material3.BottomNavigationView.ActiveIndicator">
-        <item name="android:color">@color/menu_blue_2</item>
-    </style>
-
-    <style name="CustomTabTextStyle" parent="TextAppearance.AppCompat.Button">
-        <item name="android:textSize">16sp</item> <!-- Изменения размера шрифта для нижнего меню (Активное/Архив) -->
-    </style>
-
-    <style name="CustomToolbarTitleTextStyle" parent="@style/TextAppearance.Widget.AppCompat.Toolbar.Title">
-        <item name="android:textSize">18sp</item> <!-- Изменение размера шрифта для заголовка - СПИСОК ПАЦИЕНТОВ -->
-    </style>
-
 </resources>

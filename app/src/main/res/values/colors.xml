@@ -20,8 +20,6 @@
     <color name="ic_launcher_background">#FFFFFF</color>
     <color name="green_1">#428D80</color>
     <color name="yellow_1">#DEC768</color>
-    <color name="field_label_color">#428D80</color>
-    <color name="button_background">#F5F5F5</color>
     <color name="decision_accepted_bg">#D6E8D4</color>
     <color name="decision_rejected_bg">#F5C9C6</color>
     <color name="decision_ignored_bg">#EEEEEE</color>

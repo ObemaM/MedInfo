@@ -17,8 +17,6 @@ import com.example.medinfo.util.PatientConditionFields
 
 // Диалог состояния пациента, прилетевшего вместе с сообщением чата.
 // Открывается автоматически из ChatActivity при получении PATIENT_CONDITION-сообщения.
-// За счёт того, что это DialogFragment с собственным окном, он естественно отрисуется поверх
-// уже открытого dialog_call_data, если тот будет показан в будущем.
 class MessageDataDialogFragment : DialogFragment() {
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {

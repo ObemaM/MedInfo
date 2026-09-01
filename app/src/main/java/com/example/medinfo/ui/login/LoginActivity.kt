@@ -149,6 +149,11 @@ class LoginActivity: AppCompatActivity() {
         }
     }
 
+    override fun onDestroy() {
+        PermissionManager.dismissActiveDialogs()
+        super.onDestroy()
+    }
+
     private var loginFlowStarted = false
 
     private fun proceedWithLoginFlow() {

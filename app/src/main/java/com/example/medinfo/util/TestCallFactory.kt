@@ -8,9 +8,7 @@ import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.UUID
 
-// Единый источник тестовых данных. Используется и кнопкой "Тестовый вызов" на главном
-// экране, и FakeCallAlarmReceiver (Doze-проверка). После удаления legacy CallNotificationDto
-// нет смысла держать одни и те же поля в нескольких местах.
+// Единый источник данных для сервисного тестового вызова и Doze-проверки.
 object TestCallFactory {
 
     fun buildMockHospitalization(): HospitalizationResponseDto {
